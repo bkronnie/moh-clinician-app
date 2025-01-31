@@ -1,0 +1,137 @@
+{{ define "title"}} Leave Request Entry Form {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    #leaveForm {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+    }
+
+    .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+    .data-entry-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .data-entry-row label {
+        min-width: 125px;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    .data-entry-row input {
+        margin-right: 30px;
+        margin-bottom: 10px;
+    }
+
+    h6.collapsible {
+        cursor: pointer;
+        background-color: #f1f1f1;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .hidden-content {
+        display: none;
+        margin-bottom: 10px;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital: Leave Request
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{define "content"}}
+<form id= "leaveForm" action="/employee/leave/save" method="POST">
+
+    <div class="mb-3">
+        <label for="employee_id" class="form-label">Employee ID:</label>
+        <input type="text" id="employee_id" name="employee_id" class="form-control"  required>
+    </div>
+    <div class="mb-3">
+        <label for="leave_type_id" class="form-label">Leave Type:</label>
+        <select id="leave_type_id" name="leave_type_id" class="form-select" required>
+            <option value="1">Annual Leave</option>
+            <option value="2">Sick Leave</option>
+            <option value="3">Maternity Leave</option>
+            <option value="4">Paternity Leave</option>
+            <option value="5">Bereavement Leave</option>
+            <option value="6">Unpaid Leave</option>
+            <option value="7">Study Leave</option>
+            <option value="8">Field Activities Leave</option>
+            <option value="9">Emergency Leave</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="start_date" class="form-label">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label for="end_date" class="form-label">End Date:</label>
+        <input type="date" id="end_date" name="end_date" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label for="comments" class="form-label">Comments:</label>
+        <textarea id="comments" name="comments" class="form-control" rows="4"></textarea>
+    </div>
+
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>            
+            <button type="submit" class="btn btn-primary">Submit</button>
+            
+        </div>
+    </div>
+</form>
+
+
+{{end}}
+
+{{ define "extraJS" }}
+<script>
+    // Any additional JavaScript if needed
+</script>
+{{ end }}

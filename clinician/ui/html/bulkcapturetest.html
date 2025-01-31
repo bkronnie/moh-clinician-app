@@ -1,0 +1,343 @@
+{{ define "title"}} Bulk Capture {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #loginForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       min-width: 150%;
+   }
+
+   table {
+       min-width: 50%;
+       border-collapse: collapse;
+   }
+
+   /* Reduce padding to make the table more compact */
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   /* Optional: Reduce font size to make it even more compact */
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none; /* Hide the Staff ID column */
+   }
+
+   /* Ensure the container of the table is scrollable */
+   #table-container {
+        overflow-x: auto; /* Enables horizontal scrolling */
+        white-space: nowrap; /* Prevents wrapping of table content */
+        position: relative;
+        width: 100%; /* Full width of the parent container */
+        max-height: 400px; /* Optional: limit the container's height */
+        border: 1px solid #ccc; /* Optional: visual distinction */
+    }
+
+    /* Fixed header styles */
+    table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f9f9f9; /* Same as the table's background */
+        z-index: 1; /* Ensure header stays above other elements */
+    }
+
+    /* Fixed first columns styles */
+    .fixed-column {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 2; /* Ensure fixed columns stay above other elements */
+    }
+
+    
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital - Weekly Bulk Capture.
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{define "content"}}       
+<form id="loginForm" method="post" action="/reports/zave">
+
+    <!-- Date Pickers at the Top -->
+
+    <div class="form-group row">
+        <label for="department" class="col-sm-1 col-form-label">Department</label>
+        <div class="col-sm-2">
+            <select id="department" name="EmpDepartment" class="form-control form-control-sm" required>
+                {{ range .departments }}
+                <option value="{{ .DeptID }}">{{ .DepartmentName.String }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="col-sm-2 text-center">
+            <button type="button" class="btn btn-info btn-sm" 
+                    onclick="loadDepartmentData()">Load</button>
+        </div>
+    </div>
+    <div class="form-group row"></div>
+        <div class="form-group row col-md-2">
+            <label for="start" class="col-sm-3 col-form-label">Start</label>
+            <div class="col-sm-6">
+                <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+            </div>
+        </div>
+        <div class="form-group row col-md-2">
+            <label for="stop" class="col-sm-3 col-form-label">Stop</label>
+            <div class="col-sm-6">
+                <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+            </div>
+        </div>
+    </div>
+
+    <div id="table-container"></div>
+        <!-- Table of Inputs -->
+        <table class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th class="fixed-column">SN</th>
+                    <th class="hidden">Staff ID</th>
+                    <th class="fixed-column">Staff Name</th>
+                    <th class="fixed-column">Title</th>
+                    <th class="hidden">Facility ID</th>
+                    <!--<th>Health Facility</th>-->
+                    
+                    <th class="hidden">DeptID</th>
+                                    
+                    <th class="fixed-column">Dept</th>
+                    <th>Attendance</th>
+
+                    <!-- Department-specific Headers -->
+                    {{ if .Form }}
+                        {{ range $key, $value := .Form }}
+                            {{ if eq $key 0 }}
+                                {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                    <th>Ward Rounds</th>
+                                    <th>Patients Reviewed</th>
+                                {{ end }}
+        
+                                {{ if or (eq .DeptID 3) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                    <th>Theatre Done</th>
+                                    <th>Elective Surgeries</th>
+                                    <th>Emergency Surgeries</th>
+                                {{ end }}
+        
+                                {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                    <th>Specialized Clinics</th>
+                                    <th>Gyn Patients</th>
+                                    <th>ANC Patients</th>
+                                {{ end }}
+        
+                                {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                    <th>Teaching Rounds</th>
+                                    <th>Students Taught</th>
+                                {{ end }}
+        
+                                {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                    <th>Mortality Reviews</th>
+                                    <th>Maternal</th>
+                                    <th>Perinatal</th>
+                                    <th>Surgical</th>
+                                    <th>Medical</th>
+                                    <th>paediatric</th>
+                                {{ end }}
+        
+                                {{ if eq .DeptID 5 }}
+                                    <th>Postmortems</th>
+                                {{ end }}
+        
+                                {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                    <th>Lab Requests</th>
+                                    <th>Imaging Requests</th>
+                                {{ end }}
+        
+                                {{ if eq .DeptID 8 }}
+                                    <th>Radiology Requests </th>
+                                    <th>X-Rays</th>
+                                    <th>CT Scans</th>
+                                    <th>Obstetrics Scans</th>
+                                    <th>Abdominal Scans</th>
+                                {{ end }}
+        
+                                {{ if eq .DeptID 22 }}
+                                    <th>Lab Requests</th>
+                                    <th>BS</th>
+                                    <th>HIV</th>
+                                    <th>Malaria</th>
+                                    <th>TB</th>
+                                    <th>CBC</th>
+                                    <th>Chemistry</th>
+                                    <th>Hematology</th>
+                                    <th>Urinalysis</th>
+                                    <th>Gram Stain</th>
+                                    <th>Culture</th>
+                                    <th>Microbiology</th>
+                                    <th>Sensitivity Tests</th>
+                                {{ end }}
+                            {{ end }}
+                        {{ end }}
+                    {{ end }}
+                </tr>
+            </thead>
+            <tbody>
+                {{ $index := 0 }} <!-- Initialize a counter -->
+                {{ if .Form }}
+                    {{ range $key, $value := .Form }}
+                        {{ $index = add $index 1 }} <!-- Increment the counter -->
+                        <tr>                        
+                            <td>{{ $index }}</td>
+                            <td class="hidden">{{ $value.EmpID }}</td> <!-- Hidden Staff ID -->
+                            <td>{{ $value.Fname.String }} {{ $value.Lname.String }} {{ $value.Oname.String }}</td>
+                            <td>{{ $value.EmpTitle.String }}</td>
+                            <td class="hidden">{{ $value.FacilityID }}</td> <!-- Hidden Staff ID -->
+                            <!--<td>{{ $value.FacilityName }}</td>-->
+                            <td class="hidden">{{ $value.DeptID }}</td>
+                            <td>{{ $value.DepartmentName.String }}</td>
+                            
+                            <td><input size="3" name="input[{{ $value.EmpID }}][attend]"></td>
+                            
+                            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 1) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][ward]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][patients_reviewed]"></td>
+                            {{ end }}
+
+                            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][theatre_done]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][elective_surgeries]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][emergency_surgeries]"></td>
+                            {{ end }}
+
+                            {{ if eq $value.DeptID 5 }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][postmortems]"></td>
+                            {{ end }}
+                            
+                            
+                            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 1) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][specialized_clinics]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][gyn_patients]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][anc_patients]"></td>
+                            {{ end }}
+
+                            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][teaching_rounds]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][students_taught]"></td>
+                            {{ end }}
+
+                            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][mortality_reviews]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][maternal_gyn]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][perinatal_gyn]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][surgical_surgery]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][medical_internal]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][paediatric]"></td>
+                            {{ end }}
+
+                            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][lab_requests]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][imaging_requests]"></td>
+                            {{ end }}
+
+                            {{ if eq $value.DeptID 22 }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][lab_investigations]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][bs]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][hiv]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][malaria]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][tb]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][cbc]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][chemistry]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][hematology]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][urinalysis]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][gram_stain]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][culture]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][microbiology]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][sensitivity_tests]"></td>
+                            {{ end }}
+
+                            {{ if eq .DeptID 8 }}
+                                <td><input size="3" name="input[{{ $value.EmpID }}][diagnostics]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][xrays]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][ct_scans]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][obstetrics_scans]"></td>
+                                <td><input size="3" name="input[{{ $value.EmpID }}][abdominal_scans]"></td>
+                            {{ end }}
+                        </tr>
+                    {{ end }}
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+        </div>
+    </div>
+</form>
+{{end}}
+
+{{ define "extraJS" }}
+
+<script>
+    function loadDepartmentData() {
+        const departmentSelect = document.getElementById("department");
+        const departmentID = departmentSelect.value;
+        const startDate = document.getElementById("start").value;
+        const stopDate = document.getElementById("stop").value;
+
+        // Construct the URL with department ID, start date, and stop date
+        const url = `/reports/entry?deptID=${departmentID}`;
+        //const url = `/reports/entry?deptID=${departmentID}&reporting_week_start=${startDate}&reporting_week_end=${stopDate}`;
+        
+        
+        // Navigate to the URL
+        window.location.href = url;
+    }
+</script>
+{{ end }}

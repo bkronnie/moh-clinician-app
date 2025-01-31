@@ -1,0 +1,218 @@
+{{ define "title"}} Weekly Report Submission Listing {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #loginForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   table {
+       width: 100%;
+   }
+
+   /* Reduce padding to make the table more compact */
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   /* Optional: Reduce font size to make it even more compact */
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none; /* Hide the Staff ID column */
+   }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+    Clinician Output Dashboard: Weekly Report Submission Listing
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{define "content"}}       
+<form id="loginForm" method="post" action="/reports/zave">
+
+    
+    
+    <!-- Date Pickers at the Top -->
+    <div class="form-group row">
+        <div class="form-group row col-md-6">
+            <label for="start" class="col-sm-3 col-form-label">Start</label>
+            <div class="col-sm-6">
+                <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+            </div>
+        </div>
+        <div class="form-group row col-md-6">
+            <label for="stop" class="col-sm-3 col-form-label">Stop</label>
+            <div class="col-sm-6">
+                <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table of Inputs -->
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>SN</th>
+                <th class="hidden">Staff ID</th>
+                <th>Staff Name</th>
+                <th>Title</th>
+                <th class="hidden">Facility ID</th>
+                <th>Health Facility</th>
+                <th>Department ID</th>
+                <th>Department</th>
+                <th>Attendance</th>
+                <th>Ward Rounds</th>
+                <th>Patients Reviewed</th>
+                <th>Theatre Done</th>
+                <th>Elective Surgeries</th>
+                <th>Emergency Surgeries</th>
+                <th>Specialized Clinics</th>
+                <th>Gyn Patients</th>
+                <th>ANC Patients</th>
+                <th>Teaching Rounds</th>
+                <th>Students Taught</th>
+                <th>Mortality Reviews</th>
+                <th>Maternal-Gyn</th>
+                <th>Perinatal-Gyn</th>
+                <th>Surgical-Surgery</th>
+                <th>Medical-Internal Medicine</th>
+                <th>Postmortems</th>
+                <th>Lab Requests</th>
+                <th>Imaging Requests</th>
+                <th>Diagnostics Tests</th>
+                <th>X-Rays</th>
+                <th>CT Scans</th>
+                <th>Obstetrics Scans</th>
+                <th>Abdominal Scans</th>
+                <th>Lab Investigations</th>
+                <th>BS</th>
+                <th>HIV</th>
+                <th>Malaria</th>
+                <th>TB</th>
+                <th>CBC</th>
+                <th>Chemistry</th>
+                <th>Hematology</th>
+                <th>Urinalysis</th>
+                <th>Gram Stain</th>
+                <th>Culture</th>
+                <th>Microbiology</th>
+                <th>Sensitivity Tests</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ $index := 0 }} <!-- Initialize a counter -->
+            {{ if .Form }}
+                {{ range $key, $value := .Form }}
+                    {{ $index = add $index 1 }} <!-- Increment the counter -->
+                    <tr>
+                        <td>{{ $index }}</td>
+                        <td class="hidden">{{ $value.EmpID }}</td> <!-- Hidden Staff ID -->
+                        <td>{{ $value.Fname.String }} {{ $value.Lname.String }} {{ $value.Oname.String }}</td>
+                        <td>{{ $value.EmpTitle.String }}</td>
+                        <td class="hidden">{{ $value.FacilityID }}</td> <!-- Hidden Staff ID -->
+                        <td>{{ $value.FacilityName }}</td>
+                        <td>{{ $value.DeptID }}</td> <!-- Hidden Staff ID -->
+                        <td>{{ $value.DepartmentName.String }}</td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][attend]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][ward]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][patients_reviewed]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][theatre_done]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][elective_surgeries]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][emergency_surgeries]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][specialized_clinics]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][gyn_patients]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][anc_patients]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][teaching_rounds]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][students_taught]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][mortality_reviews]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][maternal_gyn]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][perinatal_gyn]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][surgical_surgery]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][medical_internal]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][postmortems]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][lab_requests]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][imaging_requests]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][diagnostics]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][xrays]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][ct_scans]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][obstetrics_scans]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][abdominal_scans]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][lab_investigations]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][bs]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][hiv]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][malaria]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][tb]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][cbc]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][chemistry]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][hematology]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][urinalysis]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][gram_stain]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][culture]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][microbiology]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][sensitivity_tests]"></td>
+                    </tr>
+                {{ end }}
+            {{ end }}
+        </tbody>
+    </table>
+
+    <!-- Save Button at the Bottom -->
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <button type="submit" class="btn btn-success btn-sm">Save</button>
+            <a href="/" class="btn btn-primary">Back</a>
+        </div>
+    </div>
+
+</form>
+{{ end }}
+
+{{ define "extraJS" }}
+{{ end }}

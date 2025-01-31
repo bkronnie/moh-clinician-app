@@ -1,0 +1,324 @@
+{{ define "title"}} Bulk Capture {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #viewReportForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   table {
+       min-width: 50%;
+       border-collapse: collapse;
+   }
+
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none;
+   }
+
+   #table-container {
+        overflow: auto;
+        white-space: nowrap;
+        position: relative;
+        width: 100%;
+        max-height: 400px;
+        border: 1px solid #ccc;
+    }
+
+    /*table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f9f9f9;
+        z-index: 2;
+    }*/
+
+    .fixed-column {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 2;
+    }
+
+    /* Ensure word wrap for table headers */
+    #staffTable thead th {
+        word-wrap: break-word;
+        position: sticky;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   table th, table td {
+        white-space: normal; /* Allow text to wrap */
+        word-wrap: break-word; /* Enable word breaking */
+        overflow-wrap: break-word; /* For better browser support */
+        text-align: center; /* Optional: Align text to the center */
+    }
+
+    /* Added styles for rows */
+   .data-entry-row {
+       display: flex;
+       flex-wrap: wrap;
+       margin-bottom: 10px;
+   }
+
+   .data-entry-row label {
+       min-width: 100px;
+       font-weight: bold;
+       margin-right: 5px;
+   }
+
+   .data-entry-row input {
+       margin-right: 30px;
+       margin-bottom: 10px;
+   }
+
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital: Staff Data.
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<form id="viewReportForm" method="post" action="/reports/update">
+    <div id="table-container">
+        <table id="staffTable" class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr id="dynamicHeaders">
+                    <th class="fixed-column">SN</th>
+                    <th>ReportID</th>
+                    <th class="hidden">Staff ID</th>
+                    <th>Staff Name</th>
+                    <th>Title</th>
+                    <th class="hidden">Facility ID</th>
+                    <th class="hidden">Health Facility</th>
+                    <th class="hidden">Department ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically populated -->
+            </tbody>
+        </table>
+    </div><br>
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+            <button id="editButton" type="button" class="btn btn-primary btn-sm" onclick="toggleEditable()">Edit</button>
+        </div>
+    </div>
+</form>
+{{end}}
+
+{{ define "extraJS" }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    function getReportIDFromPath() {
+        const pathSegments = window.location.pathname.split('/');
+        // Assuming the reportID is always the last segment after "/reports/view/"
+        return pathSegments[pathSegments.length - 1];
+    }
+
+    function getQueryParam(param) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param);
+    }
+
+    function toggleEditable() {
+        const editButton = document.getElementById('editButton');
+        const submitButton = document.querySelector('button[type="submit"]');
+        const tableInputs = document.querySelectorAll('#staffTable input');
+
+        if (editButton.innerText === 'Edit') {
+            // Switch to edit mode
+            editButton.innerText = 'Cancel';
+            submitButton.style.display = 'none'; // Hide Submit button when editing
+            // Show Update button
+            const updateButton = document.createElement('button');
+            updateButton.innerText = 'Update';
+            updateButton.className = 'btn btn-warning btn-sm';
+            updateButton.type = 'button';
+            updateButton.onclick = function() { saveChanges(); };
+            editButton.parentNode.appendChild(updateButton);
+            
+            // Enable inputs for editing
+            tableInputs.forEach(input => input.removeAttribute('readonly'));
+        } else {
+            // Cancel changes
+            editButton.innerText = 'Edit';
+            submitButton.style.display = 'inline'; // Show Submit button after canceling
+            // Remove Update button
+            const updateButton = document.querySelector('button.btn-warning');
+            if (updateButton) {
+                updateButton.remove();
+            }
+            
+            // Revert inputs to original values and make them readonly
+            tableInputs.forEach(input => {
+                input.value = input.getAttribute('data-original');
+                input.setAttribute('readonly', 'readonly');
+            });
+        }
+    }
+
+    function saveChanges() {
+        const tableInputs = document.querySelectorAll('#staffTable input');
+        tableInputs.forEach(input => {
+            // Store the original value to preserve it
+            input.setAttribute('data-original', input.value);
+            input.setAttribute('readonly', 'readonly');
+        });
+        // Change button back to "Edit" after saving changes
+        const editButton = document.getElementById('editButton');
+        editButton.innerText = 'Edit';
+        const submitButton = document.querySelector('button[type="submit"]');
+        submitButton.style.display = 'inline'; // Show Submit button after saving changes
+        const updateButton = document.querySelector('button.btn-warning');
+        if (updateButton) {
+            updateButton.remove();
+        }
+    }
+
+    $(document).ready(function() {
+        const empID = Number(getQueryParam('empID')); // Fetch EmpID from the URL
+
+        if (!empID) {
+            alert("EmpID is missing in the URL. Please check.");
+            return;
+        }
+
+        const reportID = getReportIDFromPath(); // Extract reportID from the URL
+        const departmentID = getQueryParam('department'); // Fetch departmentID from URL
+
+        $.ajax({
+            url: `/reports/view/json?id=${reportID}&department=${departmentID}&empID=${empID}`, // Updated URL to include EmpID
+            method: 'GET',
+            success: function(response) {
+                console.log("Received data:", response); // Log the full response object
+
+                const { staff, dataPoints } = response;
+
+                if (!staff || staff.length === 0) {
+                    $('#staffTable tbody').html('<tr><td colspan="5" class="text-center">No records found.</td></tr>');
+                    return;
+                }
+
+                // Parse dataPoints if it is a JSON string
+                let parsedDataPoints = [];
+                if (typeof dataPoints[0] === 'string') {
+                    parsedDataPoints = JSON.parse(dataPoints[0]);
+                } else {
+                    parsedDataPoints = dataPoints;
+                }
+
+                const formattedPoints = parsedDataPoints.map(dp => dp.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' '));
+
+                // Generate dynamic table headers
+                let headers = `
+                        <th class="fixed-column" rowspan="2">SN</th>
+                        <th class="fixed-column" rowspan="2">ReportID</th>
+                        <th class="hidden">Staff ID</th>
+                        <th>Staff Name</th>
+                        <th>Title</th>
+                        <th class="hidden">Facility ID</th>
+                        <th class="hidden">Health Facility</th>
+                        <th class="hidden">Department ID</th>                                              
+                    `;
+                formattedPoints.forEach(dp => headers += `<th>${dp}</th>`);
+                $('#dynamicHeaders').html(headers);
+
+                // Generate table rows dynamically for the given EmpID
+                let rows = '';
+                staff.forEach((s, i) => {
+                    if (s.EmpID === empID) { // Only include rows for the specific EmpID
+                        rows += `
+                            <tr><td>${i + 1}</td>
+                            <td>
+                                <input size="3" name="input[${s.EmpID}][reportID]" value="${s.ID}" class="form-control" readonly />
+                            </td>`;
+                        // Generate input fields for each data point
+                        parsedDataPoints.forEach(dp => {
+                            rows += `
+                                <td>
+                                    <input size="3" name="input[${s.EmpID}][${dp}]" 
+                                        value="${s[dp] || ''}" 
+                                        class="form-control" readonly />
+                                </td>`;
+                        });
+                        rows += '</tr>';
+                    }
+                });
+
+                if (rows === '') {
+                    rows = '<tr><td colspan="5" class="text-center">No data available for this EmpID.</td></tr>';
+                }
+
+                $('#staffTable tbody').html(rows);
+            },
+            error: function(err) {
+                console.error("Error fetching data:", err);
+            }
+        });
+    });
+</script>
+{{ end }}

@@ -1,0 +1,2 @@
+ERROR 2024/10/15 16:35:27 utilities.go:33: pq: SSL is not enabled on the server Cannot reach db
+ERROR 2024/10/15 16:35:27 utilities.go:33: Failed to open database

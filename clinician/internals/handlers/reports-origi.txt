@@ -1,0 +1,411 @@
+package handlers
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/alexedwards/scs/v2"
+	"github.com/gin-gonic/gin"
+	"github.com/moh/clinician/internals/models"
+	"github.com/moh/clinician/internals/utilities"
+)
+
+func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Get session-specific data (e.g., user ID)
+	sessionData := Get_Session_Data(c, db, sessionManager, nil)
+	log.Printf("Session Data SingleEntryForm: %+v", sessionData)
+
+	var zdata any
+	idStr := c.Param("id")
+
+	// Convert the 'id' to an integer
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		id = 0
+	}
+
+	if id > 0 {
+		zdata = nil
+	} else {
+		dt, er := models.WeeklyreportByID(c, db, id)
+		if er == nil {
+			zdata = dt
+		} else {
+			zdata = nil
+		}
+	}
+
+	// Get session data from the database or session manager
+	data := Get_Session_Data(c, db, sessionManager, zdata)
+	utilities.GenerateHTML(c, data, "base", "singleentryform")
+}
+
+/*
+func SingleEntryList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+
+}*/
+
+func HandlerReportSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	/*
+		start := c.PostForm("start")
+		stop := c.PostForm("stop")
+		qn_01 := c.PostForm("qn_01")
+		qn_02 := c.PostForm("qn_02")
+		qn_03 := c.PostForm("qn_03")
+		qn_04 := c.PostForm("qn_04")
+		qn_05 := c.PostForm("qn_05")
+		qn_06 := c.PostForm("qn_06")
+		qn_07 := c.PostForm("qn_07")
+		comments := c.PostForm("comments")
+	*/
+}
+
+// Handler to save BulkCapture
+func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Parse the start and stop dates from the form
+	start := c.PostForm("start")
+	stop := c.PostForm("stop")
+
+	// Retrieve individual form fields into a slice of WeeklyReportExtended
+	var reports []models.WeeklyReportExtended
+
+	// Assume you have a list of employee IDs to loop through
+	for empID := range c.PostFormMap("input") {
+		// Create a new WeeklyReportExtended instance for each employee
+		report := models.WeeklyReportExtended{
+			Start:          sql.NullTime{Time: parseDate(start), Valid: true},
+			Stop:           sql.NullTime{Time: parseDate(stop), Valid: true},
+			Emp:            sql.NullInt64{Int64: empIDToInt(empID), Valid: true}, // Convert empID from string to int64
+			Qn01:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][attend]")), Valid: true},
+			Qn02:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ward]")), Valid: true},
+			Qn03:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][surgeries]")), Valid: true},
+			Qn04:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][minor]")), Valid: true},
+			Qn05:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][opd]")), Valid: true},
+			Qn06:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][xray]")), Valid: true},
+			Qn07:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ct]")), Valid: true},
+			EntryCreatedOn: sql.NullTime{Time: time.Now(), Valid: true}, // Set created on time
+		}
+		// Append the report to the slice
+		reports = append(reports, report)
+	}
+
+	// Insert each report into the database
+	for _, report := range reports {
+		if err := report.InsertNewRecord(c.Request.Context(), db); err != nil {
+			// Handle error (you might want to log it and return a proper response)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save report"})
+			return
+		}
+	}
+
+	//redirect to report submissions
+	c.Redirect(http.StatusFound, "/reports/submissions")
+
+	// Return a success response
+	//c.JSON(http.StatusOK, gin.H{"message": "Reports saved successfully"})
+}
+
+// Helper function to parse date
+func parseDate(dateStr string) time.Time {
+	// Implement parsing logic here (e.g., using time.Parse)
+	parsedTime, _ := time.Parse("2006-01-02", dateStr)
+	return parsedTime
+}
+
+// Helper function to convert empID from string to int64
+func empIDToInt(empID string) int64 {
+	id, _ := strconv.ParseInt(empID, 10, 64)
+	return id
+}
+
+// Helper function to parse an integer from string
+func parseInt(val string) int64 {
+	result, _ := strconv.ParseInt(val, 10, 64)
+	return result
+}
+
+func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Get session-specific data (e.g., user ID and HFID)
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	// Now access the SessionDetails from the TemplateData
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	log.Printf("Session Data HandlerReportFacilities: %+v", sesDetails)
+
+	// Retrieve reporting week parameters from the request
+	reportingWeekStart := c.Query("reporting_week_start")
+	reportingWeekEnd := c.Query("reporting_week_end")
+
+	hospitalID := sesDetails.HFID // Retrieve HFID from the session
+	log.Printf("Hospital ID value from session: %+d", hospitalID)
+
+	// Fetch distinct staff members using the new DistinctEmployeeListForCapture function
+	staffList, err := models.WeeklyBulkCapture(c.Request.Context(), db, hospitalID, 0, reportingWeekStart, reportingWeekEnd)
+	if err != nil {
+		staffList = nil
+	}
+
+	// Variable to hold the staff data for the template
+	var zdata any
+
+	if err == nil {
+		zdata = staffList // Pass the staff data (staffList) to zdata
+	} else {
+		zdata = nil // In case of error, pass nil
+	}
+
+	// Get the session data and pass the staff data (zdata) to the template
+	data := Get_Session_Data(c, db, sessionManager, zdata)
+
+	// Render the template with the staff data
+	utilities.GenerateHTML(c, data, "base", "bulkcapturelist")
+}
+
+// Handler to generate capture form to collect data
+func HandlerBulkCaptureForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Get session-specific data (e.g., user ID and HFID)
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	// Now access the SessionDetails from the TemplateData
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	log.Printf("Session Data HandlerReportFacilities: %+v", sesDetails)
+
+	// Retrieve reporting week parameters from the request
+	reportingWeekStart := c.Query("reporting_week_start")
+	reportingWeekEnd := c.Query("reporting_week_end")
+
+	// Parse empID from URL
+	empIDStr := c.Query("empID")
+	log.Printf("Hospital ID value from session: %s", empIDStr)
+	empID, err := strconv.ParseInt(empIDStr, 10, 64)
+	if err != nil {
+		log.Printf("Invalid empID: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid empID"})
+		return
+	}
+
+	hospitalID := sesDetails.HFID // Retrieve HFID from the session
+	log.Printf("Hospital ID value from session: %d", hospitalID)
+
+	// Fetch distinct staff members using the new DistinctEmployeeListForCapture function
+	staffList, err := models.WeeklyBulkCapture(c.Request.Context(), db, hospitalID, empID, reportingWeekStart, reportingWeekEnd)
+	if err != nil {
+		staffList = nil
+	}
+
+	// Variable to hold the staff data for the template
+	var zdata any
+
+	if err == nil {
+		zdata = staffList // Pass the staff data (staffList) to zdata
+	} else {
+		zdata = nil // In case of error, pass nil
+	}
+
+	// Get the session data and pass the staff data (zdata) to the template
+	data := Get_Session_Data(c, db, sessionManager, zdata)
+
+	// Render the template with the staff data
+	utilities.GenerateHTML(c, data, "base", "bulkcaptureform")
+}
+
+// Handler to view submitted reports for approval by facility
+func HandlerReportFacilities(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Get session-specific data (e.g., user ID and HFID)
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	// Now access the SessionDetails from the TemplateData
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	log.Printf("Session Data HandlerReportFacilities: %+v", sesDetails)
+
+	var zdata any
+	hospitalID := sesDetails.HFID // Retrieve HFID from the session
+	log.Printf("Hospital ID value from session: %+d", hospitalID)
+
+	// Pass the hospitalID to the query
+	dts, er := models.WeeklyReportFacilities(c, db, hospitalID)
+	if er == nil {
+		zdata = dts
+	} else {
+		zdata = nil
+	}
+
+	// Use the TemplateData for rendering
+	data := Get_Session_Data(c, db, sessionManager, zdata)
+	utilities.GenerateHTML(c, data, "base", "submissions")
+}
+
+// Handler to call WeeklyreportList() fxn to filter and populate table based on facility id and start date of report.
+func HandlerReportList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	var zdata any
+
+	// Retrieve facility ID from the path parameter and start date from the query parameter
+	facility := c.Param("facility")
+	start := c.Query("start")
+
+	// Log for debugging purposes
+	log.Printf("Filtering by Facility ID: %s, Start Date: %s", facility, start)
+
+	// Call WeeklyreportList with the filtering parameters
+	dts, err := models.WeeklyreportList(c.Request.Context(), db, facility, start, "", 0, 0)
+	if err == nil {
+		zdata = dts
+	} else {
+		zdata = nil
+	}
+
+	// Pass filtered data to the HTML template
+	data := Get_Session_Data(c, db, sessionManager, zdata)
+	utilities.GenerateHTML(c, data, "base", "reports")
+}
+
+func HandlerReportView(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	data := Get_Session_Data(c, db, sessionManager, nil)
+	utilities.GenerateHTML(c, data, "base", "viewreport")
+}
+
+func HandlerReportRem(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+
+}
+
+func HandlerReportExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+
+}
+
+// Handler to update edited entries in the bulk capture report submission list
+func HandlerReportEntryUpdate(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Parse the start and stop dates from the form
+	// start := c.PostForm("start")
+	// stop := c.PostForm("stop")
+
+	// Retrieve individual form fields into a slice of WeeklyReportExtended
+	var reports []models.WeeklyReportExtended
+
+	// Assume you have a list of employee IDs to loop through
+	for empID := range c.PostFormMap("input") {
+		// Fetch the report ID for this employee directly from the form
+		reportIDStr := c.PostForm(fmt.Sprintf("input[%s][reportID]", empID))
+		reportID := parseInt(reportIDStr) // Parse reportID from string to int64
+
+		// Create a new WeeklyReportExtended instance and populate fields from the form
+		weeklyReport := models.WeeklyReportExtended{
+			ID: int(reportID), // Use report ID
+			// Start:          sql.NullTime{Time: parseDate(start), Valid: true},
+			// Stop:           sql.NullTime{Time: parseDate(stop), Valid: true},
+			Emp:            sql.NullInt64{Int64: empIDToInt(empID), Valid: true},
+			Qn01:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][attend]")), Valid: true},
+			Qn02:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ward]")), Valid: true},
+			Qn03:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][surgeries]")), Valid: true},
+			Qn04:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][minor]")), Valid: true},
+			Qn05:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][opd]")), Valid: true},
+			Qn06:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][xray]")), Valid: true},
+			Qn07:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ct]")), Valid: true},
+			EntryCreatedOn: sql.NullTime{Time: time.Now(), Valid: true}, // Set updated time
+		}
+
+		// Append the report to the slice
+		reports = append(reports, weeklyReport)
+	}
+
+	// Update each report in the database
+	// Update each report in the database
+	for _, report := range reports {
+		// Log the report details for debugging
+		/*
+			log.Printf("Updating report: ID=%d, EmpID=%d, Qn01=%d, Qn02=%d, Qn03=%d, Qn04=%d, Qn05=%d, Qn06=%d, Qn07=%d, EntryCreatedOn=%v",
+				report.ID,
+				report.Emp.Int64,
+				report.Qn01.Int64,
+				report.Qn02.Int64,
+				report.Qn03.Int64,
+				report.Qn04.Int64,
+				report.Qn05.Int64,
+				report.Qn06.Int64,
+				report.Qn07.Int64,
+				report.EntryCreatedOn.Time,
+			)
+		*/
+
+		if err := report.Updatez(c.Request.Context(), db); err != nil {
+			// Handle error (you might want to log it and return a proper response)
+			log.Printf("Error updating report for employee %d: %v", report.Emp.Int64, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update report"})
+			return
+		}
+	}
+
+	// Reload the same URL with the original query parameters
+	redirectURL := c.Request.Referer()
+	if redirectURL == "" {
+		// Fallback to a default URL if referer is not available
+		redirectURL = "/reports/list"
+	}
+
+	// Redirect back to the referring URL to refresh the page
+	c.Redirect(http.StatusFound, redirectURL)
+
+	// Return a success response
+	// c.JSON(http.StatusOK, gin.H{"message": "Reports updated successfully"})
+}
+
+// Handler to approve weekly report entries.
+func HandlerReportApprove(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	// Define a structure to parse the incoming JSON payload
+	var requestBody struct {
+		ReportIDs []int `json:"reportIDs"`
+	}
+
+	// Parse JSON body into requestBody
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		log.Printf("Error parsing request body: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Call ApproveAll to update all entries with the provided IDs
+	if err := models.ApproveAll(db, requestBody.ReportIDs); err != nil {
+		log.Printf("Error updating reports: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve reports"})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{"message": "All reports approved successfully"})
+}

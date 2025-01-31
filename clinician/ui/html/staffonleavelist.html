@@ -1,0 +1,109 @@
+{{ define "title" }} Employee List {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    #leaveTable {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+        border: 2px solid #ccc;
+    }
+    table.table th, table.table td {
+        padding: 0.5rem;
+    }
+    table.table {
+        font-size: 0.875rem;
+        width: 100%;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+    {{ .Ses.HFName }} Hospital - Staff on Leave
+{{ end }}
+
+{{ define "content" }}
+<form id="leaveTable" method="post" action="/employees">
+
+    <div class="d-flex justify-content-between mb-3">
+        <div>
+            <!--<a href="/employee/new/" class="btn btn-primary">New Employee</a>-->
+            <a href="/employee/leave/form" class="btn btn-secondary">Leave Form</a>
+        </div>
+        <div>
+            <a href="/employee/list" class="btn btn-success">Refresh</a>
+            <a href="/reports/export" class="btn btn-warning">Export</a>
+            <!--<a href="/" class="btn btn-primary">Back</a>-->
+        </div>
+    </div>
+
+    <!-- Employee Table -->
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>SN</th>
+                <th>Staff Name</th>
+                <th>Title</th>
+                <!--<th>Specialization</th>-->
+                <th>Department</th>
+                <th>Leave Status</th>
+                <!--<th>Created By</th>-->
+                <!--<th>Created On</th>-->
+                <th>Returning</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ $index := 0 }} <!-- Initialize a counter -->
+            {{ if .Form }}
+                {{ range $key, $employee := .Form }}
+                    {{ $index = add $index 1 }} <!-- Increment the counter -->
+                        <tr>
+                            <td>{{ $index }}</td>
+                            <td>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</td>
+                            <td>{{ $employee.EmpTitle.String }}</td>
+                            <!--<td>{{ $employee.Specialisation.String }}</td>-->
+                            <td>{{ $employee.EmpDepartmentName.String }}</td>
+                            <td>{{ $employee.LeaveStatus.String }}</td>
+                            <td>{{ formatDate $employee.ReturnDate.Time "2 Jan 06" }}</td>
+
+                            <!--<td>{{ $employee.CreatedBy.Int64 }}</td>-->
+                            <!--<td>{{ formatDate $employee.CreatedOn.Time "2 Jan 06" }}</td>-->
+                            <td>
+                                <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-info btn-sm">Leave History</a>
+                                <!--<a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-info btn-sm">Update Record</a>-->
+                                <!-- Add other actions as needed -->
+                            </td>
+                        </tr>
+                {{ end }}
+            {{ else }}
+                <tr>
+                    <td colspan="10" class="text-center">No employees found.</td>
+                </tr>
+            {{ end }}
+        </tbody>
+    </table>
+
+    <!-- Refresh Button at the Bottom -->
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <!--<a href="/" class="btn btn-secondary btn-sm">Back</a>-->
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.location.reload();">Refresh</button>
+        </div>
+    </div>
+</form>
+{{ end }}
+
+{{ define "extraJS" }}
+<script>
+    // Any additional JavaScript if needed
+</script>
+{{ end }}

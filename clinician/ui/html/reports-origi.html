@@ -1,0 +1,231 @@
+{{ define "title"}} Weekly Report Submission Listing {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    .form-inline .form-group label {
+        margin-right: 5px;
+    }
+
+    #loginForm {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+    }
+
+    table {
+        width: 100%;
+    }
+
+    table.table th, 
+    table.table td {
+        padding: 0.5rem;
+    }
+
+    table.table {
+        font-size: 0.875rem;
+    }
+
+    .hidden {
+        display: none; /* Hide the Staff ID column */
+    }
+
+    .disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+        pointer-events: none;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+    Clinician Output Dashboard: Weekly Report Submission Listing
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{define "content"}}       
+<form id="loginForm" method="post" action="/reports/update">
+    
+    <div class="d-flex justify-content-between mb-3">
+        <div>
+            <!--<a href="/reports/new/0" class="btn btn-primary">Add mine</a>-->
+            <a href="/reports/bulk" class="btn btn-secondary">Add bulk</a>
+        </div>
+        <div>
+            <a href="/reports/list" class="btn btn-success">Refresh</a>
+            <a href="/reports/export" class="btn btn-warning">Export</a>
+            <a href="/" class="btn btn-primary">Back</a>
+            <button type="button" id="approveAllButton" onclick="approveAll()" class="btn btn-info">Approve All</button>
+        </div>
+    </div>
+
+    
+    
+
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>SN</th>
+                <th class="hidden">Report ID</th>
+                <th class="hidden">Staff ID</th>
+                <th>Staff Name</th>
+                <th class="hidden">Facility ID</th>
+                <th>Health Facility</th>
+                <th>Department</th>
+                <th>Attendance</th>
+                <th>Ward Rounds</th>
+                <th>Surgeries</th>
+                <th>Minor Surgeries</th>
+                <th>OPD Patients Seen</th>
+                <th>X-Ray readings</th>
+                <th>CT scan readings</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ $index := 0 }} 
+            {{ if .Form }}
+                {{ range $key, $value := .Form }}
+                    {{ $index = add $index 1 }}
+                    <tr>
+                        <td>{{ $index }}</td>
+                        <td class="hidden">
+                            <input name="input[{{ $value.EmpID }}][reportID]" value="{{ $value.ID }}" class="report-id" readonly>
+                        </td>
+                        <td class="hidden">{{ $value.EmpID }}</td>
+                        <td>{{ $value.Fname.String }} {{ $value.Lname.String }} {{ $value.Oname.String }}</td>
+                        <td class="hidden">{{ $value.Hospital.Int64 }}</td>
+                        <td>{{ $value.FacilityName }}</td>
+                        <td>{{ $value.DepartmentName.String }}</td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][attend]" value="{{ if $value.Qn01.Valid }}{{ $value.Qn01.Int64 }}{{ end }}" readonly></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][ward]" value="{{ if $value.Qn02.Valid }}{{ $value.Qn02.Int64 }}{{ end }}" readonly></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][surgeries]" value="{{ if $value.Qn03.Valid }}{{ $value.Qn03.Int64 }}{{ end }}" readonly></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][minor]" value="{{ if $value.Qn04.Valid }}{{ $value.Qn04.Int64 }}{{ end }}" readonly></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][opd]" value="{{ if $value.Qn05.Valid }}{{ $value.Qn05.Int64 }}{{ end }}" readonly></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][xray]" value="{{ if $value.Qn06.Valid }}{{ $value.Qn06.Int64 }}{{ end }}" readonly></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][ct]" value="{{ if $value.Qn07.Valid }}{{ $value.Qn07.Int64 }}{{ end }}" readonly></td>
+                        <td>
+                            {{ if eq $value.RecordStatus "approved" }}
+                                <span>Approved</span>
+                            {{ else }}
+                                <a href="/reports/new/{{ $value.ID }}" class="btn btn-sm btn-warning" onclick="makeEditable(event)">Edit</a>
+                                <a href="/reports/rem/{{ $value.ID }}" class="btn btn-sm btn-danger">Delete</a>
+                            {{ end }}
+                        </td>
+                    </tr>
+                {{ end }}
+            {{ end }}
+        </tbody>
+    </table>
+
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="/reports/submissions" class="btn btn-secondary btn-sm">Back</a>
+            <button type="submit" id="updateButton" class="btn btn-success btn-sm">Update</button>
+        </div>
+    </div>
+
+</form>
+
+<script>
+    function makeEditable(event) {
+        event.preventDefault();
+        const row = event.target.closest('tr');
+        const inputs = row.querySelectorAll('input');
+
+        if (event.target.textContent.trim() === "Edit") {
+            inputs.forEach(input => {
+                input.dataset.originalValue = input.value;
+                input.removeAttribute('readonly');
+            });
+            event.target.textContent = "Cancel";
+            event.target.classList.replace("btn-warning", "btn-secondary");
+        } else {
+            inputs.forEach(input => {
+                input.value = input.dataset.originalValue;
+                input.setAttribute('readonly', true);
+            });
+            event.target.textContent = "Edit";
+            event.target.classList.replace("btn-secondary", "btn-warning");
+        }
+    }
+
+    function approveAll() {
+        const reportIDs = Array.from(document.querySelectorAll('.report-id'))
+            .map(input => parseInt(input.value, 10));
+        
+        fetch('/reports/approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ reportIDs: Array.isArray(reportIDs) ? reportIDs : [reportIDs] })
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('All reports approved successfully!');
+                location.reload();
+            } else {
+                alert('Failed to approve reports.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error approving reports.');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const allApproved = Array.from(document.querySelectorAll('td:nth-child(15) span, td:nth-child(15) a'))
+            .every(cell => cell.textContent.trim() === "Approved" || cell.classList.contains('disabled'));
+
+        const updateButton = document.getElementById('updateButton');
+        const approveAllButton = document.getElementById('approveAllButton');
+
+        if (allApproved) {
+            updateButton.classList.add('hidden');
+            approveAllButton.classList.add('disabled');
+        }
+    });
+</script>
+
+{{ end }}
+
+
+{{ define "extraJS" }}
+{{ end }}

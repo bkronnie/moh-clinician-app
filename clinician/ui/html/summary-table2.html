@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Report Summary</title>
+    <link rel="stylesheet" href="/static/styles.css"> <!-- Update the path to your CSS -->
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .div1 {
+            margin: 20px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="div1">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Title</th>
+                    <th>Facility</th>
+                    <th>Days Worked</th>
+                    <th>Ward Rounds</th>
+                    <th>Surgeries</th>
+                    <th>Specialized Clinics</th>
+                    <th>Student Teaching</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if .Form }}
+                    {{ range $value := .Form }}
+                        <tr>
+                            <td>{{ $value.StaffName }}</td>
+                            <td>{{ $value.Title }}</td>
+                            <td>{{ $value.HFName}}</td>
+                            <td>{{ $value.DaysWorked.Int64 }}</td>
+                            <td>{{ $value.WardRounds.Int64 }}</td>
+                            <td>{{ $value.SurgeriesConducted.Int64 }}</td>
+                            <td>{{ $value.SpecializedClinics.Int64 }}</td>
+                            <td>{{ $value.StudentTeaching.Int64 }}</td>
+                        </tr>
+                    {{ end }}
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

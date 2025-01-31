@@ -1,0 +1,288 @@
+{{ define "title"}} Facility Reports {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #facilityReports {
+       display: flex;
+       flex-direction: row;
+       gap: 20px;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   #tableContainer {
+       flex: 1;
+       max-height: 400px; /* Set a max height */
+       overflow-y: auto; /* Enable vertical scrolling */
+   }
+
+   table {
+       width: 100%;
+   }
+
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none;
+   }
+
+   .treeview {
+        width: 150px;
+        background-color: #f9f9f9;
+        font-size: 0.875rem;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 10px;
+        border: 2px solid #4a4a4a; /* Add border around yearTree */
+        border-radius: 5px;
+        text-align: center; /* Center the text */
+    }
+
+    .treeview label {
+        display: block;
+        font-weight: bold; /* Make the label text bold */
+        margin-bottom: 10px; /* Space between label and list */
+    }
+
+    .treeview ul {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+
+    .caret {
+        cursor: pointer;
+        user-select: none;
+        padding: 5px;
+        border: 1px solid #ddd; /* Border around year items */
+        margin-bottom: 2px;
+        border-radius: 5px;
+        background-color: #f4f4f4; /* Background color for year items */
+        font-weight: bold; /* Make the year text bold */
+        text-align: left; /* Center the text */
+    }
+
+    .caret:hover {
+        background-color: #ddd; /* Hover effect for year items */
+    }
+
+    .nested {
+        display: none;
+        padding-left: 20px;
+        transition: all 0.3s ease; /* Smooth transition for expanding/collapsing */
+    }
+
+    .active {
+        display: block;
+    }
+
+    .caret-down {
+        transform: rotate(0deg); /* Rotate caret when expanded */
+    }
+
+</style>
+{{ end }}
+
+
+{{ define "header" }} 
+    <h4>{{ .Ses.HFName }} Hospital: Facility Reports</h4>
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<form id="facilityReports" method="post" action="/zave">
+
+    <!-- Treeview for Year and Month -->
+    <div class="treeview">
+        <label>SELECT</label>
+        <ul id="yearTree">
+            <!-- Dynamic Year-Month Tree will be populated here -->
+        </ul>
+    </div>
+
+    <div id="tableContainer">
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                <a href="/reports/new/:i" class="btn btn-primary">New Entry</a>
+                <a href="/reports/entry" class="btn btn-secondary">Bulk Entry</a>
+            </div>
+
+            <div>
+                <a href="/reports/submissions" class="btn btn-success">Refresh</a>
+                <a href="/reports/export" class="btn btn-warning">Export</a>
+            </div>
+        </div>
+
+        <!-- Table of Inputs -->
+        <table class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th>SN</th>
+                    <th class="hidden">Facility ID</th>
+                    <th>Facility</th>
+                    <th class="hidden">Department ID</th>
+                    {{ if .Form }}
+                        {{ range $value := .Form }}
+                            {{ if $value.DepartmentName }}
+                                <th>Department</th>
+                                {{ break }}
+                            {{ end }}
+                        {{ end }}
+                    {{ end }}
+                    <th>Reporting Week</th>
+                    <th>No of Staff</th>
+                    <th>No Reported</th>
+                    <th>Submission Date</th>
+                    <th>Entered By</th>
+                    <th>Status</th>
+                    <th>Approved By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ $index := 0 }}
+                {{ if .Form }}
+                    {{ range $key, $value := .Form }}
+                        {{ $index = add $index 1 }}
+                        <tr onclick="window.location.href='/reports/submissions/departments?year={{ formatDate $value.Start.Time "2006" }}&month={{ formatDate $value.Start.Time "1" }}';" style="cursor: pointer;">
+
+                            <td>{{ $index }}</td>
+                            <td class="hidden">{{ $value.HospitalID }}</td>
+                            <td>{{ $value.FacilityName }}</td>
+                            <td class="hidden">{{ $value.DeptID }}</td>
+                            {{ if $value.DepartmentName }}
+                                <td>{{ $value.DepartmentName }}</td>
+                            {{ end }}
+                            <td>{{ formatDate $value.Start.Time "2 Jan 06" }} - {{ formatDate $value.Stop.Time "2 Jan 06" }}</td>
+                            <td>{{ $value.NoOfStaff }}</td>
+                            <td>10</td>
+                            <td>{{ formatDate $value.DateOfSubmission.Time "2 Jan 06" }}</td>
+                            <td>{{ $value.StaffName }}</td>
+                            
+                            <td>{{ $value.ReportStatus }}</td>
+                            <td>Name</td>
+                            <td>
+                                <button type="button" class="btn btn-info btn-sm" onclick="event.stopPropagation(); window.location.href='/reports/list/?facility={{ $value.HospitalID }}&start={{ formatDate $value.Start.Time `2006-01-02` }}&dept={{ $value.DeptID }}'">View</button>
+                                <!--<button type="button" class="btn btn-success btn-sm" onclick="event.stopPropagation(); alert('Approved');">Approve</button>-->
+                            </td>
+                        </tr>
+                    {{ end }}
+                {{ end }}
+            </tbody>
+        </table>
+
+        <!-- Refresh Button at the Bottom -->
+        <div class="form-group row">
+            <div class="col-sm-12 text-center">
+                <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            </div>
+        </div>
+    </div>
+</form>
+{{ end }}
+
+
+{{ define "extraJS" }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+    const yearTree = document.getElementById('yearTree');
+
+    // Populate years dynamically
+    const currentYear = new Date().getFullYear();
+    const startYear = 2020;
+
+    for (let year = currentYear; year >= startYear; year--) {
+        // Create year item
+        const yearItem = document.createElement('li');
+        yearItem.classList.add('caret');
+        yearItem.textContent = year;
+        const nestedList = document.createElement('ul');
+        nestedList.classList.add('nested');
+
+        // Add months under each year
+        for (let month = 1; month <= 12; month++) {
+            const monthItem = document.createElement('li');
+            monthItem.textContent = new Date(0, month - 1).toLocaleString('default', { month: 'long' });
+            monthItem.dataset.month = month; // Store month in data attribute
+
+            monthItem.addEventListener('click', function () {
+                filterReports(year, month);
+            });
+
+            nestedList.appendChild(monthItem);
+        }
+
+        yearItem.appendChild(nestedList);
+        yearTree.appendChild(yearItem);
+    }
+
+    // Toggle tree view visibility for each caret
+    document.querySelectorAll('.caret').forEach(function (caret) {
+        caret.addEventListener('click', function () {
+            const nested = this.parentElement.querySelector('.nested');
+            if (nested) {
+                nested.classList.toggle('active');
+                this.classList.toggle('caret-down');
+            }
+        });
+    });
+
+    // Function to handle report filtering
+    function filterReports(year, month) {
+        let query = `/reports/submissions?year=${year}`;
+        if (month) query += `&month=${month}`;
+
+        // Redirect to apply filter
+        window.location.href = query;
+    }
+});
+
+
+</script>
+{{ end }}
+

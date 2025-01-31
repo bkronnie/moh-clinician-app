@@ -1,0 +1,166 @@
+{{ define "title"}} Weekly Report Submission Listing {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    .form-inline .form-group label {
+        margin-right: 5px;
+    }
+
+    #reportSummary {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+        border: 2px solid #ccc;
+    }
+
+    .div1 {
+        width: 100%;
+        height: 400px;
+        overflow: scroll;
+        border: 2px solid #777777;
+    }
+
+    .div1 table {
+        border-spacing: 0;
+    }
+
+    .div1 th {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 20px;
+        min-width: 20px;
+        position: sticky;
+        top: 0;
+        background: #727272;
+        color: #e0e0e0;
+        font-weight: normal;
+    }
+
+    .div1 td {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        border-bottom: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 20px;
+        min-width: 20px;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        width: 50px;
+        min-width: 50px;
+    }
+
+    .div1 th:nth-child(2),
+    .div1 td:nth-child(2) {
+        position: sticky;
+        left: 50px; /* Adjusted position for 2nd column */
+        width: 150px;
+        min-width: 150px;
+    }
+
+    
+
+    .div1 td:nth-child(1),
+    .div1 td:nth-child(2) {
+        background: #d7d7d6;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 th:nth-child(2) {
+        z-index: 3;
+    }
+
+    .hidden {
+        display: none; /* Hide the Staff ID column */
+    }
+
+    .disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+        pointer-events: none;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+    
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<div class="div1">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Title</th>
+                <th>Facility</th>
+                <th>Days Worked</th>
+                <th>Ward Rounds</th>
+                <th>Surgeries</th>
+                <th>Specialized Clinics</th>
+                <th>Student Teaching</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if .Form }}
+                {{ range $value := .Form }}
+                    <tr>
+                        <td>{{ $value.StaffName }}</td>
+                        <td>{{ $value.Title }}</td>
+                        <td>{{ $value.HFName}}</td>
+                        <td>{{ $value.DaysWorked.Int64 }}</td>
+                        <td>{{ $value.WardRounds.Int64 }}</td>
+                        <td>{{ $value.SurgeriesConducted.Int64 }}</td>
+                        <td>{{ $value.SpecializedClinics.Int64 }}</td>
+                        <td>{{ $value.StudentTeaching.Int64 }}</td>
+                    </tr>
+                {{ end }}
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}
+
+{{ define "extraJS" }}
+{{ end }}

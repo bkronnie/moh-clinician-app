@@ -1,0 +1,475 @@
+{{ define "title"}} Facility Reports {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #facilityReports {
+       display: flex;
+       flex-direction: row;
+       gap: 20px;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+       border: 2px solid #ccc;
+   }
+
+   #tableContainer {
+       flex: 1;
+       max-height: 400px; /* Set a max height */
+       overflow-y: auto; /* Enable vertical scrolling */
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       
+   }
+
+   table {
+       width: 100%;
+       
+   }
+
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none;
+   }
+
+   .treeview {
+        width: 150px;
+        background-color: #f9f9f9;
+        font-size: 0.875rem;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 10px;
+        border: 1px solid #ccc; /* Add border around yearTree */
+        border-radius: 5px;
+        text-align: center; /* Center the text */
+    }
+
+    .treeview label {
+        display: block;
+        font-weight: bold; /* Make the label text bold */
+        margin-bottom: 10px; /* Space between label and list */
+    }
+
+    .treeview ul {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+
+    .caret {
+        cursor: pointer;
+        user-select: none;
+        padding: 5px;
+        border: 1px solid #ddd; /* Border around year items */
+        margin-bottom: 2px;
+        border-radius: 5px;
+        background-color: #f4f4f4; /* Background color for year items */
+        font-weight: bold; /* Make the year text bold */
+        text-align: left; /* Center the text */
+    }
+
+    .caret:hover {
+        background-color: #ddd; /* Hover effect for year items */
+    }
+
+    .nested {
+        display: none;
+        padding-left: 20px;
+        transition: all 0.3s ease; /* Smooth transition for expanding/collapsing */
+    }
+
+    .active {
+        display: block;
+    }
+
+    .caret-down {
+        transform: rotate(0deg); /* Rotate caret when expanded */
+    }
+
+</style>
+{{ end }}
+
+
+{{ define "header" }} 
+    <h4>Facility Reports</h4>
+    <h5>Facility/Level: {{ .Ses.HFName }}</h5>
+    <h6>Name: {{ .Ses.FName }} {{ .Ses.LName}}</h6>
+    <h6>Staff ID: {{ .Ses.EmpID }}</h6>
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<form id="facilityReports" method="post" action="/zave">
+
+    <!-- Treeview for Year and Month -->
+    <!--{{ if .Form }}
+        {{ range $value := .Form }}
+            {{ if not $value.DepartmentName }}
+                <div class="treeview">
+                    <label>SELECT</label>
+                    <ul id="yearTree">
+                         Dynamic Year-Month Tree will be populated here 
+                    </ul>
+                </div>
+                {{ break }}
+            {{ end }}
+        {{ end }}
+    {{ end }}-->
+
+    <div class="treeview">
+        <label>SELECT</label>
+        <ul id="yearTree">
+            <!-- Dynamic Year-Month Tree will be populated here -->
+        </ul>
+    </div>
+
+    <div id="tableContainer">
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                <a href="/reports/new/:i" class="btn btn-primary">New Entry</a>
+                <a href="/reports/entry" class="btn btn-secondary">Bulk Entry</a>
+            </div>
+
+            <div>
+                <a onclick="window.location.reload();" class="btn btn-success">Refresh</a>
+                <a href="/reports/export" class="btn btn-warning">Export</a>
+            </div>
+        </div>
+
+        <!-- Table of Inputs -->
+        <table class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th rowspan="2">SN</th>
+                    <th rowspan="2" class="hidden">Facility ID</th>
+                    {{ if .Form }}
+                        {{ range $value := .Form }}
+                            {{ if not $value.DepartmentName }}
+                                <th rowspan="2">Facility</th>
+                                {{ break }}
+                            {{ end }}
+                        {{ end }}
+                    {{ end }}
+                    <th rowspan="2" class="hidden">Department ID</th>
+                    {{ if .Form }}
+                        {{ range $value := .Form }}
+                            {{ if $value.DepartmentName }}
+                                <th rowspan="2">Department</th>
+                                {{ break }}
+                            {{ end }}
+                        {{ end }}
+                    {{ end }}
+                    <th rowspan="2">Reporting Week</th>
+                    <th colspan="2"># Staff</th>
+                    <th colspan="2"># Reports</th>
+                    <th rowspan="2">Status</th>
+                    {{ if .Form }}
+                        {{ range $value := .Form }}
+                            {{ if $value.DepartmentName }}
+                                <th rowspan="2">Submitted by</th>
+                                {{ break }}
+                            {{ else }}
+                                <th rowspan="2">Approved By</th>
+                                {{ break }}
+                            {{ end }}
+                        {{ end }}
+                    {{ end }}
+                    <th rowspan="2">Actions</th>
+                </tr>
+                <tr>
+                    <th>Total</th>
+                    <th># Entered</th>
+                    <th>Total</th>
+                    <th># Submitted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ $index := 0 }}
+                {{ if .Form }}
+                    {{ if gt (len .Form) 0 }}
+                        {{ range $key, $value := .Form }}
+                            {{ $index = add $index 1 }}
+                            <tr 
+                                onclick="{{ if $value.DepartmentName }}
+                                            window.location.href='/reports/list/?facility={{ $value.HospitalID }}&start={{ formatDate $value.Start.Time `2006-01-02` }}&dept={{ $value.DeptID }}';
+                                        {{ else }}
+                                            window.location.href='/reports/submissions/departments?week={{ formatDate $value.Start.Time `2006-01-02` }}&dept={{ $value.DeptID }}';
+                                        {{ end }}" 
+                                style="cursor: pointer;"
+                                data-start="{{ formatDate $value.Start.Time `2006-01-02` }}"
+                                data-department-name="{{ $value.DepartmentName }}"
+                            >
+                                <td>{{ $index }}</td>
+                                <td class="hidden">{{ $value.HospitalID }}</td>
+                                {{ if not $value.DepartmentName }}
+                                    <td>{{ $value.FacilityName }}</td>
+                                {{ end }}
+                                <td class="hidden">{{ $value.DeptID }}</td>
+                                {{ if $value.DepartmentName }}
+                                    <td>{{ $value.DepartmentName }}</td>
+                                {{ end }}
+                                <td>{{ formatDate $value.Start.Time "2 Jan 06" }} - {{ formatDate $value.Stop.Time "2 Jan 06" }}</td>
+                                <td>{{ $value.NoOfStaff }}</td>
+                                <td>{{ $value.NoEntered }} / {{ $value.NoOfStaff }}</td>
+                                <td>{{ $value.NoEntered}}</td>
+                                <td>{{ $value.NoSubmitted }} / {{ $value.NoOfStaff }}</td>
+                                {{ if not $value.DepartmentName }}
+                                    <td>{{ $value.ApproveStatus}}</td>
+                                {{ else }}
+                                    <td>{{ $value.SubmitStatus.String}}</td>
+                                {{ end }}
+                                {{ if not $value.DepartmentName }}
+                                    <td>{{ $value.ApproveName.String }}</td>
+                                {{ else }}
+                                    <td>{{ $value.SubmitName.String }}</td>
+                                {{ end }}
+                                <td>
+                                    <button type="button" class="btn btn-info btn-sm" 
+                                        onclick="event.stopPropagation(); 
+                                                 {{ if $value.DepartmentName }}
+                                                    window.location.href='/reports/list/?facility={{ $value.HospitalID }}&start={{ formatDate $value.Start.Time `2006-01-02` }}&dept={{ $value.DeptID }}';
+                                                 {{ else }}
+                                                    window.location.href='/reports/submissions/departments?week={{ formatDate $value.Start.Time `2006-01-02` }}&facility={{ $value.HospitalID }}';
+                                                 {{ end }}" data-start="{{ formatDate $value.Start.Time `2006-01-02` }}">
+                                        View
+                                    </button>
+                                    {{ if not $value.DepartmentName }}
+                                        <button type="button" id="approveSubmitButton" class="btn btn-success btn-sm"
+                                            onclick="event.stopPropagation(); approveSubmitFunction(this, '{{ $value.HospitalID }}', '{{ formatDate $value.Start.Time `2006-01-02` }}', '{{ $value.DeptID }}')"
+                                            {{ if eq $value.ApproveStatus "Approved" }} disabled {{ end }}>
+                                            Approve
+                                        </button>
+                                    {{ else }}
+                                        <button type="button" id="approveSubmitButton" class="btn btn-primary btn-sm"
+                                            onclick="event.stopPropagation(); approveSubmitFunction(this, '{{ $value.HospitalID }}','{{ formatDate $value.Start.Time `2006-01-02` }}', '{{ $value.DeptID }}')"
+                                            {{ if eq $value.SubmitStatus.String "Submitted" }} disabled {{ end }}>
+                                            Submit
+                                        </button>
+                                    {{ end }}
+                                </td>
+                            </tr>
+                        {{ end }}
+                    {{ else }}
+                        <tr>
+                            <td colspan="12" class="text-center">No data available to display.</td>
+                        </tr>
+                    {{ end }}
+                {{ else }}
+                    <tr>
+                        <td colspan="12" class="text-center">No data available to display.</td>
+                    </tr>
+                {{ end }}
+            </tbody>
+        </table>
+
+        <!-- Refresh Button at the Bottom -->
+        <div class="form-group row">
+            <div class="col-sm-12 text-center">
+                <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            </div>
+        </div>
+    </div>
+</form>
+{{ end }}
+
+
+{{ define "extraJS" }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const yearTree = document.getElementById('yearTree');
+
+        // Populate years dynamically
+        const currentYear = new Date().getFullYear();
+        const startYear = 2020;
+
+        for (let year = currentYear; year >= startYear; year--) {
+            // Create year item
+            const yearItem = document.createElement('li');
+            yearItem.classList.add('caret');
+            yearItem.textContent = year;
+            const nestedList = document.createElement('ul');
+            nestedList.classList.add('nested');
+
+            // Add months under each year
+            for (let month = 1; month <= 12; month++) {
+                const monthItem = document.createElement('li');
+                monthItem.textContent = new Date(0, month - 1).toLocaleString('default', { month: 'long' });
+                monthItem.dataset.month = month; // Store month in data attribute
+
+                monthItem.addEventListener('click', function (event) {
+                    event.stopPropagation(); // Prevent month clicks from toggling the year
+                    filterReports(year, month);
+                });
+
+                nestedList.appendChild(monthItem);
+            }
+
+            yearItem.appendChild(nestedList);
+            yearTree.appendChild(yearItem);
+
+            // Assign click event listener to each year item
+            yearItem.addEventListener('click', function () {
+                // Collapse all other year items
+                document.querySelectorAll('.caret').forEach(function (otherCaret) {
+                    if (otherCaret !== yearItem) {
+                        otherCaret.classList.remove('caret-down');
+                        const otherNested = otherCaret.nextElementSibling;
+                        if (otherNested && otherNested.classList.contains('nested')) {
+                            otherNested.classList.remove('active');
+                        }
+                    }
+                });
+
+                // Toggle the clicked year's nested list
+                const nested = yearItem.querySelector('.nested');
+                if (nested) {
+                    nested.classList.toggle('active');
+                    yearItem.classList.toggle('caret-down');
+                }
+            });
+        }
+
+        // Function to handle report filtering
+        function filterReports22(year, month) {
+            // Retrieve the start date from the selected row
+            const selectedRow = document.querySelector('tr[data-start]'); // Adjust selector as needed
+            const startDate = selectedRow ? selectedRow.dataset.start : '';
+
+            // Construct query string
+            let query = `/reports/submissions?start=${startDate}&year=${year}`;
+            if (month) query += `&month=${month}`;
+
+            // Redirect to apply filter
+            window.location.href = query;
+        }
+
+        function filterReports(year, month) {
+            // Retrieve the start date from the selected row
+            const selectedRow = document.querySelector('tr[data-start]');
+            const startDate = selectedRow ? selectedRow.dataset.start : '';
+
+            // Retrieve the current URL
+            const currentURL = new URL(window.location.href);
+
+            // Extract the facility parameter from the URL
+            const facility = currentURL.searchParams.get('facility');
+
+            // Construct query string based on URL structure
+            let query;
+            if (currentURL.pathname.includes("/reports/submissions/departments")) {
+                // If the URL matches the specific format
+                query = `/reports/submissions/departments?&year=${year}`;
+                if (month) query += `&month=${month}`;
+                if (facility) query += `&facility=${facility}`;
+            } else {
+                // Default behavior
+                query = `/reports/submissions?start=${startDate}&year=${year}`;
+                if (month) query += `&month=${month}`;
+                // if (facility) query += `&facility=${facility}`;
+            }
+
+            // Redirect to apply filter
+            window.location.href = query;
+        }
+
+        
+    });
+</script>
+
+<script>
+    function approveSubmitFunction(button, facilityID, start, departmentID = null) {
+        let url;
+
+        if (button.classList.contains('btn-success')) {
+            url = `/reports/approve?facility=${facilityID}&start=${start}`;
+        } else if (button.classList.contains('btn-primary')) {
+            url = `/reports/submit?facility=${facilityID}&start=${start}&department=${departmentID}`;
+        } else {
+            console.error('Unknown button clicked.');
+            return;
+        }
+
+        // Debug: Log the values
+        //console.log("Approving Reports:");
+        //console.log("Facility ID:", facilityID);
+        //console.log("Start Date:", start);
+        //console.log("Department ID:", departmentID);
+
+
+        const reportIDs = {};
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            //body: JSON.stringify(payload)
+            body: JSON.stringify({
+                reportIDs: reportIDs,
+                facility: facilityID,
+                start: start,
+                department: departmentID
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                alert(`Report ${button.classList.contains('btn-success') ? 'approved' : 'submitted'} successfully!`);
+                location.reload();
+            } else {
+                alert('Failed to process the request.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while processing the request.');
+        });
+    }
+</script>
+{{ end }}
+

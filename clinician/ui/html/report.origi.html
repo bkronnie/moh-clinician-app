@@ -1,0 +1,102 @@
+{{ define "content"}}                 
+    <form id="loginForm" method="post" action="/save" style="display: flex; flex-direction: column; height: 100%;">
+        
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>Staff Name:</label>
+                xxxxxxxx <input type="hidden" id="staff" name="staff" >
+            </div>
+            <div class="form-group col-md-6">
+                <label>Speciality:</label>
+                xxxxxxxx <input type="hidden" id="speciality" name="speciality" >
+            </div>
+        </div>
+        <div class="form-group row">
+            <label class="col-sm-3 col-form-label">Health Facility:</label>
+            <div class="col-sm-3">
+                xxxxx <input type="hidden" id="facility" name="facility" >
+            </div>
+        </div>
+        
+        <!-- Inline Start and Stop Dates with Date Pickers -->
+        <div class="form-row">
+            <div class="form-group row col-md-6">
+                <label for="start" class="col-sm-3 col-form-label">Start</label>
+                <div class="col-sm-6">
+                    <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+                </div>
+            </div>
+            <div class="form-group row col-md-6">
+                <label for="stop" class="col-sm-3 col-form-label ">Stop</label>
+                <div class="col-sm-6">
+                    <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Field -->
+        <div class="form-group row">
+            <label for="qn_01" class="col-sm-4 col-form-label text-right">Attendance</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_01" name="qn_01" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+
+        <!-- Number of Ward Rounds -->
+        <div class="form-group row">
+            <label for="qn_02" class="col-sm-4 col-form-label text-right">Number of Ward Rounds</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_02" name="qn_02" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+
+        <!-- Number of Surgeries -->
+        <div class="form-group row">
+            <label for="qn_03" class="col-sm-4 col-form-label text-right">Number of Surgeries</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_03" name="qn_03" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+
+        <div class="form-group row">
+            <label for="qn_04" class="col-sm-4 col-form-label text-right">Number of minor surgeries</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_04" name="qn_04" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+
+        <div class="form-group row">
+            <label for="qn_05" class="col-sm-4 col-form-label text-right">Number of patients seen in the OPD specialist clinic</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_05" name="qn_05" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+
+        <div class="form-group row">
+            <label for="qn_06" class="col-sm-4 col-form-label text-right">Number of X-Ray readings done</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_06" name="qn_06" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+
+        <div class="form-group row">
+            <label for="qn_07" class="col-sm-4 col-form-label text-right">Number of CT scan readings done</label>
+            <div class="col-sm-1">
+                <input type="text" id="qn_07" name="qn_07" class="form-control form-control-sm text-end" required>
+            </div>
+        </div>
+        
+        <!-- Spacer to push buttons to the bottom -->
+        <div style="margin-top: auto;"></div>
+
+        <!-- Submit and Cancel Buttons -->
+        <div class="form-group row">
+            <div class="col-sm-3"></div>
+            <div class="col-sm-9">
+                <button type="submit" class="btn btn-primary btn-sm">Submit</button>
+                <a href="#" class="btn btn-secondary btn-sm">Cancel</a>
+            </div>
+        </div>
+
+    </form>
+{{ end }}

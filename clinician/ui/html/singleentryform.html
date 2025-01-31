@@ -1,0 +1,161 @@
+{{ define "title"}} Weekly Report Submission Listing {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #loginForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   table {
+       width: 100%;
+   }
+
+   /* Reduce padding to make the table more compact */
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   /* Optional: Reduce font size to make it even more compact */
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none; /* Hide the Staff ID column */
+   }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+    Clinician Output Dashboard: Weekly Report Submission Listing
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{define "content"}}       
+<form id="loginForm" method="post" action="/reports/zave">
+
+    
+    
+    <!-- Date Pickers at the Top -->
+    <div class="form-group row">
+        <div class="form-group row col-md-6">
+            <label for="start" class="col-sm-3 col-form-label">Start</label>
+            <div class="col-sm-6">
+                <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+            </div>
+        </div>
+        <div class="form-group row col-md-6">
+            <label for="stop" class="col-sm-3 col-form-label">Stop</label>
+            <div class="col-sm-6">
+                <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table of Inputs -->
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>SN</th>
+                <th class="hidden">Staff ID</th> <!-- Hidden column -->
+                <th>Staff Name</th>
+                <th>Health Facility</th>
+                <th>Department</th>
+                <th>Attendance</th>
+                <th>Ward Rounds</th>
+                <th>Surgeries</th>
+                <th>Minor Surgeries</th>
+                <th>OPD Patients Seen</th>
+                <th>X-Ray readings</th>
+                <th>CT scan readings</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ $index := 0 }} <!-- Initialize a counter -->
+            {{ if .Form }}
+                {{ range $key, $value := .Form }}
+                    {{ $index = add $index 1 }} <!-- Increment the counter -->
+                    <tr>
+                        <td>{{ $index }}</td>
+                        <td class="hidden">{{ $value.EmpID }}</td> <!-- Hidden Staff ID -->
+                        <td>{{ $value.Fname.String }} {{ $value.Lname.String }} {{ $value.Oname.String }}</td>
+                        <td>{{ $value.FacilityName }}</td>
+                        <td>{{ $value.DepartmentName.String }}</td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][attend]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][ward]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][surgeries]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][minor]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][opd]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][xray]"></td>
+                        <td><input size="3" name="input[{{ $value.EmpID }}][ct]"></td>
+                    </tr>
+                {{ end }}
+            {{ end }}
+
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Save Button at the Bottom -->
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <button type="submit" class="btn btn-success btn-sm">Save</button>
+        </div>
+    </div>
+
+</form>
+{{ end }}
+
+{{ define "extraJS" }}
+{{ end }}

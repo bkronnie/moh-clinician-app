@@ -1,0 +1,306 @@
+{{ define "title"}} Bulk Capture {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #bulkCaptureForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 2px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   
+
+   .hidden {
+       display: none;
+   }
+
+   
+    .data-entry-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .data-entry-row label {
+        min-width: 100px;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    .data-entry-row input {
+        margin-right: 30px;
+        margin-bottom: 10px;
+    }
+
+    .div1 {
+        width: 100%;
+        height: 400px;
+        overflow: scroll;
+        border: 2px solid #777777;
+    }
+
+    .div1 table {
+        border-spacing: 0;
+    }
+
+    .div1 th {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 20px;
+        min-width: 20px;
+        position: sticky;
+        top: 0;
+        background: #727272;
+        color: #e0e0e0;
+        font-weight: normal;
+    }
+
+    .div1 td {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        border-bottom: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 20px;
+        min-width: 20px;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        width: 50px;
+        min-width: 50px;
+    }
+
+    .div1 th:nth-child(2),
+    .div1 td:nth-child(2) {
+        position: sticky;
+        left: 50px; /* Adjusted position for 2nd column */
+        width: 150px;
+        min-width: 150px;
+    }
+
+    .div1 th:nth-child(3),
+    .div1 td:nth-child(3) {
+        position: sticky;
+        left: 200px; /* Increment position for 3rd column */
+        width: 100px;
+        min-width: 100px;
+    }
+
+    .div1 td:nth-child(1),
+    .div1 td:nth-child(2),
+    .div1 td:nth-child(3) {
+        background: #d7d7d6;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 th:nth-child(2) {
+        z-index: 3;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .sessionData.Ses.HFName }} Hospital: Weekly Bulk Capture
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<form id="bulkCaptureForm" method="post" action="/reports/zave">
+    
+    <div class="form-group row">
+        <label for="department" class="col-sm-2 col-form-label">Select Department:</label>
+        <div class="col-sm-4">
+            <select id="department" name="department" class="form-control form-control-sm">
+                <option value="">-- Select Department --</option>
+                {{ range .departments }}
+                <option value="{{ .DeptID }}">{{ .DepartmentName.String }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="col-sm-2">
+            <button type="button" id="loadData" class="btn btn-sm btn-primary">Load</button>
+        </div>
+    </div>
+
+    <!-- Date Pickers at the Top -->
+    <div class="data-entry-row">
+        <label for="start">Start Date</label>
+        <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+        
+        <label for="stop">Stop Date</label>
+        <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+    </div>
+
+    <div id="table-container" class="div1">
+        <table id="staffTable" class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr id="dynamicHeaders">
+                    <th>SN</th>
+                    <th>Staff Name</th>
+                    <th>Title</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically populated -->
+            </tbody>
+        </table>
+    </div><br>
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>            
+            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+        </div>
+    </div>
+</form>
+
+{{end}}
+
+{{ define "extraJS" }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Event listener for the "Load" button
+    $('#loadData').click(function() {
+        const deptID = $('#department').val(); // Get selected department ID
+        if (deptID) {
+            // Perform AJAX GET request to fetch department data
+            $.ajax({
+                url: '/reports/entry',
+                method: 'GET',
+                data: { departmentID: deptID },
+                success: function(response) {
+                    // Destructure the response data
+                    const { staff, dataPoints } = response;
+
+                    // Check if staff array is empty
+                    if (!staff || staff.length === 0) {
+                        const headersLength = dataPoints.length + 3; // Adjust for dynamic columns
+                        $('#staffTable tbody').html(`
+                            <tr>
+                                <td colspan="${headersLength}" class="text-center">
+                                    No available records for this department.
+                                </td>
+                            </tr>
+                        `);
+                        return;
+                    }
+
+                    // Parse dataPoints if it is a JSON string
+                    let parsedDataPoints = [];
+                    if (typeof dataPoints[0] === 'string') {
+                        parsedDataPoints = JSON.parse(dataPoints[0]);
+                    } else {
+                        parsedDataPoints = dataPoints;
+                    }
+
+                    // Transform the data points: Split, capitalize, and join
+                    const formattedPoints = parsedDataPoints.map(point => {
+                        return point
+                            .split('_') // Split on underscores
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
+                            .join(' '); // Join back into a string
+                    });
+
+                    console.log("Formatted data points:", formattedPoints); // Log formatted data points
+
+                    // Generate dynamic table headers
+                    let headers = `
+                        <th>SN</th>
+                        <th>Staff Name</th>
+                        <th>Title</th>                        
+                    `;
+                    formattedPoints.forEach(point => {
+                        headers += `<th>${point}</th>`;
+                    });
+                    $('#dynamicHeaders').html(headers); // Update table headers
+
+                    // Check if staff data is available
+                    if (staff.length > 0) {
+                        // Populate table rows with staff data
+                        let tableBody = '';
+                        staff.forEach((member, index) => {
+                            tableBody += `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${member.firstname.Valid ? member.firstname.String : "N/A"} ${member.lastname.Valid ? member.lastname.String : "N/A"}</td>
+                                    <td>${member.employeetitle.Valid ? member.employeetitle.String : "N/A"}</td>
+                            `;
+                            parsedDataPoints.forEach(point => {
+                                const inputName = `input[${member.employeeid}][${point}]`; // Use backticks for template literals
+                                tableBody += `
+                                    <td>
+                                        <input size="1" type="text"
+                                            name="${inputName}" 
+                                            class="form-control form-control-sm" />
+                                    </td>
+                                `;
+                            });
+                            tableBody += `</tr>`;
+                        });
+
+                        $('#staffTable tbody').html(tableBody); // Update table body
+                    } else {
+                        // Display message if no data is available
+                        $('#staffTable tbody').html(`
+                            <tr>
+                                <td colspan="${parsedDataPoints.length + 3}" class="text-center">
+                                    No available records for this department.
+                                </td>
+                            </tr>
+                        `);
+                    }
+                },
+                error: function(err) {
+                    console.error("AJAX error:", err);
+                    alert('Error loading data. Please try again.');
+                }
+            });
+        } else {
+            alert('Please select a department.'); // Handle no department selection
+        }
+    });
+</script>
+
+{{ end }}

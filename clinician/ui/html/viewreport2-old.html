@@ -1,0 +1,295 @@
+{{ define "title"}} Bulk Capture {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #bulkCaptureForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   table {
+       min-width: 50%;
+       border-collapse: collapse;
+   }
+
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none;
+   }
+
+   #table-container {
+        overflow: auto;
+        white-space: nowrap;
+        position: relative;
+        width: 100%;
+        max-height: 400px;
+        border: 1px solid #ccc;
+    }
+
+    /*table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f9f9f9;
+        z-index: 2;
+    }*/
+
+    .fixed-column {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 2;
+    }
+
+    /* Ensure word wrap for table headers */
+    #staffTable thead th {
+        word-wrap: break-word;
+        position: sticky;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   table th, table td {
+        white-space: normal; /* Allow text to wrap */
+        word-wrap: break-word; /* Enable word breaking */
+        overflow-wrap: break-word; /* For better browser support */
+        text-align: center; /* Optional: Align text to the center */
+    }
+
+    /* Added styles for rows */
+   .data-entry-row {
+       display: flex;
+       flex-wrap: wrap;
+       margin-bottom: 10px;
+   }
+
+   .data-entry-row label {
+       min-width: 100px;
+       font-weight: bold;
+       margin-right: 5px;
+   }
+
+   .data-entry-row input {
+       margin-right: 30px;
+       margin-bottom: 10px;
+   }
+
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital - Weekly Bulk Capture - Landing.
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<form id="bulkCaptureForm" method="post" action="/reports/zave">
+    <!--
+    <div class="form-group row">
+        <label for="department" class="col-sm-2 col-form-label">Select Department:</label>
+        <div class="col-sm-4">
+            <select id="department" name="department" class="form-control form-control-sm">
+                <option value="">-- Select Department --</option>
+                {{ range .departments }}
+                <option value="{{ .DeptID }}">{{ .DepartmentName.String }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="col-sm-2">
+            <button type="button" id="loadData" class="btn btn-sm btn-primary">Load</button>
+        </div>
+    </div>-->
+
+    <!-- Date Pickers at the Top -->
+    <!--<div class="data-entry-row">
+        <label for="start">Start Date</label>
+        <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+        
+        <label for="stop">Stop Date</label>
+        <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+    </div>-->
+
+    <div id="table-container">
+        <table id="staffTable" class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr id="dynamicHeaders">
+                    <th class="fixed-column">SN</th>
+                    <th class="fixed-column">Staff Name</th>
+                    <th class="fixed-column">Title</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically populated -->
+            </tbody>
+        </table>
+    </div><br>
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+
+            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+        </div>
+    </div>
+</form>
+
+{{end}}
+
+{{ define "extraJS" }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Event listener for the "Load" button
+    $('#loadData').click(function() {
+        const deptID = $('#department').val(); // Get selected department ID
+        if (deptID) {
+            // Perform AJAX GET request to fetch department data
+            $.ajax({
+                url: '/reports/view',
+                method: 'GET',
+                data: { departmentID: deptID },
+                success: function(response) {
+                    // Destructure the response data
+                    const { staff, dataPoints } = response;
+
+                    // Check if staff array is empty
+                    if (!staff || staff.length === 0) {
+                        const headersLength = dataPoints.length + 3; // Adjust for dynamic columns
+                        $('#staffTable tbody').html(`
+                            <tr>
+                                <td colspan="${headersLength}" class="text-center">
+                                    No available records for this department.
+                                </td>
+                            </tr>
+                        `);
+                        return;
+                    }
+
+                    // Parse dataPoints if it is a JSON string
+                    let parsedDataPoints = [];
+                    if (typeof dataPoints[0] === 'string') {
+                        parsedDataPoints = JSON.parse(dataPoints[0]);
+                    } else {
+                        parsedDataPoints = dataPoints;
+                    }
+
+                    // Transform the data points: Split, capitalize, and join
+                    const formattedPoints = parsedDataPoints.map(point => {
+                        return point
+                            .split('_') // Split on underscores
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
+                            .join(' '); // Join back into a string
+                    });
+
+                    // Generate dynamic table headers
+                    let headers = `
+                        <th class="fixed-column" rowspan="2">SN</th>
+                        <th class="fixed-column" rowspan="2">Staff Name</th>
+                        <th class="fixed-column" rowspan="2">Title</th>                        
+                    `;
+                    formattedPoints.forEach(point => {
+                        headers += `<th>${point}</th>`;
+                    });
+                    $('#dynamicHeaders').html(headers); // Update table headers
+
+                    // Check if staff data is available
+                    if (staff.length > 0) {
+                        // Populate table rows with staff data
+                        let tableBody = '';
+                        staff.forEach((member, index) => {
+                            tableBody += `
+                                <tr>
+                                    <th>${index + 1}</th>
+                                    <th>${member.firstname.Valid ? member.firstname.String : "N/A"} ${member.lastname.Valid ? member.lastname.String : "N/A"}</th>
+                                    <th>${member.employeetitle.Valid ? member.employeetitle.String : "N/A"}</th>
+                            `;
+                            parsedDataPoints.forEach(point => {
+                                const inputName = `input[${member.employeeid}][${point}]`;
+                                tableBody += `
+                                    <td>
+                                        <input size="1" type="text"
+                                            name="${inputName}" 
+                                            class="form-control form-control-sm" />
+                                    </td>
+                                `;
+                            });
+                            tableBody += `</tr>`;
+                        });
+
+                        $('#staffTable tbody').html(tableBody); // Update table body
+                    } else {
+                        // Display message if no data is available
+                        $('#staffTable tbody').html(`
+                            <tr>
+                                <td colspan="${parsedDataPoints.length + 3}" class="text-center">
+                                    No available records for this department.
+                                </td>
+                            </tr>
+                        `);
+                    }
+                },
+                error: function(err) {
+                    console.error("AJAX error:", err);
+                    alert('Error loading data. Please try again.');
+                }
+            });
+        } else {
+            alert('Please select a department.'); // Handle no department selection
+        }
+    });
+</script>
+{{ end }}

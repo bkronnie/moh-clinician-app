@@ -1,0 +1,428 @@
+{{ define "title"}} Weekly Report Submission Listing {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    #viewReportForm {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+    }
+
+    .data-entry-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .data-entry-row label {
+        min-width: 125px;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    .data-entry-row input {
+        margin-right: 30px;
+        margin-bottom: 10px;
+    }
+
+    h6.collapsible {
+        cursor: pointer;
+        background-color: #f1f1f1;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .hidden-content {
+        display: none;
+        margin-bottom: 10px;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital: Weekly Report Submission:
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "content"}}       
+<form id="viewReportForm" method="post" action="/reports/update">
+
+    {{ if .Form }}
+        {{ range $key, $value := .Form }}
+
+            <div class="data-entry-row">
+               
+                <label>Record ID: <input  name="input[{{ $value.EmpID }}][reportID]" value="{{ $value.ID }}" readonly></label>
+                <!--<label>Department ID: {{ $value.DeptID }}</label>-->
+                <label>Employee ID: {{ $value.EmpID }}</label>
+            </div>
+
+            <!-- Attendance Section -->
+            <h6 class="collapsible" onclick="toggleSection('attendance-{{ $value.EmpID }}')">Attendance</h6>
+            <div id="attendance-{{ $value.EmpID }}" class="hidden-content">
+                <div class="data-entry-row">
+                    <label>Attendance:</label>
+                    <input size="3" name="input[{{ $value.EmpID }}][attend]" 
+                           value="{{ if $value.Qn01.Valid }}{{ $value.Qn01.Int64 }}{{ end }}" 
+                           readonly data-original="{{ if $value.Qn01.Valid }}{{ $value.Qn01.Int64 }}{{ end }}">
+                </div>
+                <button type="button" class="btn btn-sm" onclick="toggleEditable('attendance-{{ $value.EmpID }}')">Edit</button>
+            </div>
+
+            <!-- Ward Rounds Section, for specific DeptIDs -->
+            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 1) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                <h6 class="collapsible" onclick="toggleSection('wardRounds-{{ $value.EmpID }}')">Ward Rounds</h6>
+                <div id="wardRounds-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Number of Rounds:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][ward]" value="{{ if $value.Qn02.Valid }}{{ $value.Qn02.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn02.Valid }}{{ $value.Qn02.Int64 }}{{ end }}">
+
+                        <label>Number of Patients Reviewed:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][patients_reviewed]" value="{{ if $value.Qn03.Valid }}{{ $value.Qn03.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn03.Valid }}{{ $value.Qn03.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('wardRounds-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            <!-- Theatre Section, for specific DeptIDs -->
+            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                <h6 class="collapsible" onclick="toggleSection('theatre-{{ $value.EmpID }}')">Theatre</h6>
+                <div id="theatre-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Number of Surgeries:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][surgeries]" value="{{ if $value.Qn04.Valid }}{{ $value.Qn04.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn04.Valid }}{{ $value.Qn04.Int64 }}{{ end }}">
+
+                        <label>Elective Surgeries:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][elective_surgeries]" value="{{ if $value.Qn05.Valid }}{{ $value.Qn05.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn05.Valid }}{{ $value.Qn05.Int64 }}{{ end }}">
+
+                        <label>Emergency Surgeries:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][emergency_surgeries]" value="{{ if $value.Qn06.Valid }}{{ $value.Qn06.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn06.Valid }}{{ $value.Qn06.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('theatre-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            {{ if eq $value.DeptID 5 }}
+                <!-- Outpatient Department Section -->
+                <h6 class="collapsible" onclick="toggleSection('postmortems-{{ $value.EmpID }}')">Postmoterm</h6>
+                <div id="postmoterms-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Number of Postmortems:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][postmortems]" value="{{ if $value.Qn07.Valid }}{{ $value.Qn07.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn07.Valid }}{{ $value.Qn07.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('postmortems-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            <!-- Specialised Section, for specific DeptIDs -->
+            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 1) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                <h6 class="collapsible" onclick="toggleSection('specialisedClinics-{{ $value.EmpID }}')">Specialised Clinics</h6>
+                <div id="specialisedClinics-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Clinics conducted:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][specialised_clinics]" value="{{ if $value.Qn08.Valid }}{{ $value.Qn08.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn08.Valid }}{{ $value.Qn08.Int64 }}{{ end }}">
+
+                        <label>Gyn patients:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][gyn_patients]" value="{{ if $value.Qn09.Valid }}{{ $value.Qn09.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn09.Valid }}{{ $value.Qn09.Int64 }}{{ end }}">
+
+                        <label>ANC Patients:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][anc_patients]" value="{{ if $value.Qn10.Valid }}{{ $value.Qn10.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn10.Valid }}{{ $value.Qn10.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('specialisedClinics-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            <!-- Teaching Rounds Section, for specific DeptIDs -->
+            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                <h6 class="collapsible" onclick="toggleSection('teachingRounds-{{ $value.EmpID }}')">Teaching Rounds</h6>
+                <div id="teachingRounds-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Teaching rounds conducted:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][teaching_rounds]" value="{{ if $value.Qn11.Valid }}{{ $value.Qn11.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn11.Valid }}{{ $value.Qn11.Int64 }}{{ end }}">
+
+                        <label>Students attended:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][students_taught]" value="{{ if $value.Qn12.Valid }}{{ $value.Qn12.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn12.Valid }}{{ $value.Qn12.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('teachingRounds-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            <!-- Mortality Reviews Section, for specific DeptIDs -->
+            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                <h6 class="collapsible" onclick="toggleSection('mortalityReviews-{{ $value.EmpID }}')">Mortality Reviews</h6>
+                <div id="mortalityReviews-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Reviews conducted:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][surgeries]" value="{{ if $value.Qn13.Valid }}{{ $value.Qn13.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn13.Valid }}{{ $value.Qn13.Int64 }}{{ end }}">
+
+                        <label>Maternal Gyn:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][mortality_reviews]" value="{{ if $value.Qn14.Valid }}{{ $value.Qn14.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn14.Valid }}{{ $value.Qn14.Int64 }}{{ end }}">
+
+                        <label>Perinatal Gyn:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][maternal_gyn]" value="{{ if $value.Qn15.Valid }}{{ $value.Qn15.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn15.Valid }}{{ $value.Qn15.Int64 }}{{ end }}">
+
+                        <label>Surgical Surgery:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][perinatal_gyn]" value="{{ if $value.Qn16.Valid }}{{ $value.Qn16.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn16.Valid }}{{ $value.Qn16.Int64 }}{{ end }}">
+
+                        <label>Medical internal:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][medical_internal]" value="{{ if $value.Qn17.Valid }}{{ $value.Qn17.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn17.Valid }}{{ $value.Qn17.Int64 }}{{ end }}">
+
+                        <label>Paediatrics:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][paediatric]" value="{{ if $value.Qn18.Valid }}{{ $value.Qn18.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn18.Valid }}{{ $value.Qn18.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('mortalityReviews-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            <!-- Laboratory Requests Section, for specific DeptIDs -->
+            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}           
+                <h6 class="collapsible" onclick="toggleSection('labRequests-{{ $value.EmpID }}')">Laboratory Requests</h6>
+                <div id="labRequests-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Lab requests:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][lab_requests]" value="{{ if $value.Qn19.Valid }}{{ $value.Qn19.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn19.Valid }}{{ $value.Qn19.Int64 }}{{ end }}">
+                        
+                        <label>Imaging Requests:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][imaging_requests]" value="{{ if $value.Qn20.Valid }}{{ $value.Qn20.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn20.Valid }}{{ $value.Qn20.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('labRequests-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+            <!-- Laboratory Tests Section, for specific DeptIDs -->
+            {{ if eq $value.DeptID 22 }}
+                <h6 class="collapsible" onclick="toggleSection('labTests-{{ $value.EmpID }}')">Laboratory Tests</h6>
+                <div id="labTests-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Investigations:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][lab_investigations]" value="{{ if $value.Qn21.Valid }}{{ $value.Qn21.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn21.Valid }}{{ $value.Qn21.Int64 }}{{ end }}">
+                        
+                        <label>Blood sample:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][bs]" value="{{ if $value.Qn22.Valid }}{{ $value.Qn22.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn22.Valid }}{{ $value.Qn22.Int64 }}{{ end }}">
+
+                        <label>HIV:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][hiv]" value="{{ if $value.Qn23.Valid }}{{ $value.Qn23.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn23.Valid }}{{ $value.Qn23.Int64 }}{{ end }}">
+
+                        <label>Malaria:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][malaria]" value="{{ if $value.Qn24.Valid }}{{ $value.Qn24.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn24.Valid }}{{ $value.Qn24.Int64 }}{{ end }}">
+
+                        <label>Tuberculosis:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][tb]" value="{{ if $value.Qn25.Valid }}{{ $value.Qn25.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn25.Valid }}{{ $value.Qn25.Int64 }}{{ end }}">
+                    </div>
+
+                    <div class="data-entry-row">
+                        <label>CBC:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][cbc]" value="{{ if $value.Qn26.Valid }}{{ $value.Qn26.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn26.Valid }}{{ $value.Qn26.Int64 }}{{ end }}">
+                        
+                        <label>Chemistry:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][chemistry]" value="{{ if $value.Qn27.Valid }}{{ $value.Qn27.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn27.Valid }}{{ $value.Qn27.Int64 }}{{ end }}">
+
+                        <label>Hematology:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][hematology]" value="{{ if $value.Qn28.Valid }}{{ $value.Qn28.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn28.Valid }}{{ $value.Qn28.Int64 }}{{ end }}">
+
+                        <label>Urinalysis:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][urinalysis]" value="{{ if $value.Qn29.Valid }}{{ $value.Qn29.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn29.Valid }}{{ $value.Qn29.Int64 }}{{ end }}">
+
+                        <label>Gram stain:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][gram_stain]" value="{{ if $value.Qn30.Valid }}{{ $value.Qn30.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn30.Valid }}{{ $value.Qn30.Int64 }}{{ end }}">
+                    </div>
+
+                    <div class="data-entry-row">
+                        <label>Culture:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][culture]" value="{{ if $value.Qn31.Valid }}{{ $value.Qn31.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn31.Valid }}{{ $value.Qn31.Int64 }}{{ end }}">
+                        
+                        <label>Microbiology:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][microbiology]" value="{{ if $value.Qn32.Valid }}{{ $value.Qn32.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn32.Valid }}{{ $value.Qn32.Int64 }}{{ end }}">
+
+                        <label>Sensitivity Tests:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][sensitivity_tests]" value="{{ if $value.Qn33.Valid }}{{ $value.Qn33.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn33.Valid }}{{ $value.Qn33.Int64 }}{{ end }}">
+                        
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('labTests-{{ $value.EmpID }}')">Edit</button>
+                </div>
+
+            {{ end }}
+
+            {{ if eq .DeptID 8 }}
+            <!-- Radiology Section -->
+                <h6 class="collapsible" onclick="toggleSection('radiology-{{ $value.EmpID }}')">Radiology</h6>
+                <div id="radiology-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Diagnostics:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][diagnostics]" value="{{ if $value.Qn34.Valid }}{{ $value.Qn34.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn34.Valid }}{{ $value.Qn34.Int64 }}{{ end }}">
+                        
+                        <label>X-Rays:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][xrays]" value="{{ if $value.Qn35.Valid }}{{ $value.Qn35.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn35.Valid }}{{ $value.Qn35.Int64 }}{{ end }}">
+
+                        <label>CT Scans:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][ct_scans]" value="{{ if $value.Qn36.Valid }}{{ $value.Qn36.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn36.Valid }}{{ $value.Qn36.Int64 }}{{ end }}">
+
+                        <label>Obstetrics Scans:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][obstetrics_scans]" value="{{ if $value.Qn37.Valid }}{{ $value.Qn37.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn37.Valid }}{{ $value.Qn37.Int64 }}{{ end }}">
+
+                        <label>Abdominal Scans:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][abdominal_scans]" value="{{ if $value.Qn38.Valid }}{{ $value.Qn38.Int64 }}{{ end }}"
+                        readonly data-original="{{ if $value.Qn38.Valid }}{{ $value.Qn38.Int64 }}{{ end }}">
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="toggleEditable('radiology-{{ $value.EmpID }}')">Edit</button>
+                </div>
+            {{ end }}
+
+        {{ end }}
+    {{ end }}
+
+    <!-- Submission Buttons -->
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.location.reload();">Refresh</button>
+            <button type="submit" id="updateButton" class="btn btn-success btn-sm">Update</button>
+        </div>
+    </div>
+</form>
+
+{{ end }}
+
+
+{{ define "extraJS" }}
+<script>
+    function toggleSection(sectionID) {
+        const section = document.getElementById(sectionID);
+        section.style.display = section.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleEditable(sectionId) {
+        const section = document.getElementById(sectionId);
+        const inputs = section.querySelectorAll('input');
+        const editButton = section.querySelector('button');
+        
+        if (editButton.innerText === 'Edit') {
+            // Switch to edit mode
+            editButton.innerText = 'Cancel';
+            
+            // Check if the OK button already exists; if not, create it
+            let okButton = section.querySelector('#okButton');
+            if (!okButton) {
+                okButton = document.createElement('button');
+                okButton.innerText = 'Confirm';
+                okButton.id = 'okButton'; // Assign a unique ID
+                okButton.type = 'button';
+                okButton.className = 'btn btn-sm';
+                okButton.onclick = function() { saveChanges(sectionId); };
+                editButton.parentNode.insertBefore(okButton, editButton.nextSibling);
+            }
+
+            // Enable inputs for editing
+            inputs.forEach(input => input.removeAttribute('readonly'));
+        } else {
+            // Cancel changes
+            editButton.innerText = 'Edit';
+            
+            // Remove OK button if it exists
+            const okButton = section.querySelector('#okButton');
+            if (okButton) {
+                okButton.remove();
+            }
+            
+            // Revert inputs to original values and make them readonly
+            inputs.forEach(input => {
+                input.value = input.getAttribute('data-original');
+                input.setAttribute('readonly', 'readonly');
+            });
+        }
+    }
+
+    function saveChanges(sectionId) {
+        const section = document.getElementById(sectionId);
+        const inputs = section.querySelectorAll('input');
+        const editButton = section.querySelector('button');
+        
+        // Save new values in data-original attribute and disable inputs
+        inputs.forEach(input => {
+            input.setAttribute('data-original', input.value);
+            input.setAttribute('readonly', 'readonly');
+        });
+
+        // Remove OK button and switch edit button text back to "Edit"
+        const okButton = section.querySelector('#okButton');
+        if (okButton) {
+            okButton.remove();
+        }
+        editButton.innerText = 'Edit';
+    }
+</script>
+{{ end }}
+
+

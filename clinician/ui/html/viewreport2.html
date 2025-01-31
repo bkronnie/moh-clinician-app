@@ -1,0 +1,352 @@
+{{ define "title"}} Bulk Capture {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: 10px;
+       font-size: 50px;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #viewReportForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   .hidden {
+       display: none;
+   }
+
+   .div1 {
+        width: 100%;
+        height: 400px;
+        overflow: scroll;
+        border: 2px solid #777777;
+    }
+
+    .div1 table {
+        border-spacing: 0;
+    }
+
+    .div1 th {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 50px;
+        min-width: 50px;
+        position: sticky;
+        top: 0;
+        background: #727272;
+        color: #e0e0e0;
+        font-weight: bold;
+        font-size: 12px;
+    }
+
+    .div1 td {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        border-bottom: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 50px;
+        min-width: 50px;
+        font-size: 15px;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        width: 50px;
+        min-width: 50px;
+    }
+
+    .div1 th:nth-child(2),
+    .div1 td:nth-child(2) {
+        position: sticky;
+        left: 50px; /* Adjusted position for 2nd column */
+        width: 0px;
+        min-width: 0px;
+    }
+
+    .div1 th:nth-child(3),
+    .div1 td:nth-child(3) {
+        position: sticky;
+        left: 50px; /* Increment position for 3rd column */
+        width: 0px;
+        min-width: 0px;
+    }
+
+    .div1 th:nth-child(4),
+    .div1 td:nth-child(4) {
+        position: sticky;
+        left: 50px; /* Increment position for 3rd column */
+        width: 100px;
+        min-width: 100px;
+    }
+
+    .div1 th:nth-child(5),
+    .div1 td:nth-child(5) {
+        position: sticky;
+        left: 150px; /* Increment position for 3rd column */
+        width: 100px;
+        min-width: 100px;
+    }
+
+    .div1 td:nth-child(1),
+    .div1 td:nth-child(2),
+    .div1 td:nth-child(3),
+    .div1 td:nth-child(4),
+    .div1 td:nth-child(5) {
+        background: #d7d7d6;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 th:nth-child(2),
+    .div1 th:nth-child(3),
+    .div1 th:nth-child(4),
+    .div1 th:nth-child(5) {
+        z-index: 3;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+
+    {{ if .Form }}
+        {{ with index .Form 0 }}
+            <h4>{{ .FacilityName }} Hospital - {{ .DepartmentName.String }}</h4>
+            <h4>Reporting Week: {{ formatDate .Start.Time "2 Jan 06" }}</h4>
+        {{ end }}
+    {{ end }}
+    
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{ define "content" }}
+<form id="viewReportForm" method="post" action="/reports/update">
+    <div id="table-container" class="div1">
+        <table id="staffTable" class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr id="dynamicHeaders">
+                    <th>SN</th>
+                    <th class="hidden">ReportID</th>
+                    <th class="hidden">Staff ID</th>
+                    <th>STAFF NAME</th>
+                    <th>Title</th>
+                    <th class="hidden">Facility ID</th>
+                    <th class="hidden">Health Facility</th>
+                    <th class="hidden">Department ID</th>
+                </tr>
+            </thead>
+            
+            <tbody>
+                <!-- Rows will be dynamically populated -->
+            </tbody>
+        </table>
+    </div><br>
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+            <button id="editButton" type="button" class="btn btn-primary btn-sm" onclick="toggleEditable()">Edit</button>
+        </div>
+    </div>
+</form>
+{{end}}
+
+{{ define "extraJS" }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    function getReportIDFromPath() {
+        const pathSegments = window.location.pathname.split('/');
+        // Assuming the reportID is always the last segment after "/reports/view/"
+        return pathSegments[pathSegments.length - 1];
+    }
+
+    function getQueryParam(param) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param);
+    }
+
+    function toggleEditable() {
+        const editButton = document.getElementById('editButton');
+        const submitButton = document.querySelector('button[type="submit"]');
+        const tableInputs = document.querySelectorAll('#staffTable input');
+
+        if (editButton.innerText === 'Edit') {
+            // Switch to edit mode
+            editButton.innerText = 'Cancel';
+            submitButton.style.display = 'none'; // Hide Submit button when editing
+            // Show Update button
+            const updateButton = document.createElement('button');
+            updateButton.innerText = 'Update';
+            updateButton.className = 'btn btn-warning btn-sm';
+            updateButton.type = 'button';
+            updateButton.onclick = function() { saveChanges(); };
+            editButton.parentNode.appendChild(updateButton);
+            
+            // Enable inputs for editing
+            tableInputs.forEach(input => input.removeAttribute('readonly'));
+        } else {
+            // Cancel changes
+            editButton.innerText = 'Edit';
+            submitButton.style.display = 'inline'; // Show Submit button after canceling
+            // Remove Update button
+            const updateButton = document.querySelector('button.btn-warning');
+            if (updateButton) {
+                updateButton.remove();
+            }
+            
+            // Revert inputs to original values and make them readonly
+            tableInputs.forEach(input => {
+                input.value = input.getAttribute('data-original');
+                input.setAttribute('readonly', 'readonly');
+            });
+        }
+    }
+
+    function saveChanges() {
+        const tableInputs = document.querySelectorAll('#staffTable input');
+        tableInputs.forEach(input => {
+            // Store the original value to preserve it
+            input.setAttribute('data-original', input.value);
+            input.setAttribute('readonly', 'readonly');
+        });
+        // Change button back to "Edit" after saving changes
+        const editButton = document.getElementById('editButton');
+        editButton.innerText = 'Edit';
+        const submitButton = document.querySelector('button[type="submit"]');
+        submitButton.style.display = 'inline'; // Show Submit button after saving changes
+        const updateButton = document.querySelector('button.btn-warning');
+        if (updateButton) {
+            updateButton.remove();
+        }
+    }
+
+    $(document).ready(function() {
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        const facility = getQueryParam('facility'); // Fetch Facility ID from URL
+        const start = getQueryParam('start'); // Fetch Start Date from URL
+        const dept = getQueryParam('dept'); // Fetch Department ID from URL
+
+        if (!facility || !start || !dept) {
+            alert("One or more required parameters (facility, start, dept) are missing in the URL. Please check.");
+            return;
+        }
+
+        $.ajax({
+            url: `/reports/view/json?facility=${facility}&start=${start}&department=${dept}`, // Updated URL
+            method: 'GET',
+            success: function(response) {
+                console.log("Received data:", response); // Log the full response object
+
+                const { staff, dataPoints } = response;
+
+                if (!staff || staff.length === 0) {
+                    $('#staffTable tbody').html('<tr><td colspan="5" class="text-center">No records found.</td></tr>');
+                    return;
+                }
+
+                // Parse dataPoints if it is a JSON string
+                let parsedDataPoints = [];
+                if (typeof dataPoints[0] === 'string') {
+                    parsedDataPoints = JSON.parse(dataPoints[0]);
+                } else {
+                    parsedDataPoints = dataPoints;
+                }
+
+                const formattedPoints = parsedDataPoints.map(dp => dp.split('_').map(w => w.toUpperCase()).join(' '));
+
+
+                // Generate dynamic table headers
+                let headers = `
+                    <th>SN</th>
+                    <th class="hidden">ReportID</th>
+                    <th class="hidden">Staff ID</th>
+                    <th>STAFF NAME</th>
+                    <th>TITLE</th>
+                    <th class="hidden">Facility ID</th>
+                    <th class="hidden">Health Facility</th>
+                    <th class="hidden">Department ID</th>                                              
+                `;
+                formattedPoints.forEach(dp => headers += `<th>${dp}</th>`);
+                $('#dynamicHeaders').html(headers);
+
+                // Generate table rows dynamically
+                let rows = '';
+                staff.forEach((s, i) => {
+                    rows += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td class="hidden">
+                                <input size="3" name="input[${s.EmpID}][reportID]" value="${s.ID}" class="form-control" readonly />
+                            </td>
+                            <td class="hidden"> ${s.EmpID} </td>
+                             <td>${s.staffname.Valid ? s.staffname.String : "N/A"} </td>
+                             <td>${s.title.Valid ? s.title.String : "N/A"}</td>`;
+                    // Generate input fields for each data point
+                    parsedDataPoints.forEach(dp => {
+                        rows += `
+                            <td>
+                                <input size="3" name="input[${s.EmpID}][${dp}]" 
+                                    value="${s[dp] || ''}" 
+                                    class="form-control" readonly />
+                            </td>`;
+                    });
+                    rows += '</tr>';
+                });
+
+                if (rows === '') {
+                    rows = '<tr><td colspan="5" class="text-center">No data available for this query.</td></tr>';
+                }
+
+                $('#staffTable tbody').html(rows);
+            },
+            error: function(err) {
+                console.error("Error fetching data:", err);
+            }
+        });
+    });
+
+</script>
+{{ end }}

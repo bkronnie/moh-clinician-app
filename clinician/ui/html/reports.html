@@ -1,0 +1,266 @@
+{{ define "title"}} Weekly Report Submission Listing {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    .form-inline .form-group label {
+        margin-right: 5px;
+    }
+
+    #loginForm {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+        border: 2px solid #ccc;
+    }
+
+    .div1 {
+        width: 100%;
+        height: 400px;
+        overflow: scroll;
+        border: 2px solid #777777;
+    }
+
+    .div1 table {
+        border-spacing: 0;
+    }
+
+    .div1 th {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 20px;
+        min-width: 20px;
+        position: sticky;
+        top: 0;
+        background: #727272;
+        color: #e0e0e0;
+        font-weight: normal;
+    }
+
+    .div1 td {
+        border-left: none;
+        border-right: 1px solid #bbbbbb;
+        border-bottom: 1px solid #bbbbbb;
+        padding: 5px;
+        width: 20px;
+        min-width: 20px;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        width: 50px;
+        min-width: 50px;
+    }
+
+    .div1 th:nth-child(2),
+    .div1 td:nth-child(2) {
+        position: sticky;
+        left: 50px; /* Adjusted position for 2nd column */
+        width: 150px;
+        min-width: 150px;
+    }
+
+    .div1 th:nth-child(3),
+    .div1 td:nth-child(3) {
+        position: sticky;
+        left: 200px; /* Increment position for 3rd column */
+        width: 100px;
+        min-width: 100px;
+    }
+
+    .div1 td:nth-child(1),
+    .div1 td:nth-child(2),
+    .div1 td:nth-child(3) {
+        background: #d7d7d6;
+    }
+
+    .div1 th:nth-child(1),
+    .div1 th:nth-child(2) {
+        z-index: 3;
+    }
+
+    .hidden {
+        display: none; /* Hide the Staff ID column */
+    }
+
+    .disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+        pointer-events: none;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+    {{ if .Form }}
+        {{ with index .Form 0 }}
+            <h4>{{ .FacilityName }} Hospital - {{ .DepartmentName.String }}</h4>
+        {{ end }}
+    {{ end }}
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{define "content"}}       
+<form id="loginForm" method="post" action="/reports/update">
+    
+    <div class="d-flex justify-content-between mb-3">
+        <div>
+            <!--<a href="/reports/new/0" class="btn btn-primary">Add mine</a>-->
+            <a href="/reports/bulk" class="btn btn-secondary">Add bulk</a>
+        </div>
+        <div>
+            {{ if .Form }}
+                {{ with index .Form 0 }}
+                    <h4>Reporting Week: {{ formatDate .Start.Time "2 Jan 06" }}</h4>
+                {{ end }}
+            {{ end }}
+
+        </div>
+        <div>
+            <!--<a href="/reports/list" class="btn btn-success">Refresh</a>-->
+            <a href="/reports/export" class="btn btn-warning">Export</a>
+            <!--<a href="/" class="btn btn-primary">Back</a>-->
+            <button type="button" id="approveAllButton" onclick="approveAll()" class="btn btn-info">Submit</button>
+        </div>
+    </div>
+
+    <div id="tablecontent" class="div1">
+        <table>
+            <thead class="thead-light">
+                <tr>
+                    <th>SN</th>
+                    <th>Report ID</th>
+                    <th class="hidden">Staff ID</th>
+                    <th>Staff Name</th>
+                    <th>Title</th>
+                    <th class="hidden">Facility ID</th>
+                    <th class="hidden">Health Facility</th>
+                    <th class="hidden">Department ID</th>
+                    <th>Entered By</th>
+                    <th>Created on</th>                
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ $index := 0 }} 
+                {{ if .Form }}
+                    {{ range $key, $value := .Form }}
+                        {{ $index = add $index 1 }}
+                        <tr>
+                            <td>{{ $index }}</td>
+                            <td>{{ $value.ID }}</td>
+                            <td class="hidden">{{ $value.EmpID }}</td>
+                            <td>{{ $value.Fname.String }} {{ $value.Lname.String }} {{ $value.Oname.String }}</td>
+                            <td>{{ $value.EmpTitle.String }}</td>
+                            <td class="hidden">{{ $value.Hospital.Int64 }}</td>
+                            <td class="hidden">{{ $value.FacilityName }}</td>
+                            <td class="hidden">{{ $value.Dept.Int64 }}</td>
+                            <td>{{ $value.EnteredByID.Int64 }}</td>
+                            <td>{{ formatDate $value.EntryCreatedOn.Time "2 Jan 06" }}</td>                        
+                            <td>
+                                {{ if eq $value.RecordStatus.String "Submitted" }}
+                                    <span>Submitted</span>
+                                {{ else }}
+                                    <a href="/reports/view/{{ $value.ID }}?department={{$value.Dept.Int64}}&facility={{$value.Hospital.Int64}}&empID={{$value.EmpID}}" class="btn btn-sm btn-info">View</a>
+                                    <a href="/reports/rem/{{ $value.ID }}" class="btn btn-sm btn-danger">Delete</a>                                
+                                {{ end }}
+                            </td>
+                            <td class="hidden">
+                                <input type="hidden" class="report-id" value="{{ $value.ID }}">
+                            </td>
+                        </tr>
+                    {{ end }}
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.location.reload();">Refresh</button>
+        </div>
+    </div>
+
+</form>
+
+{{ end }}
+
+{{ define "extraJS" }}
+<script>
+    function approveAll() {
+        const reportIDs = Array.from(document.querySelectorAll('.report-id'))
+            .map(input => parseInt(input.value, 10));
+        
+        fetch('/reports/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ reportIDs: Array.isArray(reportIDs) ? reportIDs : [reportIDs] })
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('All reports approved successfully!');
+                location.reload();
+            } else {
+                alert('Failed to approve reports.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error approving reports.');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const allApproved = Array.from(document.querySelectorAll('td:nth-child(15) span, td:nth-child(15) a'))
+            .every(cell => cell.textContent.trim() === "Approved" || cell.classList.contains('disabled'));
+
+        const updateButton = document.getElementById('updateButton');
+        const approveAllButton = document.getElementById('approveAllButton');
+
+        if (allApproved) {
+            updateButton.classList.add('hidden');
+            approveAllButton.classList.add('disabled');
+        }
+    });
+</script>
+{{ end }}

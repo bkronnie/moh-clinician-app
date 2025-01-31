@@ -1,0 +1,346 @@
+{{ define "title"}} Weekly Report Data Capture {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+       font-family: "Times New Roman", Times, serif;
+       font-size: 14px;
+   }
+
+   .form-inline .form-group {
+       margin-right: 5px;
+   }
+
+   .form-control-sm {
+       width: auto;
+       font-size: 100%;
+       line-height: 1.2;
+       border-radius: 1px;
+       margin: 0;
+   }
+
+   .btn-sm {
+       padding: 3px 8px;
+       font-size: 12px;
+       line-height: 1.5;
+       border-radius: 3px;
+   }
+
+   .form-inline .form-group label {
+       margin-right: 5px;
+   }
+
+   #loginForm {
+       display: flex;
+       flex-direction: column;
+       padding: 10px;
+       border: 1px solid #ccc;
+       border-radius: 5px;
+       background-color: #f9f9f9;
+       width: 100%;
+   }
+
+   table {
+       width: 100%;
+   }
+
+   /* Reduce padding to make the table more compact */
+   table.table th, 
+   table.table td {
+       padding: 0.5rem;
+   }
+
+   /* Optional: Reduce font size to make it even more compact */
+   table.table {
+       font-size: 0.875rem;
+   }
+
+   .hidden {
+       display: none; /* Hide the Staff ID column */
+   }
+
+   
+
+   /* Added styles for rows */
+   .data-entry-row {
+       display: flex;
+       flex-wrap: wrap;
+       margin-bottom: 10px;
+   }
+
+   .data-entry-row label {
+       min-width: 125px;
+       font-weight: bold;
+       margin-right: 5px;
+   }
+
+   .data-entry-row input {
+       margin-right: 30px;
+       margin-bottom: 10px;
+   }
+
+   /* Styles for collapsible headers */
+   h6.collapsible {
+        cursor: pointer;
+        background-color: #f1f1f1;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .hidden-content {
+        display: none;
+        margin-bottom: 10px;
+    }
+    
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital - Weekly Report Data Capture.
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+{{ end }}
+
+{{define "content"}}       
+<form id="loginForm" method="post" action="/reports/zave">
+
+    <!-- Date Pickers at the Top -->
+    <div class="data-entry-row">
+        <label for="start">Start Date</label>
+        <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+        
+        <label for="stop">Stop Date</label>
+        <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
+    </div>
+
+    {{ if .Form }}
+        {{ range $key, $value := .Form }}
+            <div class="data-entry-row">
+                <label>Department ID: {{ $value.DeptID }}</label>
+                <label>Employee ID: {{ $value.EmpID }}</label>
+            </div>
+
+            <h6 class="collapsible" onclick="toggleSection('attendance-{{ $value.EmpID }}')">Attendance</h6>
+            <div id="attendance-{{ $value.EmpID }}" class="hidden-content">
+                <div class="data-entry-row">
+                    <label>Attendance:</label>
+                    <input size="3" name="input[{{ $value.EmpID }}][attend]">
+                </div>
+            </div>
+            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 1) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+
+            <h6 class="collapsible" onclick="toggleSection('wardRounds-{{ $value.EmpID }}')">Ward Rounds</h6>
+            <div id="wardRounds-{{ $value.EmpID }}" class="hidden-content">
+
+                <div class="data-entry-row">
+                <label>Number of Rounds:</label>
+                <input size="3" name="input[{{ $value.EmpID }}][ward]">
+
+                <label>Number of Patients Reviewed:</label>
+                <input size="3" name="input[{{ $value.EmpID }}][patients_reviewed]">
+                </div>
+            </div>
+            {{ end }}
+
+            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                <!-- Collapsible Theatre Section -->
+                <h6 class="collapsible" onclick="toggleSection('theatre-{{ $value.EmpID }}')">Theatre</h6>
+                <div id="theatre-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Theatre Done:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][theatre_done]">
+
+                        <label>Elective Surgeries:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][elective_surgeries]">
+
+                        <label>Emergency Surgeries:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][emergency_surgeries]">
+                    </div>
+                </div>
+            {{ end }}
+
+            {{ if eq $value.DeptID 5 }}
+                <h6 class="collapsible" onclick="toggleSection('postMoterm-{{ $value.EmpID }}')">Postmoterm Section:</h6>
+                <div id="postMoterm-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Postmortems:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][postmortems]">
+                    </div>
+                </div>
+            {{ end }}
+
+            <!-- Additional conditional fields based on department -->
+            {{ if or (eq $value.DeptID 3) (eq $value.DeptID 1) (eq $value.DeptID 2) (eq $value.DeptID 4) (eq $value.DeptID 21) (eq $value.DeptID 6) (eq $value.DeptID 10) }}
+                <!-- Collapsible Specialised Clinics Section -->
+                <h6 class="collapsible" onclick="toggleSection('specializedClinics-{{ $value.EmpID }}')">Specialised Clinics</h6>
+                <div id="specializedClinics-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Specialised clinics:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][specialised_clinics]">
+
+                        <label>Gyn Patients:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][gyn_patients]">
+
+                        <label>ANC Patients:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][anc_patients]">
+                    </div>
+                </div>
+            {{ end }}
+
+            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+
+                <h6 class="collapsible" onclick="toggleSection('teachingRounds-{{ $value.EmpID }}')">Teaching Rounds</h6>
+                <div id="teachingRounds-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Teaching Rounds:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][teaching_rounds]">
+
+                        <label>Students Taught:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][students_taught]">
+                    </div>
+                </div>
+            {{ end }}
+
+            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+
+                <h6 class="collapsible" onclick="toggleSection('mortalityReviews-{{ $value.EmpID }}')">Mortality Reviews</h6>
+                <div id="mortalityReviews-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Reviews conducted:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][mortality_reviews]">
+
+                        <label>Marternal Gyn:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][maternal_gyn]">
+
+                        <label>Perinatal Gyn:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][perinatal_gyn]">
+
+                        <label>Surgical Surgery:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][surgical_surgery]">
+
+                        <label>Medical Internal:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][medical_internal]">
+
+                        <label>Paediatric:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][paediatric]">
+                    </div>
+                </div>
+            {{ end }}
+
+            {{ if or (eq .DeptID 3) (eq .DeptID 1) (eq .DeptID 2) (eq .DeptID 4) (eq .DeptID 21) (eq .DeptID 6) (eq .DeptID 10) }}
+                <h6 class="collapsible" onclick="toggleSection('labRequests-{{ $value.EmpID }}')">Laboratory Requests</h6>
+                <div id="labRequests-{{ $value.EmpID }}" class="hidden-content">
+
+                    <div class="data-entry-row">
+                        <label>Lab Requests:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][lab_requests]">
+
+                        <label>Imaging requests:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][imaging_requests]">
+                    </div>
+                </div>
+            {{ end }}
+
+            
+            {{ if eq $value.DeptID 22 }}
+                <h6 class="collapsible" onclick="toggleSection('labTests-{{ $value.EmpID }}')">Laboratory Tests</h6>
+                <div id="labTests-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Lab Investigations:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][lab_investigations]">
+
+                        <label>Blood Sample:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][bs]">
+
+                        <label>HIV:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][hiv]">
+
+                        <label>Malaria:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][malaria]">
+
+                        <label>Tuberculosis:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][tb]">
+                    </div>
+                    <div class="data-entry-row">
+                        <label>CBC:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][cbc]">
+
+                        <label>Chemistry:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][chemistry]">
+
+                        <label>Hematology:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][hematology]">
+
+                        <label>Urinalysis:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][urinalysis]">
+
+                        <label>Gram Stain:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][gram_stain]">
+                    </div>
+                    <div class="data-entry-row">
+                        <label>Culture:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][culture]">
+
+                        <label>Microbiology:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][microbiology]">
+
+                        <label>Sensitivity Tests:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][sensitivity_tests]">
+                    </div>
+                </div>
+            {{ end }}
+
+            {{ if eq .DeptID 8 }}
+                <h6 class="collapsible" onclick="toggleSection('radiology-{{ $value.EmpID }}')">Radiology</h6>
+                <div id="radiology-{{ $value.EmpID }}" class="hidden-content">
+                    <div class="data-entry-row">
+                        <label>Diagnostics:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][diagnostics]">
+
+                        <label>X-Rays:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][xrays]">
+
+                        <label>CT Scans:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][ct_scans]">
+
+                        <label>Obstetrics Scans:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][obstetrics_scans]">
+
+                        <label>Abdomninal Scans:</label>
+                        <input size="3" name="input[{{ $value.EmpID }}][abdominal_scans]">
+                    </div>
+                </div>
+            {{ end }}                        
+
+            <!-- Repeat rows as needed for other fields -->
+        {{ end }}
+    {{ end }}
+
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
+
+            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+        </div>
+    </div>
+</form>
+{{end}}
+
+{{ define "extraJS" }}
+<script>
+    function toggleSection(sectionId) {
+        var content = document.getElementById(sectionId);
+        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    }
+</script>
+{{ end }}

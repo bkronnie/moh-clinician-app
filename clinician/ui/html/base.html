@@ -1,0 +1,164 @@
+{{ define "layout" }}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ template "title" . }}</title>
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+         body, html {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar, .sidebar, .footer {
+            background-color: white;
+        }
+        .navbar {
+            border-bottom: 1px solid #dee2e6;
+        }
+        .sidebar {
+            border-right: 1px solid #dee2e6;
+            height: 100%;
+        }
+        .footer {
+            border-top: 1px solid #dee2e6;
+        }
+        .container-fluid {
+            flex: 1;
+            display: flex;
+        }
+        .row {
+            flex: 1;
+            display: flex;
+        }
+        .main-content {
+            flex: 1;
+        }
+        .logout-btn {
+            margin-left: 20px;
+        }
+        .absence {
+            background-color: gray;
+        }
+        .tile {
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .tile h2 {
+            font-size: 24px;
+            margin: 0;
+        }
+        .tile p {
+            font-size: 18px;
+            margin: 0;
+        }
+        .chart-container {
+            margin-top: 40px;
+        }
+    </style>
+    {{ template "extraStyles" . }}
+</head>
+<body>
+    <!-- Top Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <a class="navbar-brand" href="#">Brand</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Features</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Documentation</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">About</a>
+                </li>
+				<li class="nav-item">
+                    <a class="btn btn-outline-danger logout-btn" href="/logout">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Side Navigation -->
+            <nav class="col-md-2 d-none d-md-block sidebar">
+                <div class="sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/login">
+                                Dashboard <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/submissions">
+                                Weekly Outputs <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                Targets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/analysis">
+                                Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/employee/list">
+                                Employees
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                Health Facilities
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                Departments
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4 main-content">
+                <h1 class="h2">{{ template "header" . }}</h1>
+                <div class="content">
+                    {{ template "content" . }}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3">
+        <div class="container">
+            <span class="text-muted">Place footer content here.</span>
+        </div>
+    </footer>
+
+    <script src="/static/js/jquery-3.5.1.slim.min.js"></script>
+    <script src="/static/js/popper.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    {{ template "extraJS" . }}
+</body>
+</html>
+{{ end }}

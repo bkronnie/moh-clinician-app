@@ -1,0 +1,126 @@
+{{ define "title"}} Leave History {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    #loginForm {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+    }
+
+    .data-entry-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .data-entry-row label {
+        min-width: 125px;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    .data-entry-row input {
+        margin-right: 30px;
+        margin-bottom: 10px;
+    }
+
+    h6.collapsible {
+        cursor: pointer;
+        background-color: #f1f1f1;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .hidden-content {
+        display: none;
+        margin-bottom: 10px;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .Ses.HFName }} Hospital: Leave History
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{define "content"}}
+<form id= "loginForm" action="/employee/leave" method="POST"></form>
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>ID</th>
+                <th>Submission Date</th>
+                <th>Leave Type</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th>Comments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ $index := 0 }} <!-- Initialize a counter -->
+            {{ if .Form }}
+                {{ range $key, $employee := .Form }}
+                    {{ $index = add $index 1 }} <!-- Increment the counter -->
+                        <tr>
+                            <td>{{.ID}}</td>
+                            <td>{{formatDate .SubmissionDate}}</td>
+                            <td>{{.LeaveType}}</td>
+                            <td>{{formatDate .StartDate}}</td>
+                            <td>{{formatDate .EndDate}}</td>
+                            <td>{{.Status}}</td>
+                            <td style="color: #212529;">{{.Comments}}</td> <!-- Ensures font color is consistent -->
+                        </tr>
+            {{else}}
+            <tr>
+                <td colspan="7" class="text-center">No leave records found.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</form>
+
+{{end}}
+
+{{ define "extraJS" }}
+<script>
+    // Any additional JavaScript if needed
+</script>
+{{ end }}

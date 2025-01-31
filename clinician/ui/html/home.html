@@ -1,0 +1,122 @@
+{{ define "title"}} Clinician Output Dashboard {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    /* Set the height for the canvas */
+    #myChart {
+        height: 300px !important; /* You can adjust this value */
+    }
+</style>
+{{ end }}
+
+{{ define "header" }} 
+{{ .sessionData.Ses.HFName }} Hospital Dashboard
+{{ end }}
+
+{{ define "footer" }} 
+{{ end }}
+
+{{ define "sidebar" }} 
+{{ end }}
+
+{{ define "sidebarContent" }} 
+    
+{{ end }}
+
+{{define "content"}}                
+                <!-- Tiles Section -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-white bg-primary mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Facilities</h5>
+                                <p class="card-text">{{ .FacilitiesCount }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-success mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Staff</h5>
+                                <p class="card-text">{{ .TotalStaff }}</p> <!-- Total Staff -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-info mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Staff Present</h5>
+                                <p class="card-text">{{ .StaffPresent }}</p> <!-- Staff Present -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-warning mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Staff on Leave</h5>
+                                <p class="card-text">{{ .StaffOnLeave }}</p> <!-- Staff on Leave -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Line Graph Section -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <div class="table-responsive mt-4">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Health Facility</th>
+                                <th>Total Staff</th>
+                                <th>Staff Present</th>
+                                <th>On Leave</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>2024-09-20</td>
+                                <td>123</td>
+                                <td>456</td>
+                                <td>78</td>
+                            </tr>
+                            <!-- Add more rows as needed -->
+                        </tbody>
+                    </table>
+                </div>
+
+{{ end }}
+
+{{ define "extraJS" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Script for Chart.js -->
+<script>
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            datasets: [{
+                label: 'Total Absences',
+                data: [12, 19, 3, 5, 2],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false,
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{{ end }}

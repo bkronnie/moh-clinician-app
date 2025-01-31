@@ -1,0 +1,115 @@
+{{ define "layout" }}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absence: Login</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+
+    <style>
+         body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 14px;
+        }
+
+        .form-inline .form-group {
+            margin-right: 5px;
+        }
+    
+        .form-control-sm {
+            width: auto;
+            font-size: 100%;
+            line-height: 1.2;
+            border-radius: 1px;
+            margin: 0;
+        }
+    
+        .btn-sm {
+            padding: 3px 8px;
+            font-size: 12px;
+            line-height: 1.5;
+            border-radius: 3px;
+        }
+    
+        .form-inline .form-group label {
+            margin-right: 5px;
+        }
+    
+        #loginForm {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        table {
+            width: 100%;
+        }
+    </style>
+    
+</head>
+<body>
+    <div class="container">
+        <row style="height: 50%;">
+            <br><br><br><br>
+        </row>
+        <row>
+            <div class="col-sm-4 offset-sm-3">
+                
+            </div>
+            <div class="col-sm-4 offset-sm-3">
+                <h3>Request User Credential</h3>
+                <form id="loginForm" class="form-inline" method="post" action="/forgot">
+                    <table>
+                        <tr>
+                            <td><label for="username" >Firstname</label></td>
+                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm"></td>
+                        </tr> 
+                        <tr>
+                            <td><label for="username" >Lastname</label></td>
+                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm"></td>
+                        </tr> 
+                        <tr>
+                            <td><label for="username" >Othername</label></td>
+                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm"></td>
+                        </tr> 
+                        <tr>
+                            <td><label for="username" >email</label></td>
+                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm"></td>
+                        </tr>  
+                        <tr>
+                            <td><label for="facility" >Health Facility</label></td>
+                            <td><input type="text" id="facility" name="facility" required class="form-control form-control-sm"></td>
+                        </tr>  
+                        <tr>
+                            <td><label for="department" >Department</label></td>
+                            <td><input type="text" id="department" name="department" required class="form-control form-control-sm"></td>
+                        </tr>                       
+                        <tr>
+                            <td colspan="2">
+                                <button type="submit" class="btn btn-primary btn-sm">Submit</button>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    
+                </form>
+                
+            </div>
+            <div class="col-sm-4 offset-sm-3">
+                
+            </div>
+        </row>
+        
+    </div>
+    <script src="/static/js/jquery.min.js"></script>
+    
+</body>
+</html>
+
+{{ end }}

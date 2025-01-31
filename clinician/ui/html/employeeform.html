@@ -1,0 +1,162 @@
+{{ define "title" }} Employee Data Entry {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 14px;
+    }
+
+    .form-inline .form-group {
+        margin-right: 5px;
+    }
+
+    .form-control-sm {
+        width: auto;
+        font-size: 100%;
+        line-height: 1.2;
+        border-radius: 1px;
+        margin: 0;
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        border-radius: 3px;
+    }
+
+    #employeeForm {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        width: 100%;
+    }
+
+    .form-control-sm,
+    .form-select {
+        font-size: 14px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: 100%;
+    }
+
+    .form-select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background: #fff url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="gray" d="M2 0L0 2h4z"/></svg>') no-repeat right 10px center;
+        background-size: 8px 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 4px;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+        color: #fff;
+        border: none;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    
+</style>
+{{ end }}
+
+{{ define "header" }}
+{{ .Ses.HFName }} Hospital - New Employee
+{{ end }}
+
+{{ define "content" }}
+<form id="employeeForm" method="post" action="/employee/save">
+    <!-- Input Fields for Employee Data -->
+    <div class="form-group row">
+        <label for="fname" class="col-sm-1 col-form-label">First Name</label>
+        <div class="col-sm-2">
+            <input type="text" id="fname" name="fname" class="form-control form-control-sm" required>
+        </div>
+        <label for="lname" class="col-sm-1 col-form-label">Last Name</label>
+        <div class="col-sm-2">
+            <input type="text" id="lname" name="lname" class="form-control form-control-sm" required>
+        </div>
+        <label for="oname" class="col-sm-1 col-form-label">Other Name</label>
+        <div class="col-sm-2">
+            <input type="text" id="oname" name="oname" class="form-control form-control-sm">
+        </div>
+    </div>
+    
+    <div class="form-group row">
+        <label for="title" class="col-sm-1 col-form-label">Title</label>
+        <div class="col-sm-2">
+            
+            <select id="emptitle_id" name="EmpTitleID" class="form-select" required>
+                <option value="1">Medical Officer(SG)</option>
+                <option value="2">Medical Officer</option>
+                <option value="3">Medical Officer(Specialist)</option>
+                <option value="4">Senior Consultant</option>
+                <option value="5">Consultant</option>
+                <option value="6">Senior Nursing Officer</option>
+                <option value="7">Nursing Officer</option>
+            </select>
+        </div>
+
+        
+        <label for="specialisation" class="col-sm-1 col-form-label">Specialisation</label>
+        <div class="col-sm-2">
+            <input type="text" id="specialisation" name="Specialisation" class="form-control form-control-sm">
+        </div>
+    </div>
+
+    <!-- Facility and Department dropdowns -->
+    <div class="form-group row">
+        <label for="facility" class="col-sm-1 col-form-label">Facility</label>
+        <div class="col-sm-3">
+            <select id="facility" name="EmpFacility" class="form-control form-control-sm" required>
+                {{ range .facilities }}
+                <option value="{{ .FacilityID }}">{{ .FacilityName }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <label for="department" class="col-sm-1 col-form-label">Department</label>
+        <div class="col-sm-3">
+            <select id="department" name="EmpDepartment" class="form-control form-control-sm" required>
+                {{ range .departments }}
+                <option value="{{ .DeptID }}">{{ .DepartmentName.String }}</option>
+                {{ end }}
+            </select>
+        </div>
+    </div>
+
+    <!-- Save and Cancel buttons -->
+    <div class="form-group row">
+        <div class="col-sm-12 text-center">
+            <button type="submit" class="btn btn-success btn-sm">Save Employee</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.location='/employee/list'">Cancel</button>
+        </div>
+    </div>
+</form>
+{{ end }}
+
+{{ define "extraJS" }}
+{{ end }}
