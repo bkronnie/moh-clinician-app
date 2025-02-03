@@ -1304,8 +1304,28 @@ func HandlerReportView2(c *gin.Context, db *sql.DB, sessionManager *scs.SessionM
 // Handler used for entering weekly report for a single user
 func HandlerReportsAnalysis(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 
+	// Get session-specific data (e.g., user ID and HFID)
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	// Now access the SessionDetails from the TemplateData
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	//log.Printf("Session Data HandlerReportFacilities: %+v", sesDetails)
+
+	hospitalID := sesDetails.HFID // Retrieve HFID from the session
+
 	// Call GetFacilitiesList function to retrieve facilities
-	facilities, err := models.GetFacilitiesList(c.Request.Context(), db)
+	facilities, err := models.GetFacilitiesList(c.Request.Context(), db, hospitalID)
 	if err != nil {
 		log.Printf("Error fetching facilities: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching facilities"})

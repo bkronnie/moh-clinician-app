@@ -1426,16 +1426,32 @@ func getFacilityAndDepartmentID(db *sql.DB, employeeID int64) (int64, int64, err
 	return facilityID, departmentID, nil
 }
 
-func GetFacilitiesList(ctx context.Context, db DB) ([]*Facility, error) {
-    sqlstr := 
-        `
-        SELECT Distinct(f.id), f.f_name
+//Get facilities List to be used to populate iframe tables
+// GetFacilitiesList retrieves the list of facilities, filtering by hospitalID if provided.
+func GetFacilitiesList(ctx context.Context, db DB, hospitalID int64) ([]*Facility, error) {
+    var sqlstr string
+    var rows *sql.Rows
+    var err error
+
+    if hospitalID == 0 {
+        sqlstr = `
+        SELECT DISTINCT f.id, f.f_name
         FROM public.facilities f
-        JOIN public.weeklyreport w on w.hospital = f.id
-        ORDER BY id
+        JOIN public.weeklyreport w ON w.hospital = f.id
+        ORDER BY f.id
         `
-    
-    rows, err := db.QueryContext(ctx, sqlstr)
+        rows, err = db.QueryContext(ctx, sqlstr)
+    } else {
+        sqlstr = `
+        SELECT DISTINCT f.id, f.f_name
+        FROM public.facilities f
+        JOIN public.weeklyreport w ON w.hospital = f.id
+        WHERE f.id = $1
+        ORDER BY f.id
+        `
+        rows, err = db.QueryContext(ctx, sqlstr, hospitalID)
+    }
+
     if err != nil {
         return nil, err
     }
@@ -1444,19 +1460,19 @@ func GetFacilitiesList(ctx context.Context, db DB) ([]*Facility, error) {
     facilityList := []*Facility{}
     for rows.Next() {
         f := &Facility{}
-        err = rows.Scan(&f.FacilityID, &f.FacilityName)
-        if err != nil {
+        if err := rows.Scan(&f.FacilityID, &f.FacilityName); err != nil {
             return nil, err
         }
         facilityList = append(facilityList, f)
     }
-    
+
     if err = rows.Err(); err != nil {
         return nil, err
     }
 
     return facilityList, nil
 }
+
 
 // Helper function to map the facilities to a string map
 func mapFacilitiesToString(facilities []*Facility) map[string]string {
