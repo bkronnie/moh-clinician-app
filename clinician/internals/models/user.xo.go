@@ -5,11 +5,11 @@ package models
 import (
 	"context"
 	"database/sql"
-	"strconv"
 	"fmt"
+	"strconv"
 )
 
-// User represents a row from 'public.users'.
+// User represents a row from 'clinician_app.users'.
 type User struct {
 	ID        int           `json:"id"`         // id
 	Username  string        `json:"username"`   // username
@@ -42,7 +42,7 @@ func (u *User) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.users (` +
+	const sqlstr = `INSERT INTO clinician_app.users (` +
 		`username, pssword, employees, rights, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6` +
@@ -66,7 +66,7 @@ func (u *User) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.users SET ` +
+	const sqlstr = `UPDATE clinician_app.users SET ` +
 		`username = $1, pssword = $2, employees = $3, rights = $4, created_by = $5, created_on = $6 ` +
 		`WHERE id = $7`
 	// run
@@ -92,7 +92,7 @@ func (u *User) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.users (` +
+	const sqlstr = `INSERT INTO clinician_app.users (` +
 		`id, username, pssword, employees, rights, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7` +
@@ -119,7 +119,7 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.users ` +
+	const sqlstr = `DELETE FROM clinician_app.users ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, u.ID)
@@ -131,14 +131,14 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// UserByID retrieves a row from 'public.users' as a [User].
+// UserByID retrieves a row from 'clinician_app.users' as a [User].
 //
 // Generated from index 'users_pkey'.
 func UserByID(ctx context.Context, db DB, id int) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM public.users ` +
+		`FROM clinician_app.users ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)
@@ -155,7 +155,7 @@ func UserByEmail(ctx context.Context, db DB, email string) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM public.users ` +
+		`FROM clinician_app.users ` +
 		`WHERE username = $1`
 	// run
 	logf(sqlstr, email)
@@ -172,12 +172,12 @@ func UserByEmailPass(ctx context.Context, db DB, email string, pass string) (*Us
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM public.users ` +
+		`FROM clinician_app.users ` +
 		`WHERE username = $1 AND pssword = $2`
 	// run
-	
+
 	zepass := Encrypt(pass)
-	
+
 	logf(sqlstr, email, zepass)
 	u := User{
 		_exists: true,
@@ -192,20 +192,20 @@ func Users(ctx context.Context, db DB, flt string, start int, cnt int) ([]*User,
 	var sqlstr, whereString string
 
 	whereString = ""
-	if flt!= "" {
-        whereString = "WHERE " + flt
-    }
+	if flt != "" {
+		whereString = "WHERE " + flt
+	}
 
 	lmt := ""
 	if cnt > 0 {
-		lmt = " LIMIT " + strconv.Itoa(start)  + " " + strconv.Itoa(cnt) 
-	} 
+		lmt = " LIMIT " + strconv.Itoa(start) + " " + strconv.Itoa(cnt)
+	}
 
 	sqlstr = `SELECT ` +
-	         `id, username, pssword, employees, rights, created_by, created_on ` +
-			 `FROM public.users ` + whereString + lmt
-	
-	rows, err := db.QueryContext(ctx,sqlstr)
+		`id, username, pssword, employees, rights, created_by, created_on ` +
+		`FROM clinician_app.users ` + whereString + lmt
+
+	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {
 		return nil, err
 	}
@@ -216,17 +216,17 @@ func Users(ctx context.Context, db DB, flt string, start int, cnt int) ([]*User,
 	for rows.Next() {
 		t := &User{}
 		err = rows.Scan(
-			&t.ID, 
-			&t.Username, 
-			&t.Pssword, 
-			&t.Employees, 
-			&t.Rights, 
-			&t.CreatedBy, 
-			&t.CreatedOn, 
+			&t.ID,
+			&t.Username,
+			&t.Pssword,
+			&t.Employees,
+			&t.Rights,
+			&t.CreatedBy,
+			&t.CreatedOn,
 		)
 
 		if err != nil {
-		return nil, err
+			return nil, err
 		}
 
 		users = append(users, t)
@@ -237,18 +237,18 @@ func Users(ctx context.Context, db DB, flt string, start int, cnt int) ([]*User,
 	}
 
 	return users, nil
-	
+
 }
 
 func UserCount(ctx context.Context, db DB, flt string) (int, error) {
 	var whereString string
 
 	whereString = ""
-	if flt!= "" {
-        whereString = "WHERE " + flt
-    }
+	if flt != "" {
+		whereString = "WHERE " + flt
+	}
 	// SQL statement to count the rows in the users table
-	stml := "SELECT COUNT(id) AS C FROM users " + whereString
+	stml := "SELECT COUNT(id) AS C FROM clinician_app.users " + whereString
 
 	// Query the database
 	rows, err := db.QueryContext(ctx, stml)

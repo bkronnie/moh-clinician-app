@@ -8,9 +8,9 @@ import (
 	"strconv"
 )
 
-// Department represents a row from 'public.departments'.
+// Department represents a row from 'clinician_app.departments'.
 type Department struct {
-	DeptID    int64            `json:"departmentid"`     // id
+	DeptID         int64          `json:"departmentid"`   // id
 	DepartmentName sql.NullString `json:"departmentname"` // d_name
 	// xo fields
 	_exists, _deleted bool
@@ -36,7 +36,7 @@ func (d *Department) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.departments (` +
+	const sqlstr = `INSERT INTO clinician_app.departments (` +
 		`d_name` +
 		`) VALUES (` +
 		`$1` +
@@ -60,7 +60,7 @@ func (d *Department) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.departments SET ` +
+	const sqlstr = `UPDATE clinician_app.departments SET ` +
 		`d_name = $1 ` +
 		`WHERE id = $2`
 	// run
@@ -86,7 +86,7 @@ func (d *Department) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.departments (` +
+	const sqlstr = `INSERT INTO clinician_app.departments (` +
 		`id, d_name` +
 		`) VALUES (` +
 		`$1, $2` +
@@ -113,7 +113,7 @@ func (d *Department) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.departments ` +
+	const sqlstr = `DELETE FROM clinician_app.departments ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, d.DeptID)
@@ -125,14 +125,14 @@ func (d *Department) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// DepartmentByID retrieves a row from 'public.departments' as a [Department].
+// DepartmentByID retrieves a row from 'clinician_app.departments' as a [Department].
 //
 // Generated from index 'departments_pkey'.
 func DepartmentByID(ctx context.Context, db DB, id int) (*Department, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, d_name ` +
-		`FROM public.departments ` +
+		`FROM clinician_app.departments ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)
@@ -149,20 +149,20 @@ func Departments(ctx context.Context, db DB, flt string, start int, cnt int) ([]
 	var sqlstr, whereString string
 
 	whereString = ""
-	if flt!= "" {
-        whereString = "WHERE " + flt
-    }
+	if flt != "" {
+		whereString = "WHERE " + flt
+	}
 
 	lmt := ""
 	if cnt > 0 {
-		lmt = " LIMIT " + strconv.Itoa(start)  + " " + strconv.Itoa(cnt) 
-	} 
+		lmt = " LIMIT " + strconv.Itoa(start) + " " + strconv.Itoa(cnt)
+	}
 
 	sqlstr = `SELECT ` +
-				`id, d_name ` +
-				`FROM public.departments ` + whereString + lmt
-	
-	rows, err := db.QueryContext(ctx,sqlstr)
+		`id, d_name ` +
+		`FROM clinician_app.departments ` + whereString + lmt
+
+	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {
 		return nil, err
 	}
@@ -173,12 +173,12 @@ func Departments(ctx context.Context, db DB, flt string, start int, cnt int) ([]
 	for rows.Next() {
 		t := &Department{}
 		err = rows.Scan(
-			&t.DeptID, 
+			&t.DeptID,
 			&t.DepartmentName,
 		)
 
 		if err != nil {
-		return nil, err
+			return nil, err
 		}
 
 		departments = append(departments, t)
@@ -189,5 +189,5 @@ func Departments(ctx context.Context, db DB, flt string, start int, cnt int) ([]
 	}
 
 	return departments, nil
-	
+
 }

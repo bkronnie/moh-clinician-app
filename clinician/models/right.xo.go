@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Right represents a row from 'public.rights'.
+// Right represents a row from 'clinician_app.rights'.
 type Right struct {
 	ID     int            `json:"id"`     // id
 	Rights sql.NullString `json:"rights"` // rights
@@ -35,7 +35,7 @@ func (r *Right) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.rights (` +
+	const sqlstr = `INSERT INTO clinician_app.rights (` +
 		`rights` +
 		`) VALUES (` +
 		`$1` +
@@ -59,7 +59,7 @@ func (r *Right) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.rights SET ` +
+	const sqlstr = `UPDATE clinician_app.rights SET ` +
 		`rights = $1 ` +
 		`WHERE id = $2`
 	// run
@@ -85,7 +85,7 @@ func (r *Right) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.rights (` +
+	const sqlstr = `INSERT INTO clinician_app.rights (` +
 		`id, rights` +
 		`) VALUES (` +
 		`$1, $2` +
@@ -112,7 +112,7 @@ func (r *Right) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.rights ` +
+	const sqlstr = `DELETE FROM clinician_app.rights ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, r.ID)
@@ -124,14 +124,14 @@ func (r *Right) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// RightByID retrieves a row from 'public.rights' as a [Right].
+// RightByID retrieves a row from 'clinician_app.rights' as a [Right].
 //
 // Generated from index 'rights_pkey'.
 func RightByID(ctx context.Context, db DB, id int) (*Right, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, rights ` +
-		`FROM public.rights ` +
+		`FROM clinician_app.rights ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

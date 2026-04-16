@@ -2,11 +2,11 @@ package utilities
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +44,9 @@ var functions = template.FuncMap{
 	"humanDate":         HumanDate,
 	"IsNullStringEmpty": IsNullStringEmpty,
 	"seq":               Seq,
+	"session":           SessionFromTemplateData,
+	"hasRole":           HasRole,
+	"toJSON":            ToJSON,
 }
 
 func HumanDate(t time.Time) string {
@@ -62,24 +65,14 @@ func Seq(start, end int) []int {
 	return s
 }
 
-func GetPath(topFile string) (rtn string) {
-	var dirAbsPath string
-
-	ex, err := os.Executable()
-	if err == nil {
-		dirAbsPath = filepath.Dir(ex)
-		rtn = dirAbsPath + "/" + topFile
-	} else {
-		rtn = topFile
-	}
-
-	return
+func GetPath(parts ...string) string {
+	return AppPath(parts...)
 }
 
 func GenerateHTML(c *gin.Context, zdata interface{}, filenames ...string) {
 	var files []string
 	for _, file := range filenames {
-		files = append(files, GetPath(fmt.Sprintf("../../ui/html/%s.html", file)))
+		files = append(files, GetPath("clinician", "ui", "html", fmt.Sprintf("%s.html", file)))
 	}
 
 	// Extend the global `functions` map with the `add` function
@@ -107,7 +100,7 @@ func GenerateHTML(c *gin.Context, zdata interface{}, filenames ...string) {
 func GenerateHTML1(c *gin.Context, zdata interface{}, filenames ...string) {
 	var files []string
 	for _, file := range filenames {
-		files = append(files, GetPath(fmt.Sprintf("../../ui/html/%s.html", file)))
+		files = append(files, GetPath("clinician", "ui", "html", fmt.Sprintf("%s.html", file)))
 	}
 
 	// Extend the global `functions` map with the `add` function
@@ -135,7 +128,7 @@ func GenerateHTML1(c *gin.Context, zdata interface{}, filenames ...string) {
 func GenerateHTML2(c *gin.Context, zdata interface{}, filenames ...string) {
 	var files []string
 	for _, file := range filenames {
-		files = append(files, GetPath(fmt.Sprintf("../../ui/html/%s.html", file)))
+		files = append(files, GetPath("clinician", "ui", "html", fmt.Sprintf("%s.html", file)))
 	}
 
 	// Extend the global `functions` map with necessary functions
@@ -206,4 +199,62 @@ func dict(keysAndValues ...interface{}) (map[string]interface{}, error) {
 		result[key] = keysAndValues[i+1]
 	}
 	return result, nil
+}
+
+func SessionFromTemplateData(root interface{}) SessionDetails {
+	switch v := root.(type) {
+	case TemplateData:
+		return coerceSession(v.Ses)
+	case *TemplateData:
+		if v == nil {
+			return SessionDetails{}
+		}
+		return coerceSession(v.Ses)
+	case map[string]interface{}:
+		if ses, ok := v["Ses"]; ok {
+			return coerceSession(ses)
+		}
+		if ses, ok := v["sessionData"]; ok {
+			return SessionFromTemplateData(ses)
+		}
+	}
+
+	return SessionDetails{}
+}
+
+func HasRole(root interface{}, roles ...string) bool {
+	ses := SessionFromTemplateData(root)
+	if ses.Rights == "" {
+		return false
+	}
+
+	for _, role := range roles {
+		if strings.EqualFold(ses.Rights, role) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ToJSON(v interface{}) template.JS {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return template.JS("[]")
+	}
+	return template.JS(b)
+}
+
+func coerceSession(v interface{}) SessionDetails {
+	switch s := v.(type) {
+	case SessionDetails:
+		return s
+	case *SessionDetails:
+		if s == nil {
+			return SessionDetails{}
+		}
+		return *s
+	default:
+		return SessionDetails{}
+	}
 }

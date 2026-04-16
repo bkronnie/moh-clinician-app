@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Facility represents a row from 'public.facilities'.
+// Facility represents a row from 'clinician_app.facilities'.
 type Facility struct {
 	ID        int           `json:"id"`         // id
 	FName     string        `json:"f_name"`     // f_name
@@ -39,7 +39,7 @@ func (f *Facility) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.facilities (` +
+	const sqlstr = `INSERT INTO clinician_app.facilities (` +
 		`f_name, f_level, f_lg, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5` +
@@ -63,7 +63,7 @@ func (f *Facility) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.facilities SET ` +
+	const sqlstr = `UPDATE clinician_app.facilities SET ` +
 		`f_name = $1, f_level = $2, f_lg = $3, created_by = $4, created_on = $5 ` +
 		`WHERE id = $6`
 	// run
@@ -89,7 +89,7 @@ func (f *Facility) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.facilities (` +
+	const sqlstr = `INSERT INTO clinician_app.facilities (` +
 		`id, f_name, f_level, f_lg, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6` +
@@ -116,7 +116,7 @@ func (f *Facility) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.facilities ` +
+	const sqlstr = `DELETE FROM clinician_app.facilities ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, f.ID)
@@ -128,14 +128,14 @@ func (f *Facility) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// FacilityByID retrieves a row from 'public.facilities' as a [Facility].
+// FacilityByID retrieves a row from 'clinician_app.facilities' as a [Facility].
 //
 // Generated from index 'facilities_pkey'.
 func FacilityByID(ctx context.Context, db DB, id int) (*Facility, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, f_name, f_level, f_lg, created_by, created_on ` +
-		`FROM public.facilities ` +
+		`FROM clinician_app.facilities ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

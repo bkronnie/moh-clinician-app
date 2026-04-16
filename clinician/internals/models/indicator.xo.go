@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Indicator represents a row from 'public.indicators'.
+// Indicator represents a row from 'clinician_app.indicators'.
 type Indicator struct {
 	ID        int           `json:"id"`         // id
 	Indicator string        `json:"indicator"`  // indicator
@@ -37,7 +37,7 @@ func (i *Indicator) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.indicators (` +
+	const sqlstr = `INSERT INTO clinician_app.indicators (` +
 		`indicator, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3` +
@@ -61,7 +61,7 @@ func (i *Indicator) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.indicators SET ` +
+	const sqlstr = `UPDATE clinician_app.indicators SET ` +
 		`indicator = $1, created_by = $2, created_on = $3 ` +
 		`WHERE id = $4`
 	// run
@@ -87,7 +87,7 @@ func (i *Indicator) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.indicators (` +
+	const sqlstr = `INSERT INTO clinician_app.indicators (` +
 		`id, indicator, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4` +
@@ -114,7 +114,7 @@ func (i *Indicator) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.indicators ` +
+	const sqlstr = `DELETE FROM clinician_app.indicators ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, i.ID)
@@ -126,14 +126,14 @@ func (i *Indicator) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// IndicatorByID retrieves a row from 'public.indicators' as a [Indicator].
+// IndicatorByID retrieves a row from 'clinician_app.indicators' as a [Indicator].
 //
 // Generated from index 'indicators_pkey'.
 func IndicatorByID(ctx context.Context, db DB, id int) (*Indicator, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, indicator, created_by, created_on ` +
-		`FROM public.indicators ` +
+		`FROM clinician_app.indicators ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

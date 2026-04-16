@@ -7,153 +7,150 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ template "title" . }}</title>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-         body, html {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        .navbar, .sidebar, .footer {
-            background-color: white;
-        }
-        .navbar {
-            border-bottom: 1px solid #dee2e6;
-        }
-        .sidebar {
-            border-right: 1px solid #dee2e6;
-            height: 100%;
-        }
-        .footer {
-            border-top: 1px solid #dee2e6;
-        }
-        .container-fluid {
-            flex: 1;
-            display: flex;
-        }
-        .row {
-            flex: 1;
-            display: flex;
-        }
-        .main-content {
-            flex: 1;
-        }
-        .logout-btn {
-            margin-left: 20px;
-        }
-        .absence {
-            background-color: gray;
-        }
-        .tile {
-            padding: 20px;
-            margin-bottom: 20px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            text-align: center;
-        }
-        .tile h2 {
-            font-size: 24px;
-            margin: 0;
-        }
-        .tile p {
-            font-size: 18px;
-            margin: 0;
-        }
-        .chart-container {
-            margin-top: 40px;
-        }
-    </style>
+    <link href="/static/css/app-theme.css" rel="stylesheet">
     {{ template "extraStyles" . }}
 </head>
 <body>
-    <!-- Top Bar -->
-    <nav class="navbar navbar-expand-lg navbar-light">
-        <a class="navbar-brand" href="#">Brand</a>
+    {{ $ses := session . }}
+    {{ $isAdmin := hasRole . "admin" }}
+    {{ $isManager := hasRole . "approver" }}
+    {{ $isClinician := hasRole . "user" }}
+    <div class="app-shell">
+    <nav class="navbar navbar-expand-lg navbar-light app-navbar">
+        <a class="navbar-brand" href="/">
+            <span class="brand-mark">MOH</span>
+            <span class="brand-copy">
+                <span>Clinician App</span>
+                <small>Referral Service Dashboard</small>
+            </span>
+        </a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
-                <li class="nav-item active">
-                    <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/">Dashboard</a>
+                </li>
+                {{ if $isClinician }}
+                <li class="nav-item">
+                    <a class="nav-link" href="/reports/new/0">My Data Entry</a>
+                </li>
+                {{ end }}
+                {{ if or $isManager $isAdmin }}
+                <li class="nav-item">
+                    <a class="nav-link" href="/reports/submissions">Weekly Outputs</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Features</a>
+                    <a class="nav-link" href="/reports/analysis">Analysis</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Documentation</a>
+                    <a class="nav-link" href="/employee/list">Employees</a>
                 </li>
+                {{ end }}
+                {{ if $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="#">About</a>
+                    <a class="nav-link" href="/facilities/list">Facilities</a>
                 </li>
-				<li class="nav-item">
+                {{ end }}
+                <li class="nav-item">
                     <a class="btn btn-outline-danger logout-btn" href="/logout">Logout</a>
                 </li>
             </ul>
         </div>
     </nav>
 
+    <main class="app-main">
     <div class="container-fluid">
         <div class="row">
-            <!-- Side Navigation -->
-            <nav class="col-md-2 d-none d-md-block sidebar">
+            <div class="col-12 mobile-sidebar">
+                <div class="sidebar-label">Quick Access</div>
+                <div class="nav flex-wrap">
+                    <a class="nav-link" href="/">Dashboard</a>
+                    {{ if $isClinician }}
+                    <a class="nav-link" href="/reports/new/0">My Data Entry</a>
+                    {{ end }}
+                    {{ if or $isManager $isAdmin }}
+                    <a class="nav-link" href="/reports/submissions">Weekly Outputs</a>
+                    <a class="nav-link" href="/reports/analysis">Reports</a>
+                    <a class="nav-link" href="/employee/list">Employees</a>
+                    {{ end }}
+                    {{ if $isAdmin }}
+                    <a class="nav-link" href="/facilities/list">Facilities</a>
+                    <a class="nav-link" href="/department/list">Departments</a>
+                    {{ end }}
+                </div>
+            </div>
+
+            <nav class="col-lg-3 col-xl-2 sidebar">
+                <div class="sidebar-label">Navigation</div>
                 <div class="sidebar-sticky">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link active" href="/login">
-                                Dashboard <span class="sr-only">(current)</span>
-                            </a>
+                            <a class="nav-link active" href="/">Dashboard</a>
+                        </li>
+                        {{ if $isClinician }}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/new/0">My Data Entry</a>
+                        </li>
+                        {{ end }}
+                        {{ if or $isManager $isAdmin }}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/submissions">Weekly Outputs</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/submissions">
-                                Weekly Outputs <span class="sr-only">(current)</span>
-                            </a>
+                            <a class="nav-link" href="/reports/list">Submissions</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Targets
-                            </a>
+                            <a class="nav-link" href="/reports/analysis">Reports</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/analysis">
-                                Reports
-                            </a>
+                            <a class="nav-link" href="/employee/list">Employees</a>
+                        </li>
+                        {{ end }}
+                        {{ if $isAdmin }}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/facilities/list">Health Facilities</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/employee/list">
-                                Employees
-                            </a>
+                            <a class="nav-link" href="/department/list">Departments</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Health Facilities
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                Departments
-                            </a>
-                        </li>
+                        {{ end }}
                     </ul>
                 </div>
             </nav>
 
-            <!-- Main Content -->
-            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4 main-content">
-                <h1 class="h2">{{ template "header" . }}</h1>
+            <main role="main" class="col-12 col-lg main-content">
+                <div class="page-title">
+                    <div>
+                        <h1 class="h2">{{ template "header" . }}</h1>
+                        <div class="page-subtitle">
+                            {{ if $isAdmin }}
+                            National oversight for clinician performance, submissions, and referral facility reporting.
+                            {{ else if $isManager }}
+                            Facility follow-up workspace for submission tracking, approvals, and staff supervision.
+                            {{ else if $isClinician }}
+                            Individual KPI tracking and weekly reporting for {{ $ses.FName }} {{ $ses.LName }}.
+                            {{ else }}
+                            Clinical reporting, staff activity, and referral facility oversight in one workspace.
+                            {{ end }}
+                        </div>
+                    </div>
+                </div>
                 <div class="content">
                     {{ template "content" . }}
                 </div>
             </main>
         </div>
     </div>
+    </main>
 
-    <!-- Footer -->
-    <footer class="footer mt-auto py-3">
-        <div class="container">
-            <span class="text-muted">Place footer content here.</span>
+    <footer class="footer app-footer mt-auto">
+        <div class="container-fluid">
+            <span class="footer-note">Ministry of Health clinician reporting interface</span>
         </div>
     </footer>
+    </div>
 
     <script src="/static/js/jquery-3.5.1.slim.min.js"></script>
     <script src="/static/js/popper.min.js"></script>

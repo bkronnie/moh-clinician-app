@@ -43,39 +43,37 @@ func SetupRoutes(router *gin.Engine, db *sql.DB, sessionManager *scs.SessionMana
 func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/reports")
 	{
-		//v.GET("/singleentry/:i", func(c *gin.Context) { handlers.SingleEntryList(c, db, sessionManager) })
 		v.GET("/new/:i", func(c *gin.Context) { handlers.SingleEntryForm(c, db, sessionManager) })
-		v.GET("/bulk", func(c *gin.Context) { handlers.HandlerBulkCaptureList(c, db, sessionManager) })
-		v.GET("/entry", func(c *gin.Context) { handlers.HandlerBulkCaptureForm2(c, db, sessionManager) })
-		v.GET("/export/:i", func(c *gin.Context) { handlers.HandlerReportExport(c, db, sessionManager) })
-		v.GET("/view/:id", func(c *gin.Context) { handlers.HandlerReportView2(c, db, sessionManager) })
-		v.GET("/view/json", func(c *gin.Context) { handlers.HandlerReportData2(c, db, sessionManager) })
-		v.GET("/del/:i", func(c *gin.Context) { handlers.HandlerReportRem(c, db, sessionManager) })
-		v.POST("/save", func(c *gin.Context) { handlers.HandlerReportSave(c, db, sessionManager) })
 		v.POST("/zave", func(c *gin.Context) { handlers.HandlerReportZave(c, db, sessionManager) })
-		v.POST("/update", func(c *gin.Context) { handlers.HandlerReportEntryUpdate(c, db, sessionManager) })
-		v.POST("/filter", func(c *gin.Context) { handlers.HandlerReportList(c, db, sessionManager) })
-		v.GET("/submissions", func(c *gin.Context) { handlers.HandlerReportFacilities2(c, db, sessionManager) })
-		v.GET("/submissions/departments", func(c *gin.Context) { handlers.HandlerReportFacilities2(c, db, sessionManager) })
-		v.GET("/list", func(c *gin.Context) { handlers.HandlerReportList2(c, db, sessionManager) })
+	}
 
-		// New route for specific facility reports
-		v.GET("/list/:facility", func(c *gin.Context) { handlers.HandlerReportList(c, db, sessionManager) })
-
-		//Approve route to invoke Approve Handler.
-		v.POST("/approve", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
-		v.POST("/submit", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
-
-		//Report summary and analysis routes
-		v.GET("/analysis", func(c *gin.Context) { handlers.HandlerReportsAnalysis(c, db, sessionManager) })
-		v.GET("/report-summaries", func(c *gin.Context) { handlers.HandlerReportSummaries(c, db, sessionManager) })
-
+	managerOrAdmin := v.Group("/")
+	managerOrAdmin.Use(middleware.RequireRoles(db, sessionManager, "admin", "approver"))
+	{
+		managerOrAdmin.GET("/bulk", func(c *gin.Context) { handlers.HandlerBulkCaptureList(c, db, sessionManager) })
+		managerOrAdmin.GET("/entry", func(c *gin.Context) { handlers.HandlerBulkCaptureForm2(c, db, sessionManager) })
+		managerOrAdmin.GET("/export/:i", func(c *gin.Context) { handlers.HandlerReportExport(c, db, sessionManager) })
+		managerOrAdmin.GET("/view/:id", func(c *gin.Context) { handlers.HandlerReportView2(c, db, sessionManager) })
+		managerOrAdmin.GET("/view/json", func(c *gin.Context) { handlers.HandlerReportData2(c, db, sessionManager) })
+		managerOrAdmin.GET("/del/:i", func(c *gin.Context) { handlers.HandlerReportRem(c, db, sessionManager) })
+		managerOrAdmin.POST("/save", func(c *gin.Context) { handlers.HandlerReportSave(c, db, sessionManager) })
+		managerOrAdmin.POST("/update", func(c *gin.Context) { handlers.HandlerReportEntryUpdate(c, db, sessionManager) })
+		managerOrAdmin.POST("/filter", func(c *gin.Context) { handlers.HandlerReportList(c, db, sessionManager) })
+		managerOrAdmin.GET("/submissions", func(c *gin.Context) { handlers.HandlerReportFacilities2(c, db, sessionManager) })
+		managerOrAdmin.GET("/submissions/departments", func(c *gin.Context) { handlers.HandlerReportFacilities2(c, db, sessionManager) })
+		managerOrAdmin.GET("/list", func(c *gin.Context) { handlers.HandlerReportList2(c, db, sessionManager) })
+		managerOrAdmin.GET("/list/:facility", func(c *gin.Context) { handlers.HandlerReportList(c, db, sessionManager) })
+		managerOrAdmin.POST("/approve", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
+		managerOrAdmin.POST("/submit", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
+		managerOrAdmin.GET("/analysis", func(c *gin.Context) { handlers.HandlerReportsAnalysis(c, db, sessionManager) })
+		managerOrAdmin.GET("/report-summaries", func(c *gin.Context) { handlers.HandlerReportSummaries(c, db, sessionManager) })
 	}
 
 }
 
 func RouteFacilities(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/facilities")
+	v.Use(middleware.RequireRoles(db, sessionManager, "admin"))
 	{
 		v.GET("/new/:i", func(c *gin.Context) { handlers.HandlerFacilityForm(c, db, sessionManager) })
 		v.POST("/save", func(c *gin.Context) { handlers.HandlerFacilitySave(c, db, sessionManager) })
@@ -87,6 +85,7 @@ func RouteFacilities(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Session
 
 func RouteDepartment(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/department")
+	v.Use(middleware.RequireRoles(db, sessionManager, "admin"))
 	{
 		v.GET("/new/:i", func(c *gin.Context) { handlers.HandlerDepartmentForm(c, db, sessionManager) })
 		v.POST("/save", func(c *gin.Context) { handlers.HandlerDepartmentSave(c, db, sessionManager) })
@@ -98,6 +97,7 @@ func RouteDepartment(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Session
 
 func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/employee")
+	v.Use(middleware.RequireRoles(db, sessionManager, "admin", "approver"))
 	{
 		v.GET("/new", func(c *gin.Context) { handlers.HandlerEmployeeForm(c, db, sessionManager) })
 		v.POST("/save", func(c *gin.Context) { handlers.HandlerEmployeeSave(c, db, sessionManager) })

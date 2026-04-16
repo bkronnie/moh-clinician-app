@@ -7,26 +7,25 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	
 )
 
-// Employee represents a row from 'public.employees'.
+// Employee represents a row from 'clinician_app.employees'.
 type Employee struct {
-	EmpID             int            `json:"employeeid"`             // id
-	Fname          sql.NullString         `json:"firstname"`          // fname
-	Lname          sql.NullString         `json:"lastname"`          // lname
-	Oname          sql.NullString         `json:"othername"`          // oname
-	EmpTitleID	sql.NullInt64 `json:"emptitle_id"`
-	EmpTitle          sql.NullString `json:"employeetitle"`          // title
-	Specialisation sql.NullString `json:"specialisation"` // specialisation
-	EmpDepartment     int64  `json:"department_id"`     // department id
-	EmpDepartmentName sql.NullString `json:"department_name"`     // department
-	EmpFacility       int64  `json:"facility_id"`       // facility id
-	EmpFacilityName sql.NullString `json:"facility_name"`     // facility name
-	CreatedBy      sql.NullInt64  `json:"createdby_id"`     // created_by
-	CreatedOn      sql.NullTime   `json:"createdon_date"`     // created_on
-	LeaveStatus sql.NullString `json:"leave_status"`     // leave_status
-	ReturnDate sql.NullTime `json:"return_date"`     // return_on
+	EmpID             int            `json:"employeeid"` // id
+	Fname             sql.NullString `json:"firstname"`  // fname
+	Lname             sql.NullString `json:"lastname"`   // lname
+	Oname             sql.NullString `json:"othername"`  // oname
+	EmpTitleID        sql.NullInt64  `json:"emptitle_id"`
+	EmpTitle          sql.NullString `json:"employeetitle"`   // title
+	Specialisation    sql.NullString `json:"specialisation"`  // specialisation
+	EmpDepartment     int64          `json:"department_id"`   // department id
+	EmpDepartmentName sql.NullString `json:"department_name"` // department
+	EmpFacility       int64          `json:"facility_id"`     // facility id
+	EmpFacilityName   sql.NullString `json:"facility_name"`   // facility name
+	CreatedBy         sql.NullInt64  `json:"createdby_id"`    // created_by
+	CreatedOn         sql.NullTime   `json:"createdon_date"`  // created_on
+	LeaveStatus       sql.NullString `json:"leave_status"`    // leave_status
+	ReturnDate        sql.NullTime   `json:"return_date"`     // return_on
 	// xo fields
 	_exists, _deleted bool
 }
@@ -34,13 +33,13 @@ type Employee struct {
 // History represents an employee's leave record
 type LeaveHistory struct {
 	ID             int
-	EmpID sql.NullInt64
-	LeaveTypeID      sql.NullInt64
+	EmpID          sql.NullInt64
+	LeaveTypeID    sql.NullInt64
 	StartDate      sql.NullTime
 	EndDate        sql.NullTime
-	LeaveStatus         sql.NullString
+	LeaveStatus    sql.NullString
 	Comments       sql.NullString
-	SubmittedBy	sql.NullInt64
+	SubmittedBy    sql.NullInt64
 	SubmissionDate sql.NullTime
 	// xo fields
 	_exists, _deleted bool
@@ -49,13 +48,12 @@ type LeaveHistory struct {
 // DashboardData holds the data for the cards
 type DashboardData struct {
 	FacilitiesCount int
-	TotalStaff   int
-	StaffPresent int
-	StaffOnLeave int
+	TotalStaff      int
+	StaffPresent    int
+	StaffOnLeave    int
 	// xo fields
 	_exists, _deleted bool
 }
-
 
 // Exists returns true when the [Employee] exists in the database.
 func (e *Employee) Exists() bool {
@@ -70,37 +68,37 @@ func (e *Employee) Deleted() bool {
 
 // Insert inserts the Employee into the database (from provided code)
 func (e *Employee) Insert(ctx context.Context, db DB) error {
-    switch {
-    case e._exists: // already exists
-        return logerror(&ErrInsertFailed{ErrAlreadyExists})
-    case e._deleted: // deleted
-        return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
-    }
+	switch {
+	case e._exists: // already exists
+		return logerror(&ErrInsertFailed{ErrAlreadyExists})
+	case e._deleted: // deleted
+		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
+	}
 
 	// Query the last id value in the weeklyreport table
-    var lastID int
-    lastIDQuery := `SELECT COALESCE(MAX(id), 0) FROM public.employees`
-    if err := db.QueryRowContext(ctx, lastIDQuery).Scan(&lastID); err != nil {
-        return logerror(err)
-    }
+	var lastID int
+	lastIDQuery := `SELECT COALESCE(MAX(id), 0) FROM clinician_app.employees`
+	if err := db.QueryRowContext(ctx, lastIDQuery).Scan(&lastID); err != nil {
+		return logerror(err)
+	}
 
-    // Calculate new ID starting from lastID + 1
-    newID := lastID + 1
+	// Calculate new ID starting from lastID + 1
+	newID := lastID + 1
 
-    // insert (primary key generated and returned by database)
-    const sqlstr = `INSERT INTO public.employees (` +
-        `id, fname, lname, oname, title, specialisation, department, facility, created_by, created_on` +
-        `) VALUES (` +
-        `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10` +
-        `) RETURNING id`
-    // run
-    logf(sqlstr, newID, e.Fname, e.Lname, e.Oname, e.EmpTitleID, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn)
-    if err := db.QueryRowContext(ctx, sqlstr, newID, e.Fname, e.Lname, e.Oname, e.EmpTitleID, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn).Scan(&e.EmpID); err != nil {
-        return logerror(err)
-    }
-    // set exists
-    e._exists = true
-    return nil
+	// insert (primary key generated and returned by database)
+	const sqlstr = `INSERT INTO clinician_app.employees (` +
+		`id, fname, lname, oname, title, specialisation, department, facility, created_by, created_on` +
+		`) VALUES (` +
+		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10` +
+		`) RETURNING id`
+	// run
+	logf(sqlstr, newID, e.Fname, e.Lname, e.Oname, e.EmpTitleID, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn)
+	if err := db.QueryRowContext(ctx, sqlstr, newID, e.Fname, e.Lname, e.Oname, e.EmpTitleID, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn).Scan(&e.EmpID); err != nil {
+		return logerror(err)
+	}
+	// set exists
+	e._exists = true
+	return nil
 }
 
 // Fxn to insert to [staffleave] table (from provided code)
@@ -108,44 +106,42 @@ func (e *LeaveHistory) InsertLeave(ctx context.Context, db DB) error {
 
 	log.Printf("InsertLeave executed:")
 
-    switch {
-    case e._exists: // already exists
-        return logerror(&ErrInsertFailed{ErrAlreadyExists})
-    case e._deleted: // deleted
-        return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
-    }
+	switch {
+	case e._exists: // already exists
+		return logerror(&ErrInsertFailed{ErrAlreadyExists})
+	case e._deleted: // deleted
+		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
+	}
 
 	// Query the last id value in the weeklyreport table
-    var lastID int
-    lastIDQuery := `SELECT COALESCE(MAX(leave_id), 0) FROM public.staffleave`
-    if err := db.QueryRowContext(ctx, lastIDQuery).Scan(&lastID); err != nil {
-        return logerror(err)
-    }
+	var lastID int
+	lastIDQuery := `SELECT COALESCE(MAX(leave_id), 0) FROM clinician_app.staffleave`
+	if err := db.QueryRowContext(ctx, lastIDQuery).Scan(&lastID); err != nil {
+		return logerror(err)
+	}
 
-    // Calculate new ID starting from lastID + 1
-    newID := lastID + 1
+	// Calculate new ID starting from lastID + 1
+	newID := lastID + 1
 	status := e.LeaveStatus
 
 	log.Printf("New leave_id: %+d", newID)
 	log.Printf("New leave_id: %s", status)
 
-
-    // insert (primary key generated and returned by database)
-    const sqlstr = `INSERT INTO public.staffleave (` +
-        `leave_id, employee_id, start_date, end_date, leave_status, approved_by, created_on, leave_type_id, notes` +
-        `) VALUES (` +
-        `$1, $2, $3, $4, $5, $6, $7, $8, $9` +
-        `) RETURNING leave_id`
-    // run
-    logf(sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments)
-    if err := db.QueryRowContext(ctx, sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments).Scan(&e.EmpID); err != nil {
-        return logerror(err)
-    }
-    // set exists
-    e._exists = true
-    return nil
+	// insert (primary key generated and returned by database)
+	const sqlstr = `INSERT INTO clinician_app.staffleave (` +
+		`leave_id, employee_id, start_date, end_date, leave_status, approved_by, created_on, leave_type_id, notes` +
+		`) VALUES (` +
+		`$1, $2, $3, $4, $5, $6, $7, $8, $9` +
+		`) RETURNING leave_id`
+	// run
+	logf(sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments)
+	if err := db.QueryRowContext(ctx, sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments).Scan(&e.EmpID); err != nil {
+		return logerror(err)
+	}
+	// set exists
+	e._exists = true
+	return nil
 }
-
 
 // Update updates a [Employee] in the database.
 func (e *Employee) Update(ctx context.Context, db DB) error {
@@ -156,7 +152,7 @@ func (e *Employee) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.employees SET ` +
+	const sqlstr = `UPDATE clinician_app.employees SET ` +
 		`fname = $1, lname = $2, oname = $3, title = $4, specialisation = $5, department = $6, facility = $7, created_by = $8, created_on = $9 ` +
 		`WHERE id = $10`
 	// run
@@ -182,7 +178,7 @@ func (e *Employee) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.employees (` +
+	const sqlstr = `INSERT INTO clinician_app.employees (` +
 		`id, fname, lname, oname, title, specialisation, department, facility, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10` +
@@ -209,7 +205,7 @@ func (e *Employee) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.employees ` +
+	const sqlstr = `DELETE FROM clinician_app.employees ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, e.EmpID)
@@ -221,14 +217,14 @@ func (e *Employee) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// EmployeeByID retrieves a row from 'public.employees' as a [Employee].
+// EmployeeByID retrieves a row from 'clinician_app.employees' as a [Employee].
 //
 // Generated from index 'employees_pkey'.
 func EmployeeByID(ctx context.Context, db DB, id int) (*Employee, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, fname, lname, oname, title, specialisation, department, facility, created_by, created_on ` +
-		`FROM public.employees ` +
+		`FROM clinician_app.employees ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)
@@ -241,80 +237,77 @@ func EmployeeByID(ctx context.Context, db DB, id int) (*Employee, error) {
 	return &e, nil
 }
 
-
 //Fxn Employee with hospitalID, leave, start and cnt parameters
 func Employees(ctx context.Context, db *sql.DB, hospitalID int64, leave string, start int, cnt int) ([]*Employee, error) {
-    var sqlstr string
-    whereString := ""
-	
-    // SQL query to retrieve employees' details with filtering by hospital ID
-    if hospitalID > 0 {
+	var sqlstr string
+	whereString := ""
+
+	// SQL query to retrieve employees' details with filtering by hospital ID
+	if hospitalID > 0 {
 		if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += fmt.Sprintf(" WHERE e.facility = %d ", hospitalID)
-    }
+			whereString += " AND "
+		}
+		whereString += fmt.Sprintf(" WHERE e.facility = %d ", hospitalID)
+	}
 
 	// Add leave_status filter only if leave is not empty or not "Valid"
-    if leave != "" {
-        if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += fmt.Sprintf(" s.leave_status = '%s'", leave)
+	if leave != "" {
+		if whereString != "" {
+			whereString += " AND "
+		}
+		whereString += fmt.Sprintf(" s.leave_status = '%s'", leave)
 		log.Printf("WhereString: %s", whereString)
-    }
+	}
 
 	log.Printf("WhereString: %s", whereString)
-    sqlstr = `SELECT
+	sqlstr = `SELECT
 				e.id, e.fname, e.lname, e.oname, st.title, e.specialisation, d.d_name, f.f_name, e.created_by, e.created_on, s.leave_status, s.return_date
-                FROM public.employees e
-                LEFT JOIN public.facilities f ON e.facility = f.id
-				LEFT JOIN public.specialist_titles st ON e.title = st.id
-				LEFT JOIN public.staffleave_view s ON e.id = s.employee_id
-                LEFT JOIN public.departments d ON e.department = d.id` +
-				whereString +
-				`ORDER BY e.id`
+                FROM clinician_app.employees e
+                LEFT JOIN clinician_app.facilities f ON e.facility = f.id
+				LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id
+				LEFT JOIN clinician_app.staffleave_view s ON e.id = s.employee_id
+                LEFT JOIN clinician_app.departments d ON e.department = d.id` +
+		whereString +
+		`ORDER BY e.id`
 
-    rows, err := db.QueryContext(ctx, sqlstr)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, sqlstr)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    employees := []*Employee{}
+	employees := []*Employee{}
 
-    for rows.Next() {
-        e := &Employee{}
-        err = rows.Scan(
-            &e.EmpID,
-            &e.Fname,
-            &e.Lname,
-            &e.Oname,
-            &e.EmpTitle,
-            &e.Specialisation,
-            &e.EmpDepartmentName,
-            &e.EmpFacilityName,
-            &e.CreatedBy,
-            &e.CreatedOn,
+	for rows.Next() {
+		e := &Employee{}
+		err = rows.Scan(
+			&e.EmpID,
+			&e.Fname,
+			&e.Lname,
+			&e.Oname,
+			&e.EmpTitle,
+			&e.Specialisation,
+			&e.EmpDepartmentName,
+			&e.EmpFacilityName,
+			&e.CreatedBy,
+			&e.CreatedOn,
 			&e.LeaveStatus,
 			&e.ReturnDate,
-        )
+		)
 
-        if err != nil {
-            return nil, err
-        }
+		if err != nil {
+			return nil, err
+		}
 
-        employees = append(employees, e)
-    }
+		employees = append(employees, e)
+	}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return employees, nil
+	return employees, nil
 }
-
-
 
 // GetFacilitiesAndDepartments retrieves facilities and departments from the database.
 func GetFacilitiesAndDepartments(db *sql.DB) ([]*Facility, []*Department, error) {
@@ -322,7 +315,7 @@ func GetFacilitiesAndDepartments(db *sql.DB) ([]*Facility, []*Department, error)
 	departments := []*Department{}
 
 	// Fetch facilities
-	facilityRows, err := db.Query("SELECT id, f_name, f_level, f_lg, created_by, created_on FROM public.facilities")
+	facilityRows, err := db.Query("SELECT id, f_name, f_level, f_lg, created_by, created_on FROM clinician_app.facilities")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -344,7 +337,7 @@ func GetFacilitiesAndDepartments(db *sql.DB) ([]*Facility, []*Department, error)
 	}
 
 	// Fetch departments
-	departmentRows, err := db.Query("SELECT id, d_name FROM public.departments")
+	departmentRows, err := db.Query("SELECT id, d_name FROM clinician_app.departments")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -366,35 +359,35 @@ func GetFacilitiesAndDepartments(db *sql.DB) ([]*Facility, []*Department, error)
 
 // GetHistory() fxn to retrieve user leave request history from the db
 func GetHistory(db *sql.DB, employeeID int) ([]*LeaveHistory, error) {
-    query := `
+	query := `
         SELECT a.absence_id, l.leave_type_name, a.start_date, a.end_date, a.status, a.comments, a.submission_date
-        FROM public.staffleave a
-        JOIN public.leavetypes l ON a.leave_type_id = l.leave_type_id
+        FROM clinician_app.staffleave a
+        JOIN clinician_app.leavetypes l ON a.leave_type_id = l.leave_type_id
         WHERE a.employee_id = ?
         ORDER BY a.submission_date ASC
     `
 
-    rows, err := db.Query(query, employeeID)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := db.Query(query, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    history := []*LeaveHistory{}
-    for rows.Next() {
-        h := &LeaveHistory{}
-        err = rows.Scan(&h.ID, &h.LeaveTypeID, &h.StartDate, &h.EndDate, &h.LeaveStatus, &h.Comments, &h.SubmissionDate)
-        if err != nil {
-            return nil, err
-        }
-        history = append(history, h)
-    }
+	history := []*LeaveHistory{}
+	for rows.Next() {
+		h := &LeaveHistory{}
+		err = rows.Scan(&h.ID, &h.LeaveTypeID, &h.StartDate, &h.EndDate, &h.LeaveStatus, &h.Comments, &h.SubmissionDate)
+		if err != nil {
+			return nil, err
+		}
+		history = append(history, h)
+	}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return history, nil
+	return history, nil
 }
 
 // Query the db for dashboard card data
@@ -407,7 +400,7 @@ func GetDashboardData(db *sql.DB, facilityID int) (DashboardData, error) {
 	// Query to count total staff filtered by facilityID
 	queryFacilities := `
 		SELECT COUNT(*)
-		FROM public.facilities
+		FROM clinician_app.facilities
 	`
 	err := db.QueryRow(queryFacilities).Scan(&facilityCount)
 	if err != nil {
@@ -417,8 +410,8 @@ func GetDashboardData(db *sql.DB, facilityID int) (DashboardData, error) {
 	// Query to count staff on leave (leave_status = 'Valid') filtered by facilityID
 	queryLeave := `
 		SELECT COUNT(*)
-		FROM public.staffleave_view s
-		INNER JOIN public.employees e ON s.employee_id = e.id
+		FROM clinician_app.staffleave_view s
+		INNER JOIN clinician_app.employees e ON s.employee_id = e.id
 		WHERE e.facility = $1 AND s.leave_status = 'Valid'
 	`
 	err = db.QueryRow(queryLeave, facilityID).Scan(&staffOnLeave)
@@ -429,7 +422,7 @@ func GetDashboardData(db *sql.DB, facilityID int) (DashboardData, error) {
 	// Query to count total staff filtered by facilityID
 	queryTotal := `
 		SELECT COUNT(*)
-		FROM public.employees e
+		FROM clinician_app.employees e
 		WHERE e.facility = $1
 	`
 	err = db.QueryRow(queryTotal, facilityID).Scan(&totalStaff)

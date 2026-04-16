@@ -15,13 +15,18 @@ import (
 	"github.com/moh/clinician/internals/utilities"
 )
 
+type ClinicianEntryView struct {
+	EmployeeID     int64
+	EmployeeName   string
+	DepartmentID   int64
+	DepartmentName string
+	FacilityName   string
+	StartDate      string
+	StopDate       string
+}
+
 // Handler used for entering weekly report for a single user
 func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	// Get session-specific data (e.g., user ID)
-	//sessionData := Get_Session_Data(c, db, sessionManager, nil)
-	//log.Printf("Session Data SingleEntryForm: %+v", sessionData)
-
-	// Get session-specific data (e.g., user ID and HFID)
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
 	if !ok {
 		log.Println("Failed to retrieve session data as TemplateData")
@@ -41,29 +46,32 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	departmentID := sesDetails.HDID // Retrieve HDID from the session
 	log.Printf("UserID: %+d, DeptID: %+d", empID, departmentID)
 
-	var zdata any
-	idStr := c.Param("id")
-
-	// Convert the 'id' to an integer
-	id, err := strconv.Atoi(idStr)
+	employee, err := models.EmployeeByID(c, db, int(empID))
 	if err != nil {
-		id = 0
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load employee details"})
+		return
 	}
 
-	if id > 0 {
-		zdata = nil
-	} else {
-		dt, er := models.WeeklyreportByID(c, db, id)
-		if er == nil {
-			zdata = dt
-		} else {
-			zdata = nil
-		}
+	department, err := models.DepartmentByID(c, db, int(departmentID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load department details"})
+		return
 	}
 
-	// Get session data from the database or session manager
-	data := Get_Session_Data(c, db, sessionManager, zdata)
-	utilities.GenerateHTML(c, data, "base", "bulkcaptureform")
+	weekStart := beginningOfWeek(time.Now())
+	weekEnd := weekStart.AddDate(0, 0, 6)
+
+	sessionData.Form = ClinicianEntryView{
+		EmployeeID:     empID,
+		EmployeeName:   fmt.Sprintf("%s %s", employee.Fname.String, employee.Lname.String),
+		DepartmentID:   departmentID,
+		DepartmentName: department.DepartmentName.String,
+		FacilityName:   sesDetails.HFName,
+		StartDate:      weekStart.Format("2006-01-02"),
+		StopDate:       weekEnd.Format("2006-01-02"),
+	}
+
+	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
 }
 
 /*
@@ -201,6 +209,12 @@ func empIDToInt(empID string) int64 {
 func parseInt(val string) int64 {
 	result, _ := strconv.ParseInt(val, 10, 64)
 	return result
+}
+
+func beginningOfWeek(now time.Time) time.Time {
+	offset := (int(now.Weekday()) + 6) % 7
+	weekStart := now.AddDate(0, 0, -offset)
+	return time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, weekStart.Location())
 }
 
 // Old handler fxn for bulk capture

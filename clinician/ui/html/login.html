@@ -5,99 +5,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Absence: Login</title>
+    <title>Clinician App Login</title>
     <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-
-    <style>
-         body {
-            font-family: "Times New Roman", Times, serif;
-            font-size: 14px;
-        }
-
-        .form-inline .form-group {
-            margin-right: 5px;
-        }
-    
-        .form-control-sm {
-            width: auto;
-            font-size: 100%;
-            line-height: 1.2;
-            border-radius: 1px;
-            margin: 0;
-        }
-    
-        .btn-sm {
-            padding: 3px 8px;
-            font-size: 12px;
-            line-height: 1.5;
-            border-radius: 3px;
-        }
-    
-        .form-inline .form-group label {
-            margin-right: 5px;
-        }
-    
-        #loginForm {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-
-        table {
-            width: 100%;
-        }
-    </style>
-    
+    <link rel="stylesheet" href="/static/css/app-theme.css">
 </head>
 <body>
-    <div class="container">
-        <row style="height: 50%;">
-            <br><br><br><br>
-        </row>
-        <row>
-            <div class="col-sm-4 offset-sm-3">
-                
-            </div>
-            <div class="col-sm-4 offset-sm-3">
-                <h3>Login</h3>
-                <form id="loginForm" class="form-inline" method="post" action="/login">
+    <div class="auth-shell">
+        <div class="auth-wrap">
+            <section class="auth-hero">
+                <div class="auth-eyebrow">Clinical Reporting</div>
+                <h1 class="auth-title">Consistent, clear reporting for referral facilities.</h1>
+                <p class="auth-copy">Access weekly outputs, staff activity, submissions, and leave records through a unified Ministry of Health workspace designed for desktop and handheld use.</p>
+                <ul class="auth-points">
+                    <li>Clean contrast and calm colors suitable for prolonged clinical administration work.</li>
+                    <li>Responsive layouts that remain readable on handheld devices and tablets.</li>
+                    <li>Structured navigation for dashboards, reports, departments, and staff records.</li>
+                </ul>
+            </section>
+
+            <section class="auth-card">
+                <div class="brand-mark">MOH</div>
+                <h3>Sign In</h3>
+                <p class="auth-muted">Use your assigned username and password to continue.</p>
+
+                <form id="loginForm" class="auth-form" method="post" action="/login">
                     <table>
                         <tr>
-                            <td><label for="username" >Username</label></td>
-                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm"></td>
+                            <td><label for="username">Username</label></td>
+                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm" autocomplete="username"></td>
                         </tr>
                         <tr>
-                            <td><label for="password" >Password</label></td>
-                            <td><input type="password" id="password" name="password" required class="form-control form-control-sm"></td>
-                        </tr>
-                        <tr>
-                            <td colspan="2">
-                                <button type="submit" class="btn btn-primary btn-sm">Login</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2">
-                                <a href="/forgot" class="float-right">Forgot Password?</a>
-                            </td>
+                            <td><label for="password">Password</label></td>
+                            <td><input type="password" id="password" name="password" required class="form-control form-control-sm" autocomplete="current-password"></td>
                         </tr>
                     </table>
-                    
-                    
+
+                    <div class="auth-actions">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                    <div class="auth-link-row">
+                        <a href="/forgot">Forgot Password?</a>
+                    </div>
                 </form>
-                
-            </div>
-            <div class="col-sm-4 offset-sm-3">
-                
-            </div>
-        </row>
-        
+            </section>
+        </div>
     </div>
     <script src="/static/js/jquery.min.js"></script>
-    
 </body>
 </html>
 

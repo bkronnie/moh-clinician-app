@@ -2,18 +2,8 @@
 
 {{ define "extraStyles" }}
 <style>
-    body {
-        font-family: "Times New Roman", Times, serif;
-        font-size: 14px;
-    }
-
     #leaveTable {
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
         width: 100%;
-        border: 2px solid #ccc;
     }
     table.table th, table.table td {
         padding: 0.5rem;
@@ -30,7 +20,7 @@
 {{ end }}
 
 {{ define "content" }}
-<form id="leaveTable" method="post" action="/employees">
+<form id="leaveTable" class="app-panel" method="post" action="/employees">
 
     <div class="d-flex justify-content-between mb-3">
         <div>

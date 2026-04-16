@@ -5,110 +5,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Absence: Login</title>
+    <title>Clinician App Setup</title>
     <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-
-    <style>
-         body {
-            font-family: "Times New Roman", Times, serif;
-            font-size: 14px;
-        }
-
-        .form-inline .form-group {
-            margin-right: 5px;
-        }
-    
-        .form-control-sm {
-            width: auto;
-            font-size: 100%;
-            line-height: 1.2;
-            border-radius: 1px;
-            margin: 0;
-        }
-    
-        .btn-sm {
-            padding: 3px 8px;
-            font-size: 12px;
-            line-height: 1.5;
-            border-radius: 3px;
-        }
-    
-        .form-inline .form-group label {
-            margin-right: 5px;
-        }
-    
-        #loginForm {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-
-        table {
-            width: 100%;
-        }
-    </style>
-    
+    <link rel="stylesheet" href="/static/css/app-theme.css">
 </head>
 <body>
-    <div class="container">
-        <row style="height: 50%;">
-            <br><br><br><br>
-        </row>
-        <row>
-            <div class="col-sm-4 offset-sm-3">
-                
-            </div>
-            <div class="col-sm-4 offset-sm-3">
-                <h3>Setup</h3>
-                <form id="loginForm" class="form-inline" method="post" action="/setup">
+    <div class="auth-shell">
+        <div class="auth-wrap">
+            <section class="auth-hero">
+                <div class="auth-eyebrow">First-Time Access</div>
+                <h1 class="auth-title">Set up the initial administrator account.</h1>
+                <p class="auth-copy">This screen is intended for first-run setup when no users exist yet in the database. Create the first account, then use the standard login experience for daily access.</p>
+            </section>
+
+            <section class="auth-card">
+                <div class="brand-mark">MOH</div>
+                <h3>Initial Setup</h3>
+                <p class="auth-muted">Create the first system administrator for this facility environment.</p>
+
+                <form id="loginForm" class="auth-form" method="post" action="/setup">
                     <table>
                         <tr>
-                            <td><label for="firstname" >First Name</label></td>
+                            <td><label for="firstname">First Name</label></td>
                             <td><input type="text" id="firstname" name="firstname" required class="form-control form-control-sm"></td>
                         </tr>
                         <tr>
-                            <td><label for="lastname" >Last Name</label></td>
+                            <td><label for="lastname">Last Name</label></td>
                             <td><input type="text" id="lastname" name="lastname" required class="form-control form-control-sm"></td>
                         </tr>
                         <tr>
-                            <td><label for="username" >Email</label></td>
+                            <td><label for="username">Email</label></td>
                             <td><input type="text" id="username" name="username" required class="form-control form-control-sm"></td>
                         </tr>
                         <tr>
-                            <td><label for="password" >Password</label></td>
+                            <td><label for="password">Password</label></td>
                             <td><input type="password" id="password" name="password" required class="form-control form-control-sm"></td>
                         </tr>
                         <tr>
-                            <td><label for="cpassword" >Confirm Password</label></td>
+                            <td><label for="cpassword">Confirm Password</label></td>
                             <td><input type="password" id="cpassword" name="cpassword" required class="form-control form-control-sm"></td>
                         </tr>
-                        <tr>
-                            <td colspan="2">
-                                <button type="submit" class="btn btn-primary btn-sm">submit</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2">
-                                <a href="/forgot" class="float-right">Forgot Password?</a>
-                            </td>
-                        </tr>
-                    </table>                    
-                    
+                    </table>
+
+                    <div class="auth-actions">
+                        <button type="submit" class="btn btn-primary">Create Administrator</button>
+                    </div>
+                    <div class="auth-link-row">
+                        <a href="/forgot">Need help?</a>
+                    </div>
                 </form>
-                
-            </div>
-            <div class="col-sm-4 offset-sm-3">
-                
-            </div>
-        </row>
-        
+            </section>
+        </div>
     </div>
     <script src="/static/js/jquery.min.js"></script>
-    
 </body>
 </html>
 

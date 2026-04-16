@@ -2,11 +2,6 @@
 
 {{ define "extraStyles" }}
 <style>
-    body {
-        font-family: "Times New Roman", Times, serif;
-        font-size: 14px;
-    }
-
     .form-inline .form-group {
         margin-right: 5px;
     }
@@ -29,10 +24,6 @@
     #leaveForm {
         display: flex;
         flex-direction: column;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
         width: 100%;
     }
 
@@ -59,9 +50,9 @@
 
     h6.collapsible {
         cursor: pointer;
-        background-color: #f1f1f1;
+        background-color: #edf4f2;
         padding: 10px;
-        border: 2px solid #ccc;
+        border: 2px solid #d8e4e0;
         border-radius: 5px;
         margin-bottom: 5px;
         font-weight: bold;
@@ -85,7 +76,7 @@
 {{ end }}
 
 {{define "content"}}
-<form id= "leaveForm" action="/employee/leave/save" method="POST">
+<form id="leaveForm" class="app-panel" action="/employee/leave/save" method="POST">
 
     <div class="mb-3">
         <label for="employee_id" class="form-label">Employee ID:</label>

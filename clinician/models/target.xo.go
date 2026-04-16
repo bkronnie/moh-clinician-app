@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Target represents a row from 'public.targets'.
+// Target represents a row from 'clinician_app.targets'.
 type Target struct {
 	ID        int           `json:"id"`         // id
 	Indicator sql.NullInt64 `json:"indicator"`  // indicator
@@ -38,7 +38,7 @@ func (t *Target) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.targets (` +
+	const sqlstr = `INSERT INTO clinician_app.targets (` +
 		`indicator, target, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4` +
@@ -62,7 +62,7 @@ func (t *Target) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.targets SET ` +
+	const sqlstr = `UPDATE clinician_app.targets SET ` +
 		`indicator = $1, target = $2, created_by = $3, created_on = $4 ` +
 		`WHERE id = $5`
 	// run
@@ -88,7 +88,7 @@ func (t *Target) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.targets (` +
+	const sqlstr = `INSERT INTO clinician_app.targets (` +
 		`id, indicator, target, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5` +
@@ -115,7 +115,7 @@ func (t *Target) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.targets ` +
+	const sqlstr = `DELETE FROM clinician_app.targets ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, t.ID)
@@ -127,14 +127,14 @@ func (t *Target) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// TargetByID retrieves a row from 'public.targets' as a [Target].
+// TargetByID retrieves a row from 'clinician_app.targets' as a [Target].
 //
 // Generated from index 'targets_pkey'.
 func TargetByID(ctx context.Context, db DB, id int) (*Target, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, indicator, target, created_by, created_on ` +
-		`FROM public.targets ` +
+		`FROM clinician_app.targets ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Employee represents a row from 'public.employees'.
+// Employee represents a row from 'clinician_app.employees'.
 type Employee struct {
 	ID             int            `json:"id"`             // id
 	Fname          string         `json:"fname"`          // fname
@@ -43,7 +43,7 @@ func (e *Employee) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.employees (` +
+	const sqlstr = `INSERT INTO clinician_app.employees (` +
 		`fname, lname, oname, title, specialisation, department, facility, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9` +
@@ -67,7 +67,7 @@ func (e *Employee) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.employees SET ` +
+	const sqlstr = `UPDATE clinician_app.employees SET ` +
 		`fname = $1, lname = $2, oname = $3, title = $4, specialisation = $5, department = $6, facility = $7, created_by = $8, created_on = $9 ` +
 		`WHERE id = $10`
 	// run
@@ -93,7 +93,7 @@ func (e *Employee) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.employees (` +
+	const sqlstr = `INSERT INTO clinician_app.employees (` +
 		`id, fname, lname, oname, title, specialisation, department, facility, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10` +
@@ -120,7 +120,7 @@ func (e *Employee) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.employees ` +
+	const sqlstr = `DELETE FROM clinician_app.employees ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, e.ID)
@@ -132,14 +132,14 @@ func (e *Employee) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// EmployeeByID retrieves a row from 'public.employees' as a [Employee].
+// EmployeeByID retrieves a row from 'clinician_app.employees' as a [Employee].
 //
 // Generated from index 'employees_pkey'.
 func EmployeeByID(ctx context.Context, db DB, id int) (*Employee, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, fname, lname, oname, title, specialisation, department, facility, created_by, created_on ` +
-		`FROM public.employees ` +
+		`FROM clinician_app.employees ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

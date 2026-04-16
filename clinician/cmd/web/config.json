@@ -1,9 +1,6 @@
 {
-    "Address"        : "0.0.0.0:4400",
+    "Address"        : "0.0.0.0:8081",
     "ReadTimeout"    : 10,
     "WriteTimeout"   : 600,
-    "Static"         : "public",
-    "Ux"             : "postgres",
-    "Px"             : "root",
-    "Dx"             : "clinician"
+    "Static"         : "public"
   }

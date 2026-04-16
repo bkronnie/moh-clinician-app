@@ -2,121 +2,289 @@
 
 {{ define "extraStyles" }}
 <style>
-    /* Set the height for the canvas */
-    #myChart {
-        height: 300px !important; /* You can adjust this value */
+    .dashboard-grid {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .dashboard-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .dashboard-section {
+        background: #ffffff;
+        border: 1px solid #d9e8ec;
+        border-radius: 16px;
+        padding: 1.2rem;
+        box-shadow: 0 10px 30px rgba(11, 44, 54, 0.06);
+    }
+
+    .section-title {
+        font-size: 1rem;
+        margin-bottom: 0.85rem;
+        color: #12343b;
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .kpi-card {
+        background: #f8fbfc;
+        border: 1px solid #d9e8ec;
+        border-radius: 14px;
+        padding: 1rem;
+    }
+
+    .kpi-card h4 {
+        font-size: 0.96rem;
+        margin-bottom: 0.45rem;
+        color: #204650;
+    }
+
+    .kpi-card strong {
+        font-size: 1.5rem;
+        color: #12343b;
+    }
+
+    .kpi-meta {
+        font-size: 0.9rem;
+        color: #58727a;
+        margin: 0.35rem 0 0.55rem;
+    }
+
+    .progress-track {
+        height: 10px;
+        border-radius: 999px;
+        background: #dfecef;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #156b7a 0%, #218da0 100%);
+    }
+
+    .dashboard-chart canvas {
+        width: 100%;
+        min-height: 280px;
+    }
+
+    .dashboard-table {
+        margin-bottom: 0;
+    }
+
+    .dashboard-table td,
+    .dashboard-table th {
+        vertical-align: middle;
+    }
+
+    .entry-cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        align-items: center;
+    }
+
+    .entry-note {
+        color: #58727a;
+        font-size: 0.95rem;
+        margin: 0;
     }
 </style>
 {{ end }}
 
-{{ define "header" }} 
-{{ .sessionData.Ses.HFName }} Hospital Dashboard
-{{ end }}
+{{ define "header" }}{{ .Form.ScopeTitle }}{{ end }}
 
-{{ define "footer" }} 
-{{ end }}
+{{ define "content" }}
+<div class="dashboard-grid">
+    <div class="dashboard-overview">
+        {{ range .Form.Stats }}
+        <div class="card dashboard-stat-card {{ .Tone }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ .Title }}</h5>
+                <p class="card-text">{{ .Value }}</p>
+            </div>
+        </div>
+        {{ end }}
+    </div>
 
-{{ define "sidebar" }} 
-{{ end }}
+    {{ if eq .Form.Role "user" }}
+    <div class="dashboard-section">
+        <div class="entry-cta">
+            <a class="btn btn-primary" href="{{ .Form.DataEntryURL }}">Open My Weekly Entry Form</a>
+            <p class="entry-note">{{ .Form.LatestSubmission }}</p>
+        </div>
+    </div>
 
-{{ define "sidebarContent" }} 
-    
-{{ end }}
+    <div class="kpi-grid">
+        {{ range .Form.KPIs }}
+        <div class="kpi-card">
+            <h4>{{ .Title }}</h4>
+            <strong>{{ .Value }}{{ .Unit }}</strong>
+            <div class="kpi-meta">Target: {{ .Target }}{{ .Unit }}</div>
+            <div class="progress-track">
+                <div class="progress-fill" style="width: {{ .Progress }}%;"></div>
+            </div>
+        </div>
+        {{ end }}
+    </div>
+    {{ end }}
 
-{{define "content"}}                
-                <!-- Tiles Section -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card text-white bg-primary mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Total Facilities</h5>
-                                <p class="card-text">{{ .FacilitiesCount }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-success mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Total Staff</h5>
-                                <p class="card-text">{{ .TotalStaff }}</p> <!-- Total Staff -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-info mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Staff Present</h5>
-                                <p class="card-text">{{ .StaffPresent }}</p> <!-- Staff Present -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-warning mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Staff on Leave</h5>
-                                <p class="card-text">{{ .StaffOnLeave }}</p> <!-- Staff on Leave -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    {{ if .Form.SeriesLabels }}
+    <div class="dashboard-section dashboard-chart">
+        <div class="section-title">{{ .Form.SeriesTitle }}</div>
+        <canvas
+            id="roleDashboardChart"
+            data-labels='{{ toJSON .Form.SeriesLabels }}'
+            data-series-a='{{ toJSON .Form.SeriesA }}'
+            data-series-b='{{ toJSON .Form.SeriesB }}'
+            data-series-a-label='{{ .Form.SeriesALabel }}'
+            data-series-b-label='{{ .Form.SeriesBLabel }}'></canvas>
+    </div>
+    {{ end }}
 
-                <!-- Line Graph Section -->
-                <div class="row">
-                    <div class="col-md-12">
-                        <canvas id="myChart"></canvas>
-                    </div>
-                </div>
+    {{ if eq .Form.Role "admin" }}
+    <div class="dashboard-section">
+        <div class="section-title">Facility Performance This Week</div>
+        <div class="table-responsive">
+            <table class="table table-striped dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Facility</th>
+                        <th>Clinicians</th>
+                        <th>Entered</th>
+                        <th>Submitted</th>
+                        <th>Pending</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Form.PerformanceRows }}
+                    <tr>
+                        <td>{{ .FacilityName }}</td>
+                        <td>{{ .Clinicians }}</td>
+                        <td>{{ .EnteredThisWeek }}</td>
+                        <td>{{ .SubmittedThisWeek }}</td>
+                        <td>{{ .PendingThisWeek }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{ end }}
 
-                <!-- Table Section -->
-                <div class="table-responsive mt-4">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Health Facility</th>
-                                <th>Total Staff</th>
-                                <th>Staff Present</th>
-                                <th>On Leave</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>1</td>
-                                <td>2024-09-20</td>
-                                <td>123</td>
-                                <td>456</td>
-                                <td>78</td>
-                            </tr>
-                            <!-- Add more rows as needed -->
-                        </tbody>
-                    </table>
-                </div>
-
+    {{ if eq .Form.Role "approver" }}
+    <div class="dashboard-section">
+        <div class="section-title">Department Follow-up Status</div>
+        <div class="table-responsive">
+            <table class="table table-striped dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th>Clinicians</th>
+                        <th>Entered</th>
+                        <th>Submitted</th>
+                        <th>Pending</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Form.DepartmentRows }}
+                    <tr>
+                        <td>{{ .DepartmentName }}</td>
+                        <td>{{ .Clinicians }}</td>
+                        <td>{{ .EnteredThisWeek }}</td>
+                        <td>{{ .SubmittedThisWeek }}</td>
+                        <td>{{ .PendingThisWeek }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{ end }}
+</div>
 {{ end }}
 
 {{ define "extraJS" }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Script for Chart.js -->
 <script>
-    var ctx = document.getElementById('myChart').getContext('2d');
-    var myChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            datasets: [{
-                label: 'Total Absences',
-                data: [12, 19, 3, 5, 2],
-                borderColor: 'rgba(75, 192, 192, 1)',
-                fill: false,
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
+(() => {
+    const canvas = document.getElementById('roleDashboardChart');
+    if (!canvas) return;
+
+    const labels = JSON.parse(canvas.dataset.labels || '[]');
+    const seriesA = JSON.parse(canvas.dataset.seriesA || '[]');
+    const seriesB = JSON.parse(canvas.dataset.seriesB || '[]');
+    const seriesALabel = canvas.dataset.seriesALabel || 'Series A';
+    const seriesBLabel = canvas.dataset.seriesBLabel || 'Series B';
+    const ctx = canvas.getContext('2d');
+
+    const parent = canvas.parentElement;
+    const width = parent.clientWidth || 900;
+    const height = 320;
+    canvas.width = width;
+    canvas.height = height;
+
+    const padding = { top: 24, right: 24, bottom: 60, left: 44 };
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const maxValue = Math.max(1, ...seriesA, ...seriesB);
+    const steps = 4;
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.font = '12px Segoe UI, sans-serif';
+    ctx.fillStyle = '#58727a';
+    ctx.strokeStyle = '#d9e8ec';
+
+    for (let i = 0; i <= steps; i++) {
+        const y = padding.top + (plotHeight / steps) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+
+        const value = Math.round(maxValue - (maxValue / steps) * i);
+        ctx.fillText(String(value), 8, y + 4);
+    }
+
+    const groupWidth = plotWidth / Math.max(labels.length, 1);
+    const barWidth = Math.min(20, groupWidth / 3);
+
+    labels.forEach((label, index) => {
+        const baseX = padding.left + index * groupWidth + groupWidth / 2;
+        const aHeight = (seriesA[index] || 0) / maxValue * plotHeight;
+        const bHeight = (seriesB[index] || 0) / maxValue * plotHeight;
+
+        ctx.fillStyle = '#156b7a';
+        ctx.fillRect(baseX - barWidth - 4, padding.top + plotHeight - aHeight, barWidth, aHeight);
+
+        ctx.fillStyle = '#73b7c2';
+        ctx.fillRect(baseX + 4, padding.top + plotHeight - bHeight, barWidth, bHeight);
+
+        ctx.save();
+        ctx.translate(baseX, height - 12);
+        ctx.rotate(-0.35);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#204650';
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
     });
+
+    const legendY = 12;
+    ctx.fillStyle = '#156b7a';
+    ctx.fillRect(padding.left, legendY, 12, 12);
+    ctx.fillStyle = '#204650';
+    ctx.fillText(seriesALabel, padding.left + 18, legendY + 10);
+
+    ctx.fillStyle = '#73b7c2';
+    ctx.fillRect(padding.left + 130, legendY, 12, 12);
+    ctx.fillStyle = '#204650';
+    ctx.fillText(seriesBLabel, padding.left + 148, legendY + 10);
+})();
 </script>
 {{ end }}

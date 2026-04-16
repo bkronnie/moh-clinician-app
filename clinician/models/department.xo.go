@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Department represents a row from 'public.departments'.
+// Department represents a row from 'clinician_app.departments'.
 type Department struct {
 	ID    int            `json:"id"`     // id
 	DName sql.NullString `json:"d_name"` // d_name
@@ -35,7 +35,7 @@ func (d *Department) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.departments (` +
+	const sqlstr = `INSERT INTO clinician_app.departments (` +
 		`d_name` +
 		`) VALUES (` +
 		`$1` +
@@ -59,7 +59,7 @@ func (d *Department) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.departments SET ` +
+	const sqlstr = `UPDATE clinician_app.departments SET ` +
 		`d_name = $1 ` +
 		`WHERE id = $2`
 	// run
@@ -85,7 +85,7 @@ func (d *Department) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.departments (` +
+	const sqlstr = `INSERT INTO clinician_app.departments (` +
 		`id, d_name` +
 		`) VALUES (` +
 		`$1, $2` +
@@ -112,7 +112,7 @@ func (d *Department) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.departments ` +
+	const sqlstr = `DELETE FROM clinician_app.departments ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, d.ID)
@@ -124,14 +124,14 @@ func (d *Department) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// DepartmentByID retrieves a row from 'public.departments' as a [Department].
+// DepartmentByID retrieves a row from 'clinician_app.departments' as a [Department].
 //
 // Generated from index 'departments_pkey'.
 func DepartmentByID(ctx context.Context, db DB, id int) (*Department, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, d_name ` +
-		`FROM public.departments ` +
+		`FROM clinician_app.departments ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

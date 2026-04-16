@@ -7,20 +7,19 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	
 )
 
 // SpecialistReport struct to hold summarized data
 type SpecialistReport struct {
-	EmpID int
-	StaffName                   string
-	Title                  string
-	HFName string
-	DaysWorked             sql.NullInt64
-	WardRounds             sql.NullInt64
-	SurgeriesConducted     sql.NullInt64
-	SpecializedClinics     sql.NullInt64
-	StudentTeaching        sql.NullInt64
+	EmpID              int
+	StaffName          string
+	Title              string
+	HFName             string
+	DaysWorked         sql.NullInt64
+	WardRounds         sql.NullInt64
+	SurgeriesConducted sql.NullInt64
+	SpecializedClinics sql.NullInt64
+	StudentTeaching    sql.NullInt64
 }
 
 // GetWeeklyReportSummary fetches summarized data from the weeklyreport table
@@ -34,10 +33,10 @@ func GetWeeklyReportSummary(ctx context.Context, db *sql.DB, hfid int) ([]Specia
 		       SUM(w.qn_05 + w.qn_06) AS surgeries, 
 		       SUM(w.qn_08) AS specialized_clinics, 
 		       SUM(w.qn_11) AS student_teaching
-		FROM public.weeklyreport w
-		JOIN public.employees e ON w.employee = e.id
-		JOIN public.specialist_titles st ON st.id = e.title
-		JOIN public.facilities f ON f.id = e.facility
+		FROM clinician_app.weeklyreport w
+		JOIN clinician_app.employees e ON w.employee = e.id
+		JOIN clinician_app.specialist_titles st ON st.id = e.title
+		JOIN clinician_app.facilities f ON f.id = e.facility
 		WHERE e.facility = $1
 		GROUP BY f.f_name, e.id, e.fname, st.title
 		ORDER BY e.id;

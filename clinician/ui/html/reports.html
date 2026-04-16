@@ -2,11 +2,6 @@
 
 {{ define "extraStyles" }}
 <style>
-    body {
-        font-family: "Times New Roman", Times, serif;
-        font-size: 14px;
-    }
-
     .form-inline .form-group {
         margin-right: 5px;
     }
@@ -33,19 +28,13 @@
     #loginForm {
         display: flex;
         flex-direction: column;
-        padding: 10px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
         width: 100%;
-        border: 2px solid #ccc;
     }
 
     .div1 {
         width: 100%;
         height: 400px;
         overflow: scroll;
-        border: 2px solid #777777;
     }
 
     .div1 table {
@@ -60,8 +49,8 @@
         min-width: 20px;
         position: sticky;
         top: 0;
-        background: #727272;
-        color: #e0e0e0;
+        background: #edf4f2;
+        color: #173234;
         font-weight: normal;
     }
 
@@ -101,7 +90,7 @@
     .div1 td:nth-child(1),
     .div1 td:nth-child(2),
     .div1 td:nth-child(3) {
-        background: #d7d7d6;
+        background: #f7fbfa;
     }
 
     .div1 th:nth-child(1),
@@ -139,7 +128,7 @@
 {{ end }}
 
 {{define "content"}}       
-<form id="loginForm" method="post" action="/reports/update">
+<form id="loginForm" class="app-panel" method="post" action="/reports/update">
     
     <div class="d-flex justify-content-between mb-3">
         <div>

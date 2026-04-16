@@ -1,0 +1,292 @@
+{{ define "title"}} My Weekly Data Entry {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    .entry-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .entry-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .entry-summary-card {
+        background: #f8fbfc;
+        border: 1px solid #d9e8ec;
+        border-radius: 14px;
+        padding: 1rem;
+    }
+
+    .entry-summary-card small {
+        display: block;
+        color: #58727a;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.35rem;
+    }
+
+    .entry-summary-card strong {
+        color: #12343b;
+        font-size: 1rem;
+    }
+
+    .entry-form-panel {
+        background: #ffffff;
+        border: 1px solid #d9e8ec;
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 10px 30px rgba(11, 44, 54, 0.06);
+    }
+
+    .entry-section {
+        margin-top: 1.25rem;
+    }
+
+    .entry-section h3 {
+        font-size: 1rem;
+        margin-bottom: 0.85rem;
+        color: #12343b;
+    }
+
+    .entry-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+    }
+
+    .entry-field label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #204650;
+    }
+
+    .entry-field input {
+        width: 100%;
+    }
+
+    .entry-actions {
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }}My Weekly Data Entry{{ end }}
+
+{{ define "content" }}
+<div class="entry-shell">
+    <div class="entry-summary">
+        <div class="entry-summary-card">
+            <small>Clinician</small>
+            <strong>{{ .Form.EmployeeName }}</strong>
+        </div>
+        <div class="entry-summary-card">
+            <small>Facility</small>
+            <strong>{{ .Form.FacilityName }}</strong>
+        </div>
+        <div class="entry-summary-card">
+            <small>Department</small>
+            <strong>{{ .Form.DepartmentName }}</strong>
+        </div>
+        <div class="entry-summary-card">
+            <small>Reporting Week</small>
+            <strong>{{ .Form.StartDate }} to {{ .Form.StopDate }}</strong>
+        </div>
+    </div>
+
+    <form method="post" action="/reports/zave" class="entry-form-panel">
+        <div class="entry-grid">
+            <div class="entry-field">
+                <label for="start">Start Date</label>
+                <input id="start" type="date" name="start" class="form-control" value="{{ .Form.StartDate }}" required>
+            </div>
+            <div class="entry-field">
+                <label for="stop">Stop Date</label>
+                <input id="stop" type="date" name="stop" class="form-control" value="{{ .Form.StopDate }}" required>
+            </div>
+        </div>
+
+        <div class="entry-section">
+            <h3>Core Activity</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label>Attendance Days</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Ward Rounds</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][ward_rounds]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Patients Reviewed</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][patients_reviewed]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>OPD Clinics</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][OPD_clinics]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>OPD Patients</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][OPD_patients]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Teaching Rounds</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][teaching_rounds]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Students Taught</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][students_taught]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Mortality Reviews</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][mortality_reviews]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Lab Requests</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][labs_requests]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Imaging Requests</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][imaging_requests]" class="form-control">
+                </div>
+            </div>
+        </div>
+
+        {{ if eq .Form.DepartmentID 1 }}
+        <div class="entry-section">
+            <h3>Surgery Metrics</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label>Theatre Days</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][theatre_days]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Elective Surgeries</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][elective]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Emergency Surgeries</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][emergency]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Postmortems</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][postmortems]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>X-Rays</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][xrays]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>CT Scans</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][ct_scans]" class="form-control">
+                </div>
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if eq .Form.DepartmentID 2 }}
+        <div class="entry-section">
+            <h3>Internal Medicine Metrics</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label>Medical Reviews</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][medical]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>CBC Tests</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][CBC]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Chemistry Tests</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][chemistry]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Hematology Tests</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][hematology]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Urinalysis</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][urinalysis]" class="form-control">
+                </div>
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if eq .Form.DepartmentID 3 }}
+        <div class="entry-section">
+            <h3>Paediatrics Metrics</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label>Paediatric Reviews</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][paed]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Malaria Cases Reviewed</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][malaria]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>TB Cases Reviewed</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][TB]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>CBC Tests</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][CBC]" class="form-control">
+                </div>
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if eq .Form.DepartmentID 4 }}
+        <div class="entry-section">
+            <h3>Obstetrics and Gynaecology Metrics</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label>Theatre Days</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][theatre_days]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Elective Procedures</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][elective]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Emergency Procedures</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][emergency]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>ANC Patients</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][anc_patients]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Maternal Reviews</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][maternal]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Perinatal Reviews</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][perinatal]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Obstetrics Scans</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][obstetrics_scans]" class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label>Abdominal Scans</label>
+                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][abdominal_scans]" class="form-control">
+                </div>
+            </div>
+        </div>
+        {{ end }}
+
+        <div class="entry-actions">
+            <button class="btn btn-primary" type="submit">Save Weekly Entry</button>
+            <a class="btn btn-outline-secondary" href="/">Back to Dashboard</a>
+        </div>
+    </form>
+</div>
+{{ end }}

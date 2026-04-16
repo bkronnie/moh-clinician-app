@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Weeklyreport represents a row from 'public.weeklyreport'.
+// Weeklyreport represents a row from 'clinician_app.weeklyreport'.
 type Weeklyreport struct {
 	ID         int            `json:"id"`         // id
 	Hospital   sql.NullInt64  `json:"hospital"`   // hospital
@@ -51,7 +51,7 @@ func (w *Weeklyreport) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.weeklyreport (` +
+	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`hospital, department, employee, title, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17` +
@@ -75,7 +75,7 @@ func (w *Weeklyreport) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.weeklyreport SET ` +
+	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
 		`hospital = $1, department = $2, employee = $3, title = $4, start = $5, stop = $6, qn_01 = $7, qn_02 = $8, qn_03 = $9, qn_04 = $10, qn_05 = $11, qn_06 = $12, qn_07 = $13, qn_08 = $14, qn_09 = $15, qn_10 = $16, created_on = $17 ` +
 		`WHERE id = $18`
 	// run
@@ -101,7 +101,7 @@ func (w *Weeklyreport) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.weeklyreport (` +
+	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`id, hospital, department, employee, title, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18` +
@@ -128,7 +128,7 @@ func (w *Weeklyreport) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.weeklyreport ` +
+	const sqlstr = `DELETE FROM clinician_app.weeklyreport ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, w.ID)
@@ -140,14 +140,14 @@ func (w *Weeklyreport) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// WeeklyreportByID retrieves a row from 'public.weeklyreport' as a [Weeklyreport].
+// WeeklyreportByID retrieves a row from 'clinician_app.weeklyreport' as a [Weeklyreport].
 //
 // Generated from index 'weeklyreport_pkey'.
 func WeeklyreportByID(ctx context.Context, db DB, id int) (*Weeklyreport, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, hospital, department, employee, title, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on ` +
-		`FROM public.weeklyreport ` +
+		`FROM clinician_app.weeklyreport ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

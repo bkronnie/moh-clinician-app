@@ -2,10 +2,6 @@
 
 {{ define "extraStyles" }}
 <style>
-    body {
-        font-family: "Times New Roman", Times, serif;
-        font-size: 14px;
-    }
     table.table th, table.table td {
         padding: 0.5rem;
     }
@@ -17,10 +13,6 @@
     #employeeTable {
        display: flex;
        flex-direction: column;
-       padding: 10px;
-       border: 2px solid #ccc;
-       border-radius: 5px;
-       background-color: #f9f9f9;
        width: 100%;
    }
 
@@ -32,7 +24,7 @@
 {{ end }}
 
 {{ define "content" }}
-<form id="employeeTable" method="post" action="/employees">
+<form id="employeeTable" class="app-panel" method="post" action="/employees">
 
     <div class="d-flex justify-content-between mb-3">
         <div>

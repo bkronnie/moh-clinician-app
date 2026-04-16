@@ -14,30 +14,30 @@ import (
 	"github.com/lib/pq" // Import the pq package
 )
 
-// Weeklyreport represents a row from 'public.weeklyreport'.
+// Weeklyreport represents a row from 'clinician_app.weeklyreport'.
 type Weeklyreport struct {
-	ID         int            `json:"reportid"`         // id
-	ReportID sql.NullInt64 `json:"dummyreportid"` // id
-	Hospital   sql.NullInt64  `json:"hospital"`   // hospital
-	Dept       sql.NullInt64  `json:"department"` // department
-	Emp        sql.NullInt64  `json:"employee"`   // employee
-	Start      sql.NullTime   `json:"start"`      // start
-	Stop       sql.NullTime   `json:"stop"`       // stop
-	Qn01       sql.NullInt64  `json:"qn_01"`      // qn_01
-	Qn02       sql.NullInt64  `json:"qn_02"`      // qn_02
-	Qn03       sql.NullInt64  `json:"qn_03"`      // qn_03
-	Qn04       sql.NullInt64  `json:"qn_04"`      // qn_04
-	Qn05       sql.NullInt64  `json:"qn_05"`      // qn_05
-	Qn06       sql.NullInt64  `json:"qn_06"`      // qn_06
-	Qn07       sql.NullInt64  `json:"qn_07"`      // qn_07
-	EntryCreatedOn  sql.NullTime   `json:"created_on_date"` // created_on
+	ID             int           `json:"reportid"`        // id
+	ReportID       sql.NullInt64 `json:"dummyreportid"`   // id
+	Hospital       sql.NullInt64 `json:"hospital"`        // hospital
+	Dept           sql.NullInt64 `json:"department"`      // department
+	Emp            sql.NullInt64 `json:"employee"`        // employee
+	Start          sql.NullTime  `json:"start"`           // start
+	Stop           sql.NullTime  `json:"stop"`            // stop
+	Qn01           sql.NullInt64 `json:"qn_01"`           // qn_01
+	Qn02           sql.NullInt64 `json:"qn_02"`           // qn_02
+	Qn03           sql.NullInt64 `json:"qn_03"`           // qn_03
+	Qn04           sql.NullInt64 `json:"qn_04"`           // qn_04
+	Qn05           sql.NullInt64 `json:"qn_05"`           // qn_05
+	Qn06           sql.NullInt64 `json:"qn_06"`           // qn_06
+	Qn07           sql.NullInt64 `json:"qn_07"`           // qn_07
+	EntryCreatedOn sql.NullTime  `json:"created_on_date"` // created_on
 	// xo fields
 	_exists, _deleted bool
 }
 
 /*
 //WeeklyReportExtended struct
-type WeeklyReportExtended struct {	
+type WeeklyReportExtended struct {
 	Weeklyreport
 	Employee
 	Facility
@@ -47,85 +47,83 @@ type WeeklyReportExtended struct {
 }
 */
 
-
 // WeeklyReportExtended struct with explicit fields from Weeklyreport, Department, Facility, and Employee
 type WeeklyReportExtended struct {
-	// Fields from 'public.weeklyreport'
-	ID         int            `json:"reportid"`         // id
-	ReportID   sql.NullInt64 `json:"reportid"`      // id
-	Hospital   sql.NullInt64 `json:"hospital"`      // hospital
-	Dept       sql.NullInt64 `json:"department"`    // department
-	Emp        sql.NullInt64 `json:"employee"`      // employee
-	Start      sql.NullTime  `json:"start"`         // start
-	Stop       sql.NullTime  `json:"stop"`          // stop
-	Qn01       sql.NullInt64 `json:"qn_01"`         // qn_01
-	Qn02       sql.NullInt64 `json:"qn_02"`         // qn_02
-	Qn03       sql.NullInt64 `json:"qn_03"`         // qn_03
-	Qn04       sql.NullInt64 `json:"qn_04"`         // qn_04
-	Qn05       sql.NullInt64 `json:"qn_05"`         // qn_05
-	Qn06       sql.NullInt64 `json:"qn_06"`         // qn_06
-	Qn07       sql.NullInt64 `json:"qn_07"`         // qn_07
-	Qn08       sql.NullInt64 `json:"qn_08"`         // qn_08
-	Qn09       sql.NullInt64 `json:"qn_09"`         // qn_09
-	Qn10       sql.NullInt64 `json:"qn_10"`         // qn_10
-	Qn11       sql.NullInt64 `json:"qn_11"`         // qn_11
-	Qn12       sql.NullInt64 `json:"qn_12"`         // qn_12
-	Qn13       sql.NullInt64 `json:"qn_13"`         // qn_13
-	Qn14       sql.NullInt64 `json:"qn_14"`         // qn_14
-	Qn15       sql.NullInt64 `json:"qn_15"`         // qn_15
-	Qn16       sql.NullInt64 `json:"qn_16"`         // qn_16
-	Qn17       sql.NullInt64 `json:"qn_17"`         // qn_17
-	Qn18       sql.NullInt64 `json:"qn_18"`         // qn_18
-	Qn19       sql.NullInt64 `json:"qn_19"`         // qn_19
-	Qn20       sql.NullInt64 `json:"qn_20"`         // qn_20
-	Qn21       sql.NullInt64 `json:"qn_21"`         // qn_21
-	Qn22       sql.NullInt64 `json:"qn_22"`         // qn_22
-	Qn23       sql.NullInt64 `json:"qn_23"`         // qn_23
-	Qn24       sql.NullInt64 `json:"qn_24"`         // qn_24
-	Qn25       sql.NullInt64 `json:"qn_25"`         // qn_25
-	Qn26       sql.NullInt64 `json:"qn_26"`         // qn_26
-	Qn27       sql.NullInt64 `json:"qn_27"`         // qn_27
-	Qn28       sql.NullInt64 `json:"qn_28"`         // qn_28
-	Qn29       sql.NullInt64 `json:"qn_29"`         // qn_29
-	Qn30       sql.NullInt64 `json:"qn_30"`         // qn_30
-	Qn31       sql.NullInt64 `json:"qn_31"`         // qn_31
-	Qn32       sql.NullInt64 `json:"qn_32"`         // qn_32
-	Qn33       sql.NullInt64 `json:"qn_33"`         // qn_33
-	Qn34       sql.NullInt64 `json:"qn_34"`         // qn_34
-	Qn35       sql.NullInt64 `json:"qn_35"`         // qn_35
-	Qn36       sql.NullInt64 `json:"qn_36"`         // qn_36
-	Qn37       sql.NullInt64 `json:"qn_37"`         // qn_37
-	Qn38       sql.NullInt64 `json:"qn_38"`         // qn_38
-	Qn39       sql.NullInt64 `json:"qn_39"`         // qn_39
-	Qn40       sql.NullInt64 `json:"qn_40"`         // qn_40
-	
-	
-	EnteredByID sql.NullInt64 `json:"entered_by"`	//entered_by
-	EntryCreatedOn  sql.NullTime  `json:"created_on"`    // created_on
-	LastUpdateOn  sql.NullTime  `json:"update_on"`    // created_on
-	RecordStatus sql.NullString `json:"record_status"` //record_status
-	
-	// Fields from 'public.employees'
-	EmpID        int            `json:"employeeid"`     // id
-	Fname        sql.NullString `json:"firstname"`      // fname
-	Lname        sql.NullString `json:"lastname"`       // lname
-	Oname        sql.NullString `json:"othername"`      // oname
-	EmpTitle     sql.NullString `json:"employeetitle"`  // title
-	Specialisation sql.NullString `json:"specialisation"` // specialisation
-	EmpDepartment sql.NullInt64  `json:"department_id"` // department
-	EmpFacility   sql.NullInt64  `json:"facility_id"`   // facility
-	CreatedBy     sql.NullInt64  `json:"createdby_id"`  // created_by
-	CreatedOnEmp  sql.NullTime   `json:"createdon_date"` // created_on
+	// Fields from 'clinician_app.weeklyreport'
+	ID       int           `json:"reportid"`   // id
+	ReportID sql.NullInt64 `json:"reportid"`   // id
+	Hospital sql.NullInt64 `json:"hospital"`   // hospital
+	Dept     sql.NullInt64 `json:"department"` // department
+	Emp      sql.NullInt64 `json:"employee"`   // employee
+	Start    sql.NullTime  `json:"start"`      // start
+	Stop     sql.NullTime  `json:"stop"`       // stop
+	Qn01     sql.NullInt64 `json:"qn_01"`      // qn_01
+	Qn02     sql.NullInt64 `json:"qn_02"`      // qn_02
+	Qn03     sql.NullInt64 `json:"qn_03"`      // qn_03
+	Qn04     sql.NullInt64 `json:"qn_04"`      // qn_04
+	Qn05     sql.NullInt64 `json:"qn_05"`      // qn_05
+	Qn06     sql.NullInt64 `json:"qn_06"`      // qn_06
+	Qn07     sql.NullInt64 `json:"qn_07"`      // qn_07
+	Qn08     sql.NullInt64 `json:"qn_08"`      // qn_08
+	Qn09     sql.NullInt64 `json:"qn_09"`      // qn_09
+	Qn10     sql.NullInt64 `json:"qn_10"`      // qn_10
+	Qn11     sql.NullInt64 `json:"qn_11"`      // qn_11
+	Qn12     sql.NullInt64 `json:"qn_12"`      // qn_12
+	Qn13     sql.NullInt64 `json:"qn_13"`      // qn_13
+	Qn14     sql.NullInt64 `json:"qn_14"`      // qn_14
+	Qn15     sql.NullInt64 `json:"qn_15"`      // qn_15
+	Qn16     sql.NullInt64 `json:"qn_16"`      // qn_16
+	Qn17     sql.NullInt64 `json:"qn_17"`      // qn_17
+	Qn18     sql.NullInt64 `json:"qn_18"`      // qn_18
+	Qn19     sql.NullInt64 `json:"qn_19"`      // qn_19
+	Qn20     sql.NullInt64 `json:"qn_20"`      // qn_20
+	Qn21     sql.NullInt64 `json:"qn_21"`      // qn_21
+	Qn22     sql.NullInt64 `json:"qn_22"`      // qn_22
+	Qn23     sql.NullInt64 `json:"qn_23"`      // qn_23
+	Qn24     sql.NullInt64 `json:"qn_24"`      // qn_24
+	Qn25     sql.NullInt64 `json:"qn_25"`      // qn_25
+	Qn26     sql.NullInt64 `json:"qn_26"`      // qn_26
+	Qn27     sql.NullInt64 `json:"qn_27"`      // qn_27
+	Qn28     sql.NullInt64 `json:"qn_28"`      // qn_28
+	Qn29     sql.NullInt64 `json:"qn_29"`      // qn_29
+	Qn30     sql.NullInt64 `json:"qn_30"`      // qn_30
+	Qn31     sql.NullInt64 `json:"qn_31"`      // qn_31
+	Qn32     sql.NullInt64 `json:"qn_32"`      // qn_32
+	Qn33     sql.NullInt64 `json:"qn_33"`      // qn_33
+	Qn34     sql.NullInt64 `json:"qn_34"`      // qn_34
+	Qn35     sql.NullInt64 `json:"qn_35"`      // qn_35
+	Qn36     sql.NullInt64 `json:"qn_36"`      // qn_36
+	Qn37     sql.NullInt64 `json:"qn_37"`      // qn_37
+	Qn38     sql.NullInt64 `json:"qn_38"`      // qn_38
+	Qn39     sql.NullInt64 `json:"qn_39"`      // qn_39
+	Qn40     sql.NullInt64 `json:"qn_40"`      // qn_40
 
-	// Fields from 'public.facilities'
-	FacilityID      int           `json:"facilityid"`      // id
-	FacilityName    string        `json:"facility_name"`   // f_name
-	FacilityLevel   string        `json:"facility_level"`  // f_level
-	FacilityLg      sql.NullInt64 `json:"f_lg"`            // f_lg
-	FacilityCreatedBy sql.NullInt64 `json:"created_by"`    // created_by
+	EnteredByID    sql.NullInt64  `json:"entered_by"`    //entered_by
+	EntryCreatedOn sql.NullTime   `json:"created_on"`    // created_on
+	LastUpdateOn   sql.NullTime   `json:"update_on"`     // created_on
+	RecordStatus   sql.NullString `json:"record_status"` //record_status
+
+	// Fields from 'clinician_app.employees'
+	EmpID          int            `json:"employeeid"`     // id
+	Fname          sql.NullString `json:"firstname"`      // fname
+	Lname          sql.NullString `json:"lastname"`       // lname
+	Oname          sql.NullString `json:"othername"`      // oname
+	EmpTitle       sql.NullString `json:"employeetitle"`  // title
+	Specialisation sql.NullString `json:"specialisation"` // specialisation
+	EmpDepartment  sql.NullInt64  `json:"department_id"`  // department
+	EmpFacility    sql.NullInt64  `json:"facility_id"`    // facility
+	CreatedBy      sql.NullInt64  `json:"createdby_id"`   // created_by
+	CreatedOnEmp   sql.NullTime   `json:"createdon_date"` // created_on
+
+	// Fields from 'clinician_app.facilities'
+	FacilityID        int           `json:"facilityid"`     // id
+	FacilityName      string        `json:"facility_name"`  // f_name
+	FacilityLevel     string        `json:"facility_level"` // f_level
+	FacilityLg        sql.NullInt64 `json:"f_lg"`           // f_lg
+	FacilityCreatedBy sql.NullInt64 `json:"created_by"`     // created_by
 	//FacilityCreatedOn sql.NullTime  `json:"created_on"`    // created_on
 
-	// Fields from 'public.departments'
+	// Fields from 'clinician_app.departments'
 	DeptID         int            `json:"departmentid"`   // id
 	DepartmentName sql.NullString `json:"departmentname"` // d_name
 
@@ -136,43 +134,40 @@ type WeeklyReportExtended struct {
 	_exists, _deleted bool
 }
 
-
 //Struct to populate weekly report facility submissions
 type WeeklyReportSubmission struct {
-	HospitalID int `json:"hospital_id"`
-	EmpID int `json:"emp_id"`
-	DeptID int `json:"dept_id"`
-    FacilityName     string  `json:"facility_name"`     // Facility Name
-	DepartmentName string `json:"dept_name"` // d_name
-    Start             sql.NullTime  `json:"start"`             // Reporting Week
-	Stop             sql.NullTime  `json:"stop"`             // Reporting Week
-    NoOfStaff        int     `json:"no_of_staff"`      // No of Staff
-    NoEntered        int     `json:"no_entered"`      // No of Staff
-    NoSubmitted        int     `json:"no_submitted"`      // No of Staff
-    NoOfDepartments        int     `json:"no_of_departments"`      // No of Staff
-    NoSubmittedDepartment        int     `json:"no_department"`      // No of Staff
-    DateOfSubmission sql.NullTime  `json:"date_of_submission"` // Date of Submission
-    ApproveID        int  `json:"approved_id"`       // Name of Staff
-    SubmitID        int  `json:"submitted_id"`       // Name of Staff
-    ApproveName        sql.NullString  `json:"approved_name"`       // Name of Staff
-    SubmitName        sql.NullString  `json:"submitted_name"`       // Name of Staff    
-	ApproveStatus string `json:"approve_status"` // report_status
-    SubmitStatus sql.NullString `json:"submit_status"` // report_status
-    //ClearingOffice   string  `json:"clearing_office"`  // Clearing Office
+	HospitalID            int            `json:"hospital_id"`
+	EmpID                 int            `json:"emp_id"`
+	DeptID                int            `json:"dept_id"`
+	FacilityName          string         `json:"facility_name"`      // Facility Name
+	DepartmentName        string         `json:"dept_name"`          // d_name
+	Start                 sql.NullTime   `json:"start"`              // Reporting Week
+	Stop                  sql.NullTime   `json:"stop"`               // Reporting Week
+	NoOfStaff             int            `json:"no_of_staff"`        // No of Staff
+	NoEntered             int            `json:"no_entered"`         // No of Staff
+	NoSubmitted           int            `json:"no_submitted"`       // No of Staff
+	NoOfDepartments       int            `json:"no_of_departments"`  // No of Staff
+	NoSubmittedDepartment int            `json:"no_department"`      // No of Staff
+	DateOfSubmission      sql.NullTime   `json:"date_of_submission"` // Date of Submission
+	ApproveID             int            `json:"approved_id"`        // Name of Staff
+	SubmitID              int            `json:"submitted_id"`       // Name of Staff
+	ApproveName           sql.NullString `json:"approved_name"`      // Name of Staff
+	SubmitName            sql.NullString `json:"submitted_name"`     // Name of Staff
+	ApproveStatus         string         `json:"approve_status"`     // report_status
+	SubmitStatus          sql.NullString `json:"submit_status"`      // report_status
+	//ClearingOffice   string  `json:"clearing_office"`  // Clearing Office
 }
 
 // Struct for Template Data
 type ReportBulkCaptureData struct {
-    SessionData interface{}  // Replace with actual session type if known
-    StaffList   []*WeeklyReportExtended
-    Facilities  []*Facility  // List of available facilities for the dropdown
+	SessionData interface{} // Replace with actual session type if known
+	StaffList   []*WeeklyReportExtended
+	Facilities  []*Facility // List of available facilities for the dropdown
 }
 
 type RoleDataPoints struct {
-    DataPoints []string `json:"data_points"`
+	DataPoints []string `json:"data_points"`
 }
-
-
 
 // Exists returns true when the [Weeklyreport] exists in the database.
 func (w *Weeklyreport) Exists() bool {
@@ -200,7 +195,7 @@ func (w *Weeklyreport) Insert(ctx context.Context, db DB) error {
 	}
 
 	// Insert the Weeklyreport record
-	const sqlstr = `INSERT INTO public.weeklyreport (` +
+	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16` +
@@ -219,33 +214,33 @@ func (w *Weeklyreport) Insert(ctx context.Context, db DB) error {
 func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error {
 
 	log.Printf("Execution Reached InsertNewRecord fxn.")
-	
-    switch {
-    case w._exists: // already exists
-        return logerror(&ErrInsertFailed{ErrAlreadyExists})
-    case w._deleted: // deleted
-        return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
-    }
 
-    // Query the last id value in the weeklyreport table
-    var lastID int
-    lastIDQuery := `SELECT COALESCE(MAX(id), 0) FROM public.weeklyreport`
-    if err := db.QueryRowContext(ctx, lastIDQuery).Scan(&lastID); err != nil {
-        return logerror(err)
-    }
+	switch {
+	case w._exists: // already exists
+		return logerror(&ErrInsertFailed{ErrAlreadyExists})
+	case w._deleted: // deleted
+		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
+	}
 
-    // Calculate new ID starting from lastID + 1
-    newID := lastID + 1
+	// Query the last id value in the weeklyreport table
+	var lastID int
+	lastIDQuery := `SELECT COALESCE(MAX(id), 0) FROM clinician_app.weeklyreport`
+	if err := db.QueryRowContext(ctx, lastIDQuery).Scan(&lastID); err != nil {
+		return logerror(err)
+	}
 
-    // Retrieve FacilityId and DepartmentId based on employee
-    var facilityID, departmentID int
-    employeeQuery := `SELECT facility, department FROM public.employees WHERE id = $1`
-    if err := db.QueryRowContext(ctx, employeeQuery, w.Emp).Scan(&facilityID, &departmentID); err != nil {
-        return logerror(err)
-    }
+	// Calculate new ID starting from lastID + 1
+	newID := lastID + 1
 
-    // Insert the WeeklyReportExtended record
-    const sqlstr = `INSERT INTO public.weeklyreport (` +
+	// Retrieve FacilityId and DepartmentId based on employee
+	var facilityID, departmentID int
+	employeeQuery := `SELECT facility, department FROM clinician_app.employees WHERE id = $1`
+	if err := db.QueryRowContext(ctx, employeeQuery, w.Emp).Scan(&facilityID, &departmentID); err != nil {
+		return logerror(err)
+	}
+
+	// Insert the WeeklyReportExtended record
+	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, qn_11, qn_12, qn_13, qn_14, ` +
 		`qn_15, qn_16, qn_17, qn_18, qn_19, qn_20, qn_21, qn_22, qn_23, qn_24, qn_25, qn_26, qn_27, qn_28, qn_29, qn_30, ` +
 		`qn_31, qn_32, qn_33, qn_34, qn_35, qn_36, qn_37, qn_38, entered_by, created_on ` +
@@ -253,27 +248,24 @@ func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ` +
 		`$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, ` +
 		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46 ` +
-    	`)`;
+		`)`
 
-		logf(sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
-			w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28, 
-			w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn)
+	logf(sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn)
 
-    _, err := db.ExecContext(ctx, sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, 
-    w.Qn09, w.Qn10, w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, 
-    w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn)
-    if err != nil {
-        return logerror(err)
-    }
+	_, err := db.ExecContext(ctx, sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08,
+		w.Qn09, w.Qn10, w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26,
+		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn)
+	if err != nil {
+		return logerror(err)
+	}
 
-    // Set exists
-    w._exists = true
-    w.ID = newID // Assign the newly generated ID to the struct
-    return nil
+	// Set exists
+	w._exists = true
+	w.ID = newID // Assign the newly generated ID to the struct
+	return nil
 }
-
-
-
 
 // Update updates a [Weeklyreport] in the database.
 func (w *Weeklyreport) Update(ctx context.Context, db DB) error {
@@ -284,7 +276,7 @@ func (w *Weeklyreport) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.weeklyreport SET ` +
+	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
 		`hospital = $1, department = $2, employee = $3, start = $5, stop = $6, qn_01 = $7, qn_02 = $8, qn_03 = $9, qn_04 = $10, qn_05 = $11, qn_06 = $12, qn_07 = $13, created_on = $17 ` +
 		`WHERE id = $18`
 	// run
@@ -299,34 +291,32 @@ func (w *Weeklyreport) Update(ctx context.Context, db DB) error {
 // Updatez updates an existing WeeklyReportExtended record in the database.
 func (w *WeeklyReportExtended) Updatez(ctx context.Context, db DB) error {
 	log.Printf("We are in Updatez")
-	
-    
-    // Ensure the FacilityId and DepartmentId are accurate based on the employee ID
-    
+
+	// Ensure the FacilityId and DepartmentId are accurate based on the employee ID
+
 	//log.Printf("Error updating report for employee %d: %d", facilityID, departmentID)
 
-    // Update the WeeklyReportExtended record
-    const sqlstr = `UPDATE public.weeklyreport SET ` +
-        `qn_01 = $1, qn_02 = $2, qn_03 = $3, qn_04 =$4, qn_05 = $5, qn_06 = $6, qn_07 = $7, qn_08 = $8, qn_09 = $9, qn_10 = $10, qn_11 = $11, qn_12 = $12, qn_13 = $13, qn_14 = $14, ` +
+	// Update the WeeklyReportExtended record
+	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
+		`qn_01 = $1, qn_02 = $2, qn_03 = $3, qn_04 =$4, qn_05 = $5, qn_06 = $6, qn_07 = $7, qn_08 = $8, qn_09 = $9, qn_10 = $10, qn_11 = $11, qn_12 = $12, qn_13 = $13, qn_14 = $14, ` +
 		`qn_15 = $15, qn_16 = $16, qn_17 = $17, qn_18 = $18, qn_19 = $19, qn_20 = $20, qn_21 = $21, qn_22 = $22, qn_23 = $23, qn_24 = $24, qn_25 = $25, qn_26 = $26, qn_27 = $27, qn_28 = $28, qn_29 = $29, qn_30 = $30, ` +
 		`qn_31 = $31, qn_32 = $32, qn_33 = $33, qn_34 = $34, qn_35 = $35, qn_36 = $36, qn_37 = $37, qn_38 = $38,` +
-        `last_updated_on = $39 ` +
-        `WHERE id = $40 `
+		`last_updated_on = $39 ` +
+		`WHERE id = $40 `
 
-    logf(sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
-		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28, 
+	logf(sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
 		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.LastUpdateOn, w.ID)
-	
-    _, err := db.ExecContext(ctx, sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
-		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28, 
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.LastUpdateOn, w.ID)
-    if err != nil {
-        return logerror(err)
-    }
 
-    return nil
+	_, err := db.ExecContext(ctx, sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.LastUpdateOn, w.ID)
+	if err != nil {
+		return logerror(err)
+	}
+
+	return nil
 }
-
 
 // Save saves the [Weeklyreport] to the database.
 func (w *Weeklyreport) Save(ctx context.Context, db DB) error {
@@ -351,7 +341,7 @@ func (w *Weeklyreport) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.weeklyreport (` +
+	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17` +
@@ -378,7 +368,7 @@ func (w *Weeklyreport) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.weeklyreport ` +
+	const sqlstr = `DELETE FROM clinician_app.weeklyreport ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, w.ID)
@@ -390,49 +380,47 @@ func (w *Weeklyreport) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// WeeklyreportByID retrieves a row from 'public.weeklyreport' as a [Weeklyreport].
+// WeeklyreportByID retrieves a row from 'clinician_app.weeklyreport' as a [Weeklyreport].
 
 // WeeklyreportByID retrieves a specific weekly report by report ID from the database.
 func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended, error) {
 
 	log.Printf("Record ID: %d", id)
-    // Expanded query to select all fields up to qn_38, along with entered_by and created_on
-    const sqlstr = `SELECT w.id, w.hospital, w.department, w.employee, st.title, w.start, w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
+	// Expanded query to select all fields up to qn_38, along with entered_by and created_on
+	const sqlstr = `SELECT w.id, w.hospital, w.department, w.employee, st.title, w.start, w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
         w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20, w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27,
         w.qn_28, w.qn_29, w.qn_30, w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38, w.entered_by, w.created_on
-        FROM public.weeklyreport w
+        FROM clinician_app.weeklyreport w
 		LEFT JOIN employees e ON e.id = w.employee 
 		LEFT JOIN specialist_titles st on st.id = e.title 
         WHERE w.id = $1`
-    // Log the query for debugging
-    logf(sqlstr, id)
+	// Log the query for debugging
+	logf(sqlstr, id)
 
-    w := WeeklyReportExtended{
-        _exists: true,
-    }
-    
-    // Execute the query and scan all selected fields into the WeeklyReportExtended struct
-    if err := db.QueryRowContext(ctx, sqlstr, id).Scan(
-        &w.ID, &w.Hospital, &w.DeptID, &w.EmpID, &w.EmpTitle, &w.Start, &w.Stop, 
-        &w.Qn01, &w.Qn02, &w.Qn03, &w.Qn04, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
-        &w.Qn11, &w.Qn12, &w.Qn13, &w.Qn14, &w.Qn15, &w.Qn16, &w.Qn17, &w.Qn18, &w.Qn19, &w.Qn20,
-        &w.Qn21, &w.Qn22, &w.Qn23, &w.Qn24, &w.Qn25, &w.Qn26, &w.Qn27, &w.Qn28, &w.Qn29, &w.Qn30,
-        &w.Qn31, &w.Qn32, &w.Qn33, &w.Qn34, &w.Qn35, &w.Qn36, &w.Qn37, &w.Qn38,
-        &w.EnteredByID, &w.EntryCreatedOn,
-    ); err != nil {
-        return nil, logerror(err)
-    }
-    return &w, nil
+	w := WeeklyReportExtended{
+		_exists: true,
+	}
+
+	// Execute the query and scan all selected fields into the WeeklyReportExtended struct
+	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(
+		&w.ID, &w.Hospital, &w.DeptID, &w.EmpID, &w.EmpTitle, &w.Start, &w.Stop,
+		&w.Qn01, &w.Qn02, &w.Qn03, &w.Qn04, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
+		&w.Qn11, &w.Qn12, &w.Qn13, &w.Qn14, &w.Qn15, &w.Qn16, &w.Qn17, &w.Qn18, &w.Qn19, &w.Qn20,
+		&w.Qn21, &w.Qn22, &w.Qn23, &w.Qn24, &w.Qn25, &w.Qn26, &w.Qn27, &w.Qn28, &w.Qn29, &w.Qn30,
+		&w.Qn31, &w.Qn32, &w.Qn33, &w.Qn34, &w.Qn35, &w.Qn36, &w.Qn37, &w.Qn38,
+		&w.EnteredByID, &w.EntryCreatedOn,
+	); err != nil {
+		return nil, logerror(err)
+	}
+	return &w, nil
 }
-
-
 
 // Generated from index 'weeklyreport_pkey'.
 /*func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on ` +
-		`FROM public.weeklyreport ` +
+		`FROM clinician_app.weeklyreport ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)
@@ -445,25 +433,24 @@ func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended
 	return &w, nil
 }*/
 
-
 func Weeklyreports(ctx context.Context, db DB, flt string, start int, cnt int) ([]*Weeklyreport, error) {
 	var sqlstr, whereString string
 
 	whereString = ""
-	if flt!= "" {
-        whereString = "WHERE " + flt
-    }
+	if flt != "" {
+		whereString = "WHERE " + flt
+	}
 
 	lmt := ""
 	if cnt > 0 {
-		lmt = " LIMIT " + strconv.Itoa(start)  + " " + strconv.Itoa(cnt) 
-	} 
+		lmt = " LIMIT " + strconv.Itoa(start) + " " + strconv.Itoa(cnt)
+	}
 
 	sqlstr = `SELECT ` +
-				`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on ` +
-		`FROM public.weeklyreport ` + whereString + lmt
-	
-	rows, err := db.QueryContext(ctx,sqlstr)
+		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on ` +
+		`FROM clinician_app.weeklyreport ` + whereString + lmt
+
+	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {
 		return nil, err
 	}
@@ -474,19 +461,19 @@ func Weeklyreports(ctx context.Context, db DB, flt string, start int, cnt int) (
 	for rows.Next() {
 		w := &Weeklyreport{}
 		err = rows.Scan(
-			&w.ID, 
-			&w.Hospital, 
-			&w.Dept, 
-			&w.Emp, 
-			&w.Start, 
-			&w.Stop, 
-			&w.Qn01, 
-			&w.Qn02, 
-			&w.Qn03, 
-			&w.Qn04, 
-			&w.Qn05, 
-			&w.Qn06, 
-			&w.Qn07, 
+			&w.ID,
+			&w.Hospital,
+			&w.Dept,
+			&w.Emp,
+			&w.Start,
+			&w.Stop,
+			&w.Qn01,
+			&w.Qn02,
+			&w.Qn03,
+			&w.Qn04,
+			&w.Qn05,
+			&w.Qn06,
+			&w.Qn07,
 			&w.EntryCreatedOn,
 		)
 
@@ -502,19 +489,17 @@ func Weeklyreports(ctx context.Context, db DB, flt string, start int, cnt int) (
 	}
 
 	return weeklyreports, nil
-	
+
 }
 
-
 /*
-SELECT facilities.f_name, employees.fname, employees.lname, employees.oname, departments.d_name, weeklyreport.* 
-FROM public.weeklyreport
-INNER JOIN public.employees ON weeklyreport.employee = employees.id
-INNER JOIN public.facilities ON weeklyreport.hospital = facilities.id
-INNER JOIN public.departments ON weeklyreport.department = departments.id	
+SELECT facilities.f_name, employees.fname, employees.lname, employees.oname, departments.d_name, weeklyreport.*
+FROM clinician_app.weeklyreport
+INNER JOIN clinician_app.employees ON weeklyreport.employee = employees.id
+INNER JOIN clinician_app.facilities ON weeklyreport.hospital = facilities.id
+INNER JOIN clinician_app.departments ON weeklyreport.department = departments.id
 ORDER BY weeklyreport.id ASC;
 */
-
 
 func WeeklyreportList(ctx context.Context, db DB, facilityID, departmentID string, reportingWeekStart, reportingWeekEnd string, start int, cnt int) ([]*WeeklyReportExtended, error) {
 	var sqlstr, whereString string
@@ -548,20 +533,19 @@ func WeeklyreportList(ctx context.Context, db DB, facilityID, departmentID strin
 	if cnt > 0 {
 		lmt = fmt.Sprintf(" LIMIT %d OFFSET %d", cnt, start)
 	}
-	
 
 	// SQL query with JOINs
 	sqlstr = `SELECT f.f_name, f.id, e.id, e.fname, e.lname, e.oname, st.title, d.d_name, 
               w.id, w.hospital, w.department, w.employee, w.start, 
               w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, 
               w.qn_06, w.qn_07, w.created_on, w.submit_status
-              FROM public.weeklyreport w
-              INNER JOIN public.employees e ON w.employee = e.id
-			  LEFT JOIN public.specialist_titles st ON st.id = e.title
-              LEFT JOIN public.facilities f ON e.facility = f.id
-              LEFT JOIN public.departments d ON e.department = d.id ` + 
-              whereString + 
-              ` ORDER BY w.id ASC` + lmt
+              FROM clinician_app.weeklyreport w
+              INNER JOIN clinician_app.employees e ON w.employee = e.id
+			  LEFT JOIN clinician_app.specialist_titles st ON st.id = e.title
+              LEFT JOIN clinician_app.facilities f ON e.facility = f.id
+              LEFT JOIN clinician_app.departments d ON e.department = d.id ` +
+		whereString +
+		` ORDER BY w.id ASC` + lmt
 
 	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {
@@ -617,11 +601,9 @@ func WeeklyreportList(ctx context.Context, db DB, facilityID, departmentID strin
 	return weeklys, nil
 }
 
-
-
 // Populate the Facilities Submission List
 func WeeklyReportFacilities(ctx context.Context, db DB, hospitalID int64) ([]*WeeklyReportSubmission, error) {
-    const sqlstr = `
+	const sqlstr = `
     SELECT DISTINCT ON (f.f_name, w.start, w.stop, d.d_name) 
         f.id AS hospital_id,
 		d.id AS dept_id,
@@ -633,61 +615,60 @@ func WeeklyReportFacilities(ctx context.Context, db DB, hospitalID int64) ([]*We
         MAX(w.created_on) AS date_of_submission,       
         MAX(e_submit.fname) AS staff_name,             
         MAX(w.report_status) AS report_status          
-    FROM public.weeklyreport w
-    JOIN public.facilities f ON f.id = w.hospital
-	JOIN public.departments d ON w.department = d.id
-    JOIN public.employees e_submit ON e_submit.id = w.entered_by
-    JOIN public.employees e_facility ON e_facility.facility = f.id
+    FROM clinician_app.weeklyreport w
+    JOIN clinician_app.facilities f ON f.id = w.hospital
+	JOIN clinician_app.departments d ON w.department = d.id
+    JOIN clinician_app.employees e_submit ON e_submit.id = w.entered_by
+    JOIN clinician_app.employees e_facility ON e_facility.facility = f.id
     WHERE w.hospital = $1  -- Filter by hospital (HFID)
     GROUP BY f.id, d.id, f.f_name, w.start, w.stop, d.d_name
 	ORDER BY w.start`
 
-    rows, err := db.QueryContext(ctx, sqlstr, hospitalID) // Pass the hospitalID as a parameter
-    if err != nil {
-        return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, sqlstr, hospitalID) // Pass the hospitalID as a parameter
+	if err != nil {
+		return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
+	}
+	defer rows.Close()
 
-    submissions := []*WeeklyReportSubmission{}
+	submissions := []*WeeklyReportSubmission{}
 
-    for rows.Next() {
-        s := &WeeklyReportSubmission{}
-        if err := rows.Scan(
-            &s.HospitalID,
+	for rows.Next() {
+		s := &WeeklyReportSubmission{}
+		if err := rows.Scan(
+			&s.HospitalID,
 			&s.DeptID,
-            &s.FacilityName,
+			&s.FacilityName,
 			&s.DepartmentName,
-            &s.Start,
-            &s.Stop,
-            &s.NoOfStaff,
-            &s.DateOfSubmission,
-            &s.ApproveName,
-            &s.ApproveStatus,
-        ); err != nil {
-            return nil, fmt.Errorf("failed to scan row: %w", err)
-        }
-        submissions = append(submissions, s)
-    }
+			&s.Start,
+			&s.Stop,
+			&s.NoOfStaff,
+			&s.DateOfSubmission,
+			&s.ApproveName,
+			&s.ApproveStatus,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		submissions = append(submissions, s)
+	}
 
-    return submissions, nil
+	return submissions, nil
 }
-
 
 // Populate the Facilities Submission List with date filtering
 func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year, month, flag int, userRights string) ([]*WeeklyReportSubmission, error) {
-    log.Printf("From WeeklyReportFacilities2: Year: %d, Month: %d, Flag: %d, UserRightsID: %s, FacilityID %d", year, month, flag, userRights, hospitalID)
+	log.Printf("From WeeklyReportFacilities2: Year: %d, Month: %d, Flag: %d, UserRightsID: %s, FacilityID %d", year, month, flag, userRights, hospitalID)
 
-    var sqlstr string
-    var rows *sql.Rows
-    var err error
+	var sqlstr string
+	var rows *sql.Rows
+	var err error
 
-    if userRights == "1" {
-        log.Printf("MoH Admin route...")
-        sqlstr = `
+	if userRights == "1" {
+		log.Printf("MoH Admin route...")
+		sqlstr = `
         WITH StaffCounts AS (
             SELECT f.id AS facility_id, COUNT(DISTINCT e.id) AS no_of_staff
-            FROM public.facilities f
-            LEFT JOIN public.employees e ON e.facility = f.id
+            FROM clinician_app.facilities f
+            LEFT JOIN clinician_app.employees e ON e.facility = f.id
             GROUP BY f.id
         ),
         StaffEntered AS (
@@ -695,7 +676,7 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
                 w.hospital AS facility_id,
                 w.start, 
                 COUNT(*) AS no_entered
-            FROM public.weeklyreport w
+            FROM clinician_app.weeklyreport w
             WHERE
                 EXTRACT(YEAR FROM w.start) = $1
                 AND EXTRACT(MONTH FROM w.start) = $2
@@ -706,7 +687,7 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
                 w.hospital AS facility_id,
                 w.start, 
                 COUNT(*) AS no_submitted
-            FROM public.weeklyreport w
+            FROM clinician_app.weeklyreport w
             WHERE
                 EXTRACT(YEAR FROM w.start) = $1
                 AND EXTRACT(MONTH FROM w.start) = $2
@@ -715,7 +696,7 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
         ),
         DepartmentsNo AS (
             SELECT f.id AS facility_id, COUNT(d.id) AS departments_no
-            FROM public.facilities f, public.departments d
+            FROM clinician_app.facilities f, clinician_app.departments d
             WHERE d.id != 0
             GROUP BY f.id
             ORDER BY f.id
@@ -732,10 +713,10 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
             MAX(w.created_on) AS date_of_submission,       
             MAX(CONCAT(e_submit.fname, ' ', e_submit.lname)) AS staff_name,             
             MAX(w.report_status) AS report_status
-        FROM public.weeklyreport w
-        JOIN public.facilities f ON f.id = w.hospital
-        JOIN public.departments d ON w.department = d.id
-        LEFT JOIN public.employees e_submit ON e_submit.id = w.approved_by
+        FROM clinician_app.weeklyreport w
+        JOIN clinician_app.facilities f ON f.id = w.hospital
+        JOIN clinician_app.departments d ON w.department = d.id
+        LEFT JOIN clinician_app.employees e_submit ON e_submit.id = w.approved_by
         JOIN StaffCounts sc ON sc.facility_id = f.id
         JOIN DepartmentsNo dn ON dn.facility_id = f.id
         JOIN StaffEntered se 
@@ -751,14 +732,14 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
         GROUP BY f.id, f.f_name, w.start, w.stop, sc.no_of_staff, se.no_entered, ss.no_submitted, dn.departments_no
         ORDER BY f.f_name, w.start, w.stop;
         `
-        rows, err = db.QueryContext(ctx, sqlstr, year, month)
-    } else {
-        log.Printf("HF Admin route...")
-        sqlstr = `
+		rows, err = db.QueryContext(ctx, sqlstr, year, month)
+	} else {
+		log.Printf("HF Admin route...")
+		sqlstr = `
         WITH StaffCounts AS (
             SELECT f.id AS facility_id, COUNT(DISTINCT e.id) AS no_of_staff
-            FROM public.facilities f
-            LEFT JOIN public.employees e ON e.facility = f.id
+            FROM clinician_app.facilities f
+            LEFT JOIN clinician_app.employees e ON e.facility = f.id
             GROUP BY f.id
         ),
         StaffEntered AS (
@@ -766,7 +747,7 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
                 w.hospital AS facility_id,
                 w.start, 
                 COUNT(*) AS no_entered
-            FROM public.weeklyreport w
+            FROM clinician_app.weeklyreport w
             WHERE
                 EXTRACT(YEAR FROM w.start) = $1
                 AND EXTRACT(MONTH FROM w.start) = $2
@@ -777,7 +758,7 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
                 w.hospital AS facility_id,
                 w.start, 
                 COUNT(*) AS no_submitted
-            FROM public.weeklyreport w
+            FROM clinician_app.weeklyreport w
             WHERE
                 EXTRACT(YEAR FROM w.start) = $1
                 AND EXTRACT(MONTH FROM w.start) = $2
@@ -786,7 +767,7 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
         ),
         DepartmentsNo AS (
             SELECT f.id AS facility_id, COUNT(d.id) AS departments_no
-            FROM public.facilities f, public.departments d
+            FROM clinician_app.facilities f, clinician_app.departments d
             WHERE d.id != 0
             GROUP BY f.id
             ORDER BY f.id
@@ -803,10 +784,10 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
             MAX(w.created_on) AS date_of_submission,       
             MAX(CONCAT(e_submit.fname, ' ', e_submit.lname)) AS staff_name,             
             MAX(w.report_status) AS report_status
-        FROM public.weeklyreport w
-        JOIN public.facilities f ON f.id = w.hospital
-        JOIN public.departments d ON w.department = d.id
-        LEFT JOIN public.employees e_submit ON e_submit.id = w.approved_by
+        FROM clinician_app.weeklyreport w
+        JOIN clinician_app.facilities f ON f.id = w.hospital
+        JOIN clinician_app.departments d ON w.department = d.id
+        LEFT JOIN clinician_app.employees e_submit ON e_submit.id = w.approved_by
         JOIN StaffCounts sc ON sc.facility_id = f.id
         JOIN DepartmentsNo dn ON dn.facility_id = f.id
         JOIN StaffEntered se 
@@ -822,58 +803,58 @@ func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year,
         ORDER BY f.f_name, w.start, w.stop;
         `
 
-        log.Printf("Executing SQL: %s with parameters: hospitalID=%d, year=%d, month=%d", sqlstr, hospitalID, year, month)
+		log.Printf("Executing SQL: %s with parameters: hospitalID=%d, year=%d, month=%d", sqlstr, hospitalID, year, month)
 
-        rows, err = db.QueryContext(ctx, sqlstr, year, month, hospitalID)
-        log.Printf("rows %v", rows)
-    }
+		rows, err = db.QueryContext(ctx, sqlstr, year, month, hospitalID)
+		log.Printf("rows %v", rows)
+	}
 
-    if err != nil {
-        return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
+	}
+	defer rows.Close()
 
-    submissions := []*WeeklyReportSubmission{}
-    for rows.Next() {
-        s := &WeeklyReportSubmission{}
-        if err := rows.Scan(
-            &s.HospitalID,
-            &s.FacilityName,
-            &s.Start,
-            &s.Stop,
-            &s.NoOfStaff,
-            &s.NoEntered,
-            &s.NoSubmitted,
-            &s.NoOfDepartments,
-            &s.DateOfSubmission,
-            &s.ApproveName,
-            &s.ApproveStatus,
-        ); err != nil {
-            return nil, fmt.Errorf("failed to scan row: %w", err)
-        }
-        submissions = append(submissions, s)
-    }
+	submissions := []*WeeklyReportSubmission{}
+	for rows.Next() {
+		s := &WeeklyReportSubmission{}
+		if err := rows.Scan(
+			&s.HospitalID,
+			&s.FacilityName,
+			&s.Start,
+			&s.Stop,
+			&s.NoOfStaff,
+			&s.NoEntered,
+			&s.NoSubmitted,
+			&s.NoOfDepartments,
+			&s.DateOfSubmission,
+			&s.ApproveName,
+			&s.ApproveStatus,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		submissions = append(submissions, s)
+	}
 
-    //log.Printf("Submissions log: %v", submissions)
+	//log.Printf("Submissions log: %v", submissions)
 
-    return submissions, nil
+	return submissions, nil
 }
 
 // Populate the Facilities Submission List with date filtering
 func WeeklyReportDepartments(ctx context.Context, db DB, hospitalID int64, userRights, week string, year, month int) ([]*WeeklyReportSubmission, error) {
-    log.Printf("From WeeklyReportDepartments: Week: %s, Year: %d, Month: %d", week, year, month)
+	log.Printf("From WeeklyReportDepartments: Week: %s, Year: %d, Month: %d", week, year, month)
 
-    var sqlstr string
-    var rows *sql.Rows
-    var err error
+	var sqlstr string
+	var rows *sql.Rows
+	var err error
 
-    if year > 0 && month > 0 && week == "" { // Validate year and month
-        sqlstr = `
+	if year > 0 && month > 0 && week == "" { // Validate year and month
+		sqlstr = `
             WITH StaffCounts AS (
                 SELECT d.id AS dept_id, e.department, COUNT(DISTINCT e.id) AS no_of_staff
-                FROM public.facilities f		
-                LEFT JOIN public.employees e ON e.facility = f.id
-                JOIN public.departments d ON e.department = d.id
+                FROM clinician_app.facilities f		
+                LEFT JOIN clinician_app.employees e ON e.facility = f.id
+                JOIN clinician_app.departments d ON e.department = d.id
                 WHERE f.id = $1		
                 GROUP BY dept_id, e.department
             ),
@@ -911,10 +892,10 @@ func WeeklyReportDepartments(ctx context.Context, db DB, hospitalID int64, userR
                 MAX(w.created_on) AS date_of_submission,       
                 MAX(CONCAT(e_submit.fname, ' ', e_submit.lname)) AS staff_name,             
                 MAX(w.submit_status) AS submit_status
-            FROM public.weeklyreport w
-            JOIN public.facilities f ON f.id = w.hospital
-            JOIN public.departments d ON w.department = d.id
-            LEFT JOIN public.employees e_submit ON e_submit.id = w.submitted_by
+            FROM clinician_app.weeklyreport w
+            JOIN clinician_app.facilities f ON f.id = w.hospital
+            JOIN clinician_app.departments d ON w.department = d.id
+            LEFT JOIN clinician_app.employees e_submit ON e_submit.id = w.submitted_by
             JOIN StaffCounts sc ON sc.dept_id = d.id
             JOIN StaffEntered se 
                 ON se.facility_id = w.hospital 
@@ -929,36 +910,36 @@ func WeeklyReportDepartments(ctx context.Context, db DB, hospitalID int64, userR
             GROUP BY f.id, d.id, f.f_name, d.d_name, w.start, w.stop, sc.no_of_staff, se.no_entered, ss.no_submitted
             ORDER BY w.start
         `
-        rows, err = db.QueryContext(ctx, sqlstr, hospitalID, year, month)
-        if err != nil {
-            return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
-        }
-        defer rows.Close()
+		rows, err = db.QueryContext(ctx, sqlstr, hospitalID, year, month)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
+		}
+		defer rows.Close()
 
-    } else if week == "" { // If `week` is not provided, use the most recent date
-        sqlstr = `
+	} else if week == "" { // If `week` is not provided, use the most recent date
+		sqlstr = `
             SELECT w.start
-            FROM public.weeklyreport w
+            FROM clinician_app.weeklyreport w
             ORDER BY w.start DESC
             LIMIT 1
         `
 
-        row := db.QueryRowContext(ctx, sqlstr)
-        var mostRecentStart time.Time
-        if err := row.Scan(&mostRecentStart); err != nil {
-            return nil, fmt.Errorf("failed to retrieve the most recent start date: %w", err)
-        }
+		row := db.QueryRowContext(ctx, sqlstr)
+		var mostRecentStart time.Time
+		if err := row.Scan(&mostRecentStart); err != nil {
+			return nil, fmt.Errorf("failed to retrieve the most recent start date: %w", err)
+		}
 
-        week = mostRecentStart.Format("2006-01-02")
-        log.Printf("Most recent start date retrieved: %v", week)
+		week = mostRecentStart.Format("2006-01-02")
+		log.Printf("Most recent start date retrieved: %v", week)
 
-    } else { // Use `week` to filter results
-        sqlstr = `
+	} else { // Use `week` to filter results
+		sqlstr = `
             WITH StaffCounts AS (
                 SELECT d.id AS dept_id, e.department, COUNT(DISTINCT e.id) AS no_of_staff
-                FROM public.facilities f		
-                LEFT JOIN public.employees e ON e.facility = f.id
-                JOIN public.departments d ON e.department = d.id
+                FROM clinician_app.facilities f		
+                LEFT JOIN clinician_app.employees e ON e.facility = f.id
+                JOIN clinician_app.departments d ON e.department = d.id
                 WHERE f.id = $1		
                 GROUP BY dept_id, e.department
             ),
@@ -998,10 +979,10 @@ func WeeklyReportDepartments(ctx context.Context, db DB, hospitalID int64, userR
                 MAX(w.created_on) AS date_of_submission,       
                 MAX(CONCAT(e_submit.fname, ' ', e_submit.lname)) AS staff_name,             
                 MAX(w.submit_status) AS submit_status
-            FROM public.weeklyreport w
-            JOIN public.facilities f ON f.id = w.hospital
-            JOIN public.departments d ON w.department = d.id
-            LEFT JOIN public.employees e_submit ON e_submit.id = w.submitted_by
+            FROM clinician_app.weeklyreport w
+            JOIN clinician_app.facilities f ON f.id = w.hospital
+            JOIN clinician_app.departments d ON w.department = d.id
+            LEFT JOIN clinician_app.employees e_submit ON e_submit.id = w.submitted_by
             JOIN StaffCounts sc ON sc.dept_id = d.id
             JOIN StaffEntered se 
                 ON se.facility_id = w.hospital 
@@ -1015,76 +996,74 @@ func WeeklyReportDepartments(ctx context.Context, db DB, hospitalID int64, userR
             GROUP BY f.id, d.id, f.f_name, d.d_name, w.start, w.stop, sc.no_of_staff, se.no_entered, ss.no_submitted
             ORDER BY w.start
         `
-        rows, err = db.QueryContext(ctx, sqlstr, hospitalID, week)
-        if err != nil {
-            return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
-        }
-        defer rows.Close()
-    }
+		rows, err = db.QueryContext(ctx, sqlstr, hospitalID, week)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
+		}
+		defer rows.Close()
+	}
 
-    // Process rows into WeeklyReportSubmission slice
-    submissions := []*WeeklyReportSubmission{}
-    for rows.Next() {
-        s := &WeeklyReportSubmission{}
-        if err := rows.Scan(
-            &s.HospitalID,
-            &s.DeptID,
-            &s.FacilityName,
-            &s.DepartmentName,
-            &s.Start,
-            &s.Stop,
-            &s.NoOfStaff,
-            &s.NoEntered,
-            &s.NoSubmitted,
-            &s.DateOfSubmission,
-            &s.SubmitName,
-            &s.SubmitStatus,
-        ); err != nil {
-            return nil, fmt.Errorf("failed to scan row: %w", err)
-        }
-        submissions = append(submissions, s)
-    }
+	// Process rows into WeeklyReportSubmission slice
+	submissions := []*WeeklyReportSubmission{}
+	for rows.Next() {
+		s := &WeeklyReportSubmission{}
+		if err := rows.Scan(
+			&s.HospitalID,
+			&s.DeptID,
+			&s.FacilityName,
+			&s.DepartmentName,
+			&s.Start,
+			&s.Stop,
+			&s.NoOfStaff,
+			&s.NoEntered,
+			&s.NoSubmitted,
+			&s.DateOfSubmission,
+			&s.SubmitName,
+			&s.SubmitStatus,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		submissions = append(submissions, s)
+	}
 
-    return submissions, nil
+	return submissions, nil
 }
 
 // Populate the Facilities Submission List with date filtering
 func WeeklyReportDepartments22(ctx context.Context, db DB, hospitalID int64, userRights, week string, year, month int) ([]*WeeklyReportSubmission, error) {
-    log.Printf("From WeeklyReportFacilities2: Week: %s", week)
-    var sqlstr string
-    var rows *sql.Rows
-    var err error
+	log.Printf("From WeeklyReportFacilities2: Week: %s", week)
+	var sqlstr string
+	var rows *sql.Rows
+	var err error
 
-        //Check if week is an empty string caused by (c.FullPath() == "/reports/submissions" && userRightsID > "2") in handler
-		if week == "" {
-            sqlstr = `
+	//Check if week is an empty string caused by (c.FullPath() == "/reports/submissions" && userRightsID > "2") in handler
+	if week == "" {
+		sqlstr = `
                 SELECT w.start
-                FROM public.weeklyreport w
+                FROM clinician_app.weeklyreport w
                 ORDER BY w.start DESC
                 LIMIT 1
             `
-        
-            row := db.QueryRowContext(ctx, sqlstr)
-            var mostRecentStart time.Time
-            if err := row.Scan(&mostRecentStart); err != nil {
-                
-                return nil, fmt.Errorf("failed to retrieve the most recent start date: %w", err)
-            }
 
-            week = mostRecentStart.Format("2006-01-02")
-        
-            log.Printf("Most recent start date retrieved: %v", week)
-            // Use mostRecentStart as needed
-        }
-        
+		row := db.QueryRowContext(ctx, sqlstr)
+		var mostRecentStart time.Time
+		if err := row.Scan(&mostRecentStart); err != nil {
 
+			return nil, fmt.Errorf("failed to retrieve the most recent start date: %w", err)
+		}
 
-    sqlstr = `
+		week = mostRecentStart.Format("2006-01-02")
+
+		log.Printf("Most recent start date retrieved: %v", week)
+		// Use mostRecentStart as needed
+	}
+
+	sqlstr = `
         WITH StaffCounts AS (
             SELECT d.id AS dept_id, e.department, COUNT(DISTINCT e.id) AS no_of_staff
-            FROM public.facilities f		
-            LEFT JOIN public.employees e ON e.facility = f.id
-            join public.departments d on e.department = d.id
+            FROM clinician_app.facilities f		
+            LEFT JOIN clinician_app.employees e ON e.facility = f.id
+            join clinician_app.departments d on e.department = d.id
             WHERE f.id = $1		
             GROUP BY dept_id, e.department
         ),
@@ -1125,10 +1104,10 @@ func WeeklyReportDepartments22(ctx context.Context, db DB, hospitalID int64, use
             MAX(CONCAT(e_submit.fname, ' ', e_submit.lname)) AS staff_name,             
             MAX(w.submit_status) AS submit_status
             --MAX(w.report_status) AS report_status       
-        FROM public.weeklyreport w
-        JOIN public.facilities f ON f.id = w.hospital
-        JOIN public.departments d ON w.department = d.id
-        LEFT JOIN public.employees e_submit ON e_submit.id = w.submitted_by
+        FROM clinician_app.weeklyreport w
+        JOIN clinician_app.facilities f ON f.id = w.hospital
+        JOIN clinician_app.departments d ON w.department = d.id
+        LEFT JOIN clinician_app.employees e_submit ON e_submit.id = w.submitted_by
         JOIN StaffCounts sc ON sc.dept_id = d.id
         JOIN StaffEntered se 
             ON se.facility_id = w.hospital 
@@ -1143,275 +1122,269 @@ func WeeklyReportDepartments22(ctx context.Context, db DB, hospitalID int64, use
         ORDER BY w.start
         `
 
-        rows, err = db.QueryContext(ctx, sqlstr, hospitalID, week)
-        if err != nil {
-            return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
-        }
-        defer rows.Close()
-    
-    submissions := []*WeeklyReportSubmission{}
+	rows, err = db.QueryContext(ctx, sqlstr, hospitalID, week)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query weekly report submissions: %w", err)
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        s := &WeeklyReportSubmission{}
-        if err := rows.Scan(
-            &s.HospitalID,
-            &s.DeptID,
-            &s.FacilityName,
-            &s.DepartmentName,
-            &s.Start,
-            &s.Stop,
-            &s.NoOfStaff,
-            &s.NoEntered,
-            &s.NoSubmitted,
-            &s.DateOfSubmission,
-            &s.SubmitName,
-            &s.SubmitStatus,
-        ); err != nil {
-            return nil, fmt.Errorf("failed to scan row: %w", err)
-        }
-        submissions = append(submissions, s)
-    }
+	submissions := []*WeeklyReportSubmission{}
 
-    return submissions, nil
+	for rows.Next() {
+		s := &WeeklyReportSubmission{}
+		if err := rows.Scan(
+			&s.HospitalID,
+			&s.DeptID,
+			&s.FacilityName,
+			&s.DepartmentName,
+			&s.Start,
+			&s.Stop,
+			&s.NoOfStaff,
+			&s.NoEntered,
+			&s.NoSubmitted,
+			&s.DateOfSubmission,
+			&s.SubmitName,
+			&s.SubmitStatus,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		submissions = append(submissions, s)
+	}
+
+	return submissions, nil
 }
-
 
 // Fxn to retrieve staff info for bulk entry
 func WeeklyBulkCapture(ctx context.Context, db DB, hospitalID, departmentID int64, reportingWeekStart, reportingWeekEnd string) ([]*WeeklyReportExtended, error) {
-    var sqlstr, whereString string
+	var sqlstr, whereString string
 
 	log.Printf("WeeklyBulkcapture Fxn executed:")
 
-    // Build the WHERE clause for filtering by HFID and reporting week
-    whereString = ""
-    
-    // Add facility filter based on HFID from session data
-    if hospitalID != 0 {
+	// Build the WHERE clause for filtering by HFID and reporting week
+	whereString = ""
+
+	// Add facility filter based on HFID from session data
+	if hospitalID != 0 {
 		if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += " f.id = " + fmt.Sprintf("%d", hospitalID)
-    }
+			whereString += " AND "
+		}
+		whereString += " f.id = " + fmt.Sprintf("%d", hospitalID)
+	}
 
 	// Add employee filter based on empID from URL
-    if departmentID != 0 {
-        if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += " d.id = " + fmt.Sprintf("%d", departmentID)
-    }
+	if departmentID != 0 {
+		if whereString != "" {
+			whereString += " AND "
+		}
+		whereString += " d.id = " + fmt.Sprintf("%d", departmentID)
+	}
 
-	
-    if reportingWeekStart != "" && reportingWeekEnd != "" {
-        if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += " w.start >= '" + reportingWeekStart + "' AND w.stop <= '" + reportingWeekEnd + "'"
-    }
+	if reportingWeekStart != "" && reportingWeekEnd != "" {
+		if whereString != "" {
+			whereString += " AND "
+		}
+		whereString += " w.start >= '" + reportingWeekStart + "' AND w.stop <= '" + reportingWeekEnd + "'"
+	}
 
-    if whereString != "" {
-        whereString = "WHERE " + whereString
-    }
+	if whereString != "" {
+		whereString = "WHERE " + whereString
+	}
 
 	log.Printf("WeeklyBulkcapture Fxn executed %s: ", whereString)
 
-    // Select distinct employees to avoid duplicates
-    sqlstr = `SELECT DISTINCT ON (e.id)
+	// Select distinct employees to avoid duplicates
+	sqlstr = `SELECT DISTINCT ON (e.id)
                 f.f_name, e.id, e.fname, e.lname, e.oname, st.title, e.facility, e.department, d.d_name
-                FROM public.employees e
-                LEFT JOIN public.weeklyreport w ON w.employee = e.id
-                LEFT JOIN public.facilities f ON e.facility = f.id
-                LEFT JOIN public.departments d ON e.department = d.id
-				LEFT JOIN public.specialist_titles st ON e.title = st.id ` +
-                whereString +
-                ` ORDER BY e.id`
+                FROM clinician_app.employees e
+                LEFT JOIN clinician_app.weeklyreport w ON w.employee = e.id
+                LEFT JOIN clinician_app.facilities f ON e.facility = f.id
+                LEFT JOIN clinician_app.departments d ON e.department = d.id
+				LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id ` +
+		whereString +
+		` ORDER BY e.id`
 
-    rows, err := db.QueryContext(ctx, sqlstr)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, sqlstr)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    staffList := []*WeeklyReportExtended{}
+	staffList := []*WeeklyReportExtended{}
 
-    for rows.Next() {
-        w := &WeeklyReportExtended{}
-        err = rows.Scan(
-            &w.FacilityName,
-            &w.EmpID,
-            &w.Fname,
-            &w.Lname,
-            &w.Oname,
-            &w.EmpTitle,
+	for rows.Next() {
+		w := &WeeklyReportExtended{}
+		err = rows.Scan(
+			&w.FacilityName,
+			&w.EmpID,
+			&w.Fname,
+			&w.Lname,
+			&w.Oname,
+			&w.EmpTitle,
 			&w.FacilityID, // Capture the Facility ID here
 			&w.DeptID,
-            &w.DepartmentName,
-        )
+			&w.DepartmentName,
+		)
 
-        if err != nil {
-            return nil, err
-        }
+		if err != nil {
+			return nil, err
+		}
 
 		// Log each record as it's scanned
-        log.Printf("Scanned staff: %+v\n\n", w)
+		log.Printf("Scanned staff: %+v\n\n", w)
 
-        staffList = append(staffList, w)
-    }
+		staffList = append(staffList, w)
+	}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-	
-
-    return staffList, nil
+	return staffList, nil
 }
 
 func WeeklyBulkCaptureID(ctx context.Context, db DB, hospitalID, empID int64, reportingWeekStart, reportingWeekEnd string) ([]*WeeklyReportExtended, error) {
-    var sqlstr, whereString string
+	var sqlstr, whereString string
 
-    // Build the WHERE clause for filtering by HFID and reporting week
-    whereString = ""
-    
-    // Add facility filter based on HFID from session data
-    if hospitalID != 0 {
-        whereString += " f.id = " + fmt.Sprintf("%d", hospitalID)
-    }
+	// Build the WHERE clause for filtering by HFID and reporting week
+	whereString = ""
+
+	// Add facility filter based on HFID from session data
+	if hospitalID != 0 {
+		whereString += " f.id = " + fmt.Sprintf("%d", hospitalID)
+	}
 
 	// Add employee filter based on empID from URL
-    if empID != 0 {
-        if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += " e.id = " + fmt.Sprintf("%d", empID)
-    }
+	if empID != 0 {
+		if whereString != "" {
+			whereString += " AND "
+		}
+		whereString += " e.id = " + fmt.Sprintf("%d", empID)
+	}
 
-    if reportingWeekStart != "" && reportingWeekEnd != "" {
-        if whereString != "" {
-            whereString += " AND "
-        }
-        whereString += " w.start >= '" + reportingWeekStart + "' AND w.stop <= '" + reportingWeekEnd + "'"
-    }
+	if reportingWeekStart != "" && reportingWeekEnd != "" {
+		if whereString != "" {
+			whereString += " AND "
+		}
+		whereString += " w.start >= '" + reportingWeekStart + "' AND w.stop <= '" + reportingWeekEnd + "'"
+	}
 
-    if whereString != "" {
-        whereString = "WHERE " + whereString
-    }
+	if whereString != "" {
+		whereString = "WHERE " + whereString
+	}
 
-    // Select distinct employees to avoid duplicates
-    sqlstr = `SELECT DISTINCT ON (e.id)
+	// Select distinct employees to avoid duplicates
+	sqlstr = `SELECT DISTINCT ON (e.id)
                 f.f_name, e.id, e.fname, e.lname, e.oname, st.title, e.facility, e.department, d.d_name
-                FROM public.employees e
-                LEFT JOIN public.weeklyreport w ON w.employee = e.id
-                LEFT JOIN public.facilities f ON e.facility = f.id
-                LEFT JOIN public.departments d ON e.department = d.id
-				LEFT JOIN public.specialist_titles st ON e.title = st.id ` +
-                whereString +
-                ` ORDER BY e.id`
+                FROM clinician_app.employees e
+                LEFT JOIN clinician_app.weeklyreport w ON w.employee = e.id
+                LEFT JOIN clinician_app.facilities f ON e.facility = f.id
+                LEFT JOIN clinician_app.departments d ON e.department = d.id
+				LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id ` +
+		whereString +
+		` ORDER BY e.id`
 
-    rows, err := db.QueryContext(ctx, sqlstr)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, sqlstr)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    staffList := []*WeeklyReportExtended{}
+	staffList := []*WeeklyReportExtended{}
 
-    for rows.Next() {
-        w := &WeeklyReportExtended{}
-        err = rows.Scan(
-            &w.FacilityName,
-            &w.EmpID,
-            &w.Fname,
-            &w.Lname,
-            &w.Oname,
-            &w.EmpTitle,
+	for rows.Next() {
+		w := &WeeklyReportExtended{}
+		err = rows.Scan(
+			&w.FacilityName,
+			&w.EmpID,
+			&w.Fname,
+			&w.Lname,
+			&w.Oname,
+			&w.EmpTitle,
 			&w.FacilityID, // Capture the Facility ID here
 			&w.DeptID,
-            &w.DepartmentName,
-        )
+			&w.DepartmentName,
+		)
 
-        if err != nil {
-            return nil, err
-        }
+		if err != nil {
+			return nil, err
+		}
 
-        staffList = append(staffList, w)
-    }
+		staffList = append(staffList, w)
+	}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return staffList, nil
+	return staffList, nil
 }
-
 
 // Submit_status update for all entries with the given report IDs to "approved" status
 func ApproveSubmitReport(db *sql.DB, flag, approvesubmitID int, facilityID, departmentID, start string, reportIDs []int) error {
 
 	// Debug: Print the reportIDs payload to confirm it's capturing correctly
-    log.Printf("Debug - Approving reports with IDs: %v", reportIDs)
+	log.Printf("Debug - Approving reports with IDs: %v", reportIDs)
 
-    log.Printf("Debug - Approving reports with IDs: %v", len(reportIDs))
+	log.Printf("Debug - Approving reports with IDs: %v", len(reportIDs))
 
-    log.Printf("Debug - Facility: %s, Dept: %s, start : %s EmpID: %d", facilityID, departmentID, start, approvesubmitID)
+	log.Printf("Debug - Facility: %s, Dept: %s, start : %s EmpID: %d", facilityID, departmentID, start, approvesubmitID)
 
-    query := ""
+	query := ""
 
-    if len(reportIDs) == 0 {
-        if flag == 1 {
-            query = "UPDATE public.weeklyreport SET report_status = 'Approved', approved_by =$3 WHERE hospital = $1 AND start = $2 "
-            log.Printf("Debug - Flag %d, Query : %s", flag, query)
+	if len(reportIDs) == 0 {
+		if flag == 1 {
+			query = "UPDATE clinician_app.weeklyreport SET report_status = 'Approved', approved_by =$3 WHERE hospital = $1 AND start = $2 "
+			log.Printf("Debug - Flag %d, Query : %s", flag, query)
 
-            // Execute the query with all report IDs
-            _, err := db.Exec(query, facilityID, start, approvesubmitID)
-            if err != nil {
-                return fmt.Errorf("failed to approve reports: %w", err)
-            }
-        }
+			// Execute the query with all report IDs
+			_, err := db.Exec(query, facilityID, start, approvesubmitID)
+			if err != nil {
+				return fmt.Errorf("failed to approve reports: %w", err)
+			}
+		}
 
-        if flag == 2 {
-            query = "UPDATE public.weeklyreport SET submit_status = 'Submitted', submitted_by = $4 WHERE hospital = $1 AND department = $2 AND start = $3"
-            log.Printf("Debug - Approving reports with IDs: %s", query)
+		if flag == 2 {
+			query = "UPDATE clinician_app.weeklyreport SET submit_status = 'Submitted', submitted_by = $4 WHERE hospital = $1 AND department = $2 AND start = $3"
+			log.Printf("Debug - Approving reports with IDs: %s", query)
 
-            // Execute the query with all report IDs
-            _, err := db.Exec(query, facilityID, departmentID, start, approvesubmitID)
-            if err != nil {
-                return fmt.Errorf("failed to approve reports: %w", err)
-            }
-        }
+			// Execute the query with all report IDs
+			_, err := db.Exec(query, facilityID, departmentID, start, approvesubmitID)
+			if err != nil {
+				return fmt.Errorf("failed to approve reports: %w", err)
+			}
+		}
 
-        
-        //return nil // No IDs to approve
-    } else {
-        // Create a query with placeholders like $1, $2, $3, etc.
-        placeholders := make([]string, len(reportIDs))
-        args := make([]interface{}, len(reportIDs))
-        for i, id := range reportIDs {
-            placeholders[i] = fmt.Sprintf("$%d", i+1) // Create placeholders ($1, $2, ...)
-            args[i] = id                              // Assign each ID to args
-        }
+		//return nil // No IDs to approve
+	} else {
+		// Create a query with placeholders like $1, $2, $3, etc.
+		placeholders := make([]string, len(reportIDs))
+		args := make([]interface{}, len(reportIDs))
+		for i, id := range reportIDs {
+			placeholders[i] = fmt.Sprintf("$%d", i+1) // Create placeholders ($1, $2, ...)
+			args[i] = id                              // Assign each ID to args
+		}
 
-        if flag == 1 {
-            log.Printf("Submit query executed")
-            query = fmt.Sprintf("UPDATE public.weeklyreport SET report_status = 'Approved' WHERE id IN (%s)", strings.Join(placeholders, ", "))
-        }
+		if flag == 1 {
+			log.Printf("Submit query executed")
+			query = fmt.Sprintf("UPDATE clinician_app.weeklyreport SET report_status = 'Approved' WHERE id IN (%s)", strings.Join(placeholders, ", "))
+		}
 
-        if flag == 2 {
-            log.Printf("Submit query executed")
-            query = fmt.Sprintf("UPDATE public.weeklyreport SET submit_status = 'Submitted' WHERE id IN (%s)", strings.Join(placeholders, ", "))
-        }
+		if flag == 2 {
+			log.Printf("Submit query executed")
+			query = fmt.Sprintf("UPDATE clinician_app.weeklyreport SET submit_status = 'Submitted' WHERE id IN (%s)", strings.Join(placeholders, ", "))
+		}
 
-        //query = fmt.Sprintf("UPDATE weeklyreport SET submit_status = 'submitted' WHERE id IN (%s)", strings.Join(placeholders, ", "))
+		//query = fmt.Sprintf("UPDATE weeklyreport SET submit_status = 'submitted' WHERE id IN (%s)", strings.Join(placeholders, ", "))
 
-        // Execute the query with all report IDs
-        _, err := db.Exec(query, args...)
-        if err != nil {
-            return fmt.Errorf("failed to approve reports: %w", err)
-        }
+		// Execute the query with all report IDs
+		_, err := db.Exec(query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to approve reports: %w", err)
+		}
 
-    }    
+	}
 
-    return nil
+	return nil
 }
 
 // Helper function to get facility and department ID
@@ -1429,184 +1402,181 @@ func getFacilityAndDepartmentID(db *sql.DB, employeeID int64) (int64, int64, err
 //Get facilities List to be used to populate iframe tables
 // GetFacilitiesList retrieves the list of facilities, filtering by hospitalID if provided.
 func GetFacilitiesList(ctx context.Context, db DB, hospitalID int64) ([]*Facility, error) {
-    var sqlstr string
-    var rows *sql.Rows
-    var err error
+	var sqlstr string
+	var rows *sql.Rows
+	var err error
 
-    if hospitalID == 0 {
-        sqlstr = `
+	if hospitalID == 0 {
+		sqlstr = `
         SELECT DISTINCT f.id, f.f_name
-        FROM public.facilities f
-        JOIN public.weeklyreport w ON w.hospital = f.id
+        FROM clinician_app.facilities f
+        JOIN clinician_app.weeklyreport w ON w.hospital = f.id
         ORDER BY f.id
         `
-        rows, err = db.QueryContext(ctx, sqlstr)
-    } else {
-        sqlstr = `
+		rows, err = db.QueryContext(ctx, sqlstr)
+	} else {
+		sqlstr = `
         SELECT DISTINCT f.id, f.f_name
-        FROM public.facilities f
-        JOIN public.weeklyreport w ON w.hospital = f.id
+        FROM clinician_app.facilities f
+        JOIN clinician_app.weeklyreport w ON w.hospital = f.id
         WHERE f.id = $1
         ORDER BY f.id
         `
-        rows, err = db.QueryContext(ctx, sqlstr, hospitalID)
-    }
+		rows, err = db.QueryContext(ctx, sqlstr, hospitalID)
+	}
 
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    facilityList := []*Facility{}
-    for rows.Next() {
-        f := &Facility{}
-        if err := rows.Scan(&f.FacilityID, &f.FacilityName); err != nil {
-            return nil, err
-        }
-        facilityList = append(facilityList, f)
-    }
+	facilityList := []*Facility{}
+	for rows.Next() {
+		f := &Facility{}
+		if err := rows.Scan(&f.FacilityID, &f.FacilityName); err != nil {
+			return nil, err
+		}
+		facilityList = append(facilityList, f)
+	}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return facilityList, nil
+	return facilityList, nil
 }
-
 
 // Helper function to map the facilities to a string map
 func mapFacilitiesToString(facilities []*Facility) map[string]string {
-    result := make(map[string]string)
-    for _, f := range facilities {
-        result[fmt.Sprintf("%d", f.FacilityID)] = f.FacilityName
-    }
-    return result
+	result := make(map[string]string)
+	for _, f := range facilities {
+		result[fmt.Sprintf("%d", f.FacilityID)] = f.FacilityName
+	}
+	return result
 }
 
 func GetRoleDataPoints(ctx context.Context, db DB, department, role string) ([]string, error) {
-    sqlstr := `SELECT data_points FROM department_role_data_points WHERE department = $1 AND role = $2`
+	sqlstr := `SELECT data_points FROM department_role_data_points WHERE department = $1 AND role = $2`
 
-    rows, err := db.QueryContext(ctx, sqlstr, department, role)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, sqlstr, department, role)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    var dataPoints []string
-    for rows.Next() {
-        var points pq.StringArray
-        err = rows.Scan(&points)
-        if err != nil {
-            return nil, err
-        }
-        dataPoints = points
-    }
+	var dataPoints []string
+	for rows.Next() {
+		var points pq.StringArray
+		err = rows.Scan(&points)
+		if err != nil {
+			return nil, err
+		}
+		dataPoints = points
+	}
 
-    if err = rows.Err(); err != nil {
-        return nil, err
-    }
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return dataPoints, nil
+	return dataPoints, nil
 }
 
 func GetStaffAndDataPointsByDepartment(db *sql.DB, deptID, facilityID int) ([]Employee, []string, error) {
 	//log.Printf("GetStaffAndDataPoints Fxn executed:")
 	//log.Printf("GetStaffAndDataPoints Fxn DeptID %d, FacilityID %d:", deptID, facilityID)
-	
-    // Query to fetch staff for the department
-	
-    staffQuery := `SELECT e.id, e.fname, e.lname, st.title 
-					FROM public.employees e 
-					LEFT JOIN public.specialist_titles st ON e.title = st.id 
-					LEFT JOIN public.staffleave s ON e.id = s.employee_id
+
+	// Query to fetch staff for the department
+
+	staffQuery := `SELECT e.id, e.fname, e.lname, st.title 
+					FROM clinician_app.employees e 
+					LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id 
+					LEFT JOIN clinician_app.staffleave s ON e.id = s.employee_id
 					WHERE e.department = $1 AND e.facility = $2 AND (s.leave_status IS NULL OR s.leave_status != 'Valid')
 					ORDER BY e.id`
-    rows, err := db.Query(staffQuery, deptID, facilityID)
-    if err != nil {
-        return nil, nil, err
-    }
-    defer rows.Close()
+	rows, err := db.Query(staffQuery, deptID, facilityID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
 
-    var staff []Employee
-    for rows.Next() {
-        var member Employee
-        if err := rows.Scan(&member.EmpID, &member.Fname, &member.Lname, &member.EmpTitle); err != nil {
-            return nil, nil, err
-        }
-        staff = append(staff, member)
-    }
+	var staff []Employee
+	for rows.Next() {
+		var member Employee
+		if err := rows.Scan(&member.EmpID, &member.Fname, &member.Lname, &member.EmpTitle); err != nil {
+			return nil, nil, err
+		}
+		staff = append(staff, member)
+	}
 
-    // Query to fetch data points for the department
-    dataPointsQuery := `SELECT data_points FROM department_roles WHERE dept_id = $1`
-    rows, err = db.Query(dataPointsQuery, deptID)
-    if err != nil {
-        return nil, nil, err
-    }
-    defer rows.Close()
+	// Query to fetch data points for the department
+	dataPointsQuery := `SELECT data_points FROM department_roles WHERE dept_id = $1`
+	rows, err = db.Query(dataPointsQuery, deptID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
 
-    var dataPoints []string
-    for rows.Next() {
-        var point string
-        if err := rows.Scan(&point); err != nil {
-            return nil, nil, err
-        }
-        dataPoints = append(dataPoints, point)
-    }
+	var dataPoints []string
+	for rows.Next() {
+		var point string
+		if err := rows.Scan(&point); err != nil {
+			return nil, nil, err
+		}
+		dataPoints = append(dataPoints, point)
+	}
 
-    return staff, dataPoints, nil
+	return staff, dataPoints, nil
 }
-
 
 func GetReportAndDataPointsByDepartment(db *sql.DB, start string, facilityID, departmentID int) ([]WeeklyReportExtended, []string, error) {
 	//log.Printf("GetReportAndDataPoints Fxn executed:")
 	//log.Printf("GetReportAndDataPoints Fxn ReportID %d, DepartmentID %d:", reportID, deptID)
-	
-    // Query to fetch staff for the department
-	
-    staffQuery := `SELECT w.id, w.hospital, w.department, w.employee, CONCAT(e.fname, ' ', e.lname) AS staffname, st.title, w.start, w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
+
+	// Query to fetch staff for the department
+
+	staffQuery := `SELECT w.id, w.hospital, w.department, w.employee, CONCAT(e.fname, ' ', e.lname) AS staffname, st.title, w.start, w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
         w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20, w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27,
         w.qn_28, w.qn_29, w.qn_30, w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38, w.entered_by, w.created_on
-        FROM public.weeklyreport w
+        FROM clinician_app.weeklyreport w
 		LEFT JOIN employees e ON e.id = w.employee 
 		LEFT JOIN specialist_titles st on st.id = e.title 
         WHERE w.start = $1 AND w.hospital = $2 AND w.department = $3`
-    rows, err := db.Query(staffQuery, start, facilityID, departmentID)
-    if err != nil {
-        return nil, nil, err
-    }
-    defer rows.Close()
+	rows, err := db.Query(staffQuery, start, facilityID, departmentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
 
-    var staff []WeeklyReportExtended
-    for rows.Next() {
-        var w WeeklyReportExtended
-        if err := rows.Scan(&w.ID, &w.Hospital, &w.DeptID, &w.EmpID,&w.Fname, &w.EmpTitle, &w.Start, &w.Stop, 
+	var staff []WeeklyReportExtended
+	for rows.Next() {
+		var w WeeklyReportExtended
+		if err := rows.Scan(&w.ID, &w.Hospital, &w.DeptID, &w.EmpID, &w.Fname, &w.EmpTitle, &w.Start, &w.Stop,
 			&w.Qn01, &w.Qn02, &w.Qn03, &w.Qn04, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
 			&w.Qn11, &w.Qn12, &w.Qn13, &w.Qn14, &w.Qn15, &w.Qn16, &w.Qn17, &w.Qn18, &w.Qn19, &w.Qn20,
 			&w.Qn21, &w.Qn22, &w.Qn23, &w.Qn24, &w.Qn25, &w.Qn26, &w.Qn27, &w.Qn28, &w.Qn29, &w.Qn30,
 			&w.Qn31, &w.Qn32, &w.Qn33, &w.Qn34, &w.Qn35, &w.Qn36, &w.Qn37, &w.Qn38,
-			&w.EnteredByID, &w.EntryCreatedOn,); err != nil {
-            return nil, nil, err
-        }
-        staff = append(staff, w)
-    }
+			&w.EnteredByID, &w.EntryCreatedOn); err != nil {
+			return nil, nil, err
+		}
+		staff = append(staff, w)
+	}
 
-    // Query to fetch data points for the department
-    dataPointsQuery := `SELECT data_points FROM department_roles WHERE dept_id = $1`
-    rows, err = db.Query(dataPointsQuery, departmentID)
-    if err != nil {
-        return nil, nil, err
-    }
-    defer rows.Close()
+	// Query to fetch data points for the department
+	dataPointsQuery := `SELECT data_points FROM department_roles WHERE dept_id = $1`
+	rows, err = db.Query(dataPointsQuery, departmentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
 
-    var dataPoints []string
-    for rows.Next() {
-        var point string
-        if err := rows.Scan(&point); err != nil {
-            return nil, nil, err
-        }
-        dataPoints = append(dataPoints, point)
-    }
+	var dataPoints []string
+	for rows.Next() {
+		var point string
+		if err := rows.Scan(&point); err != nil {
+			return nil, nil, err
+		}
+		dataPoints = append(dataPoints, point)
+	}
 
-    return staff, dataPoints, nil
+	return staff, dataPoints, nil
 }
-

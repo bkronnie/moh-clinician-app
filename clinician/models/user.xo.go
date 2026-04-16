@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// User represents a row from 'public.users'.
+// User represents a row from 'clinician_app.users'.
 type User struct {
 	ID        int           `json:"id"`         // id
 	Username  string        `json:"username"`   // username
@@ -40,7 +40,7 @@ func (u *User) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.users (` +
+	const sqlstr = `INSERT INTO clinician_app.users (` +
 		`username, pssword, employees, rights, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6` +
@@ -64,7 +64,7 @@ func (u *User) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.users SET ` +
+	const sqlstr = `UPDATE clinician_app.users SET ` +
 		`username = $1, pssword = $2, employees = $3, rights = $4, created_by = $5, created_on = $6 ` +
 		`WHERE id = $7`
 	// run
@@ -90,7 +90,7 @@ func (u *User) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.users (` +
+	const sqlstr = `INSERT INTO clinician_app.users (` +
 		`id, username, pssword, employees, rights, created_by, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7` +
@@ -117,7 +117,7 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.users ` +
+	const sqlstr = `DELETE FROM clinician_app.users ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, u.ID)
@@ -129,14 +129,14 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// UserByID retrieves a row from 'public.users' as a [User].
+// UserByID retrieves a row from 'clinician_app.users' as a [User].
 //
 // Generated from index 'users_pkey'.
 func UserByID(ctx context.Context, db DB, id int) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM public.users ` +
+		`FROM clinician_app.users ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

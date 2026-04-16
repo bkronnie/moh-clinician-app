@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// Lg represents a row from 'public.lg'.
+// Lg represents a row from 'clinician_app.lg'.
 type Lg struct {
 	ID     int            `json:"id"`      // id
 	LgName sql.NullString `json:"lg_name"` // lg_name
@@ -36,7 +36,7 @@ func (l *Lg) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO public.lg (` +
+	const sqlstr = `INSERT INTO clinician_app.lg (` +
 		`lg_name, lg_type` +
 		`) VALUES (` +
 		`$1, $2` +
@@ -60,7 +60,7 @@ func (l *Lg) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with composite primary key
-	const sqlstr = `UPDATE public.lg SET ` +
+	const sqlstr = `UPDATE clinician_app.lg SET ` +
 		`lg_name = $1, lg_type = $2 ` +
 		`WHERE id = $3`
 	// run
@@ -86,7 +86,7 @@ func (l *Lg) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO public.lg (` +
+	const sqlstr = `INSERT INTO clinician_app.lg (` +
 		`id, lg_name, lg_type` +
 		`) VALUES (` +
 		`$1, $2, $3` +
@@ -113,7 +113,7 @@ func (l *Lg) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM public.lg ` +
+	const sqlstr = `DELETE FROM clinician_app.lg ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, l.ID)
@@ -125,14 +125,14 @@ func (l *Lg) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// LgByID retrieves a row from 'public.lg' as a [Lg].
+// LgByID retrieves a row from 'clinician_app.lg' as a [Lg].
 //
 // Generated from index 'lg_pkey'.
 func LgByID(ctx context.Context, db DB, id int) (*Lg, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, lg_name, lg_type ` +
-		`FROM public.lg ` +
+		`FROM clinician_app.lg ` +
 		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)

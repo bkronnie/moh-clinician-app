@@ -96,10 +96,10 @@ func LoginHandler(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager
 					var rights string
 					query := `
 			            SELECT u.rights, f.id
-			            FROM public.users u
-			            JOIN public.employees e ON u.employees = e.id
-			            JOIN public.facilities f ON e.facility = f.id
-			            JOIN public.departments d ON e.department = d.id
+			            FROM clinician_app.users u
+			            JOIN clinician_app.employees e ON u.employees = e.id
+			            JOIN clinician_app.facilities f ON e.facility = f.id
+			            JOIN clinician_app.departments d ON e.department = d.id
 			            WHERE u.id = $1
 			        `
 					if err := db.QueryRowContext(c.Request.Context(), query, user.ID).Scan(&rights, &facilityID); err != nil {
