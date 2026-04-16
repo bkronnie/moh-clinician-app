@@ -226,7 +226,7 @@ func EmployeeByID(ctx context.Context, db DB, id int) (*Employee, error) {
 		`e.id, e.fname, e.lname, e.oname, e.title, st.title, e.specialisation, e.department, e.facility, e.created_by, e.created_on ` +
 		`FROM clinician_app.employees e ` +
 		`LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id ` +
-		`WHERE e.id = $1`
+		`WHERE id = $1`
 	// run
 	logf(sqlstr, id)
 	e := Employee{
@@ -238,7 +238,7 @@ func EmployeeByID(ctx context.Context, db DB, id int) (*Employee, error) {
 	return &e, nil
 }
 
-// Fxn Employee with hospitalID, leave, start and cnt parameters
+//Fxn Employee with hospitalID, leave, start and cnt parameters
 func Employees(ctx context.Context, db *sql.DB, hospitalID int64, leave string, start int, cnt int) ([]*Employee, error) {
 	var sqlstr string
 	whereString := ""

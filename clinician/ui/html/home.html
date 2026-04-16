@@ -241,6 +241,50 @@
     </div>
     {{ end }}
 
+    {{ if eq .Form.Role "admin" }}
+    <div class="dashboard-section">
+        <div class="clinician-toolbar">
+            <div class="section-title">National Dashboard Filter</div>
+            <form class="dashboard-filters" method="GET" action="/">
+                <div class="filter-field">
+                    <label for="dashboardFacility">Facility</label>
+                    <select id="dashboardFacility" name="facility">
+                        <option value="0">All facilities</option>
+                        {{ range .Form.FacilityOptions }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-outline-primary" type="submit">Apply Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {{ end }}
+
+    {{ if eq .Form.Role "approver" }}
+    <div class="dashboard-section">
+        <div class="clinician-toolbar">
+            <div class="section-title">Facility Dashboard Filter</div>
+            <form class="dashboard-filters" method="GET" action="/">
+                <div class="filter-field">
+                    <label for="dashboardDepartment">Department</label>
+                    <select id="dashboardDepartment" name="department">
+                        <option value="0">All departments</option>
+                        {{ range .Form.DepartmentOptions }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-outline-primary" type="submit">Apply Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {{ end }}
+
     {{ if .Form.SeriesLabels }}
     <div class="dashboard-section dashboard-chart">
         <div class="section-title">{{ .Form.SeriesTitle }}</div>

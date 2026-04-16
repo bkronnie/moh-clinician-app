@@ -16,6 +16,11 @@ type FacilityPerformanceRow struct {
 	PendingThisWeek   int
 }
 
+type DashboardFilterOption struct {
+	ID   int
+	Name string
+}
+
 type DepartmentProgressRow struct {
 	DepartmentID      int
 	DepartmentName    string

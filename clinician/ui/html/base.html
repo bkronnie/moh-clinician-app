@@ -8,7 +8,7 @@
     <title>{{ template "title" . }}</title>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/css/app-theme.css" rel="stylesheet">
-    {{ template "extraStyles" . }}
+    {{ block "extraStyles" . }}{{ end }}
 </head>
 <body>
     {{ $ses := session . }}
@@ -18,7 +18,7 @@
     <div class="app-shell">
     <nav class="navbar navbar-expand-lg navbar-light app-navbar">
         <a class="navbar-brand" href="/">
-            <span class="brand-mark">MOH</span>
+            <span class="brand-mark brand-icon">{{ navIcon "brand" }}</span>
             <span class="brand-copy">
                 <span>Clinician App</span>
                 <small>Referral Service Dashboard</small>
@@ -30,31 +30,31 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
-                    <a class="nav-link active" href="/">Dashboard</a>
+                    <a class="nav-link active" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                 </li>
                 {{ if $isClinician }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/new/0">My Data Entry</a>
+                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                 </li>
                 {{ end }}
                 {{ if or $isManager $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/submissions">Weekly Outputs</a>
+                    <a class="nav-link" href="/reports/submissions"><span class="nav-link-icon">{{ navIcon "weekly" }}</span><span>Weekly Outputs</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/analysis">Analysis</a>
+                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Analysis</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/employee/list">Employees</a>
+                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                 </li>
                 {{ end }}
                 {{ if $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/facilities/list">Facilities</a>
+                    <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
                 </li>
                 {{ end }}
                 <li class="nav-item">
-                    <a class="btn btn-outline-danger logout-btn" href="/logout">Logout</a>
+                    <a class="btn btn-outline-danger logout-btn" href="/logout"><span class="btn-icon">{{ navIcon "logout" }}</span><span>Logout</span></a>
                 </li>
             </ul>
         </div>
@@ -66,18 +66,18 @@
             <div class="col-12 mobile-sidebar">
                 <div class="sidebar-label">Quick Access</div>
                 <div class="nav flex-wrap">
-                    <a class="nav-link" href="/">Dashboard</a>
+                    <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                     {{ if $isClinician }}
-                    <a class="nav-link" href="/reports/new/0">My Data Entry</a>
+                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                     {{ end }}
                     {{ if or $isManager $isAdmin }}
-                    <a class="nav-link" href="/reports/submissions">Weekly Outputs</a>
-                    <a class="nav-link" href="/reports/analysis">Reports</a>
-                    <a class="nav-link" href="/employee/list">Employees</a>
+                    <a class="nav-link" href="/reports/submissions"><span class="nav-link-icon">{{ navIcon "weekly" }}</span><span>Weekly Outputs</span></a>
+                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                     {{ end }}
                     {{ if $isAdmin }}
-                    <a class="nav-link" href="/facilities/list">Facilities</a>
-                    <a class="nav-link" href="/department/list">Departments</a>
+                    <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
+                    <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>
                     {{ end }}
                 </div>
             </div>
@@ -87,33 +87,33 @@
                 <div class="sidebar-sticky">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link active" href="/">Dashboard</a>
+                            <a class="nav-link active" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                         </li>
                         {{ if $isClinician }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/new/0">My Data Entry</a>
+                            <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                         </li>
                         {{ end }}
                         {{ if or $isManager $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/submissions">Weekly Outputs</a>
+                            <a class="nav-link" href="/reports/submissions"><span class="nav-link-icon">{{ navIcon "weekly" }}</span><span>Weekly Outputs</span></a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/list">Submissions</a>
+                            <a class="nav-link" href="/reports/list"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submissions</span></a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/analysis">Reports</a>
+                            <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/employee/list">Employees</a>
+                            <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                         </li>
                         {{ end }}
                         {{ if $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/facilities/list">Health Facilities</a>
+                            <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Health Facilities</span></a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/department/list">Departments</a>
+                            <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>
                         </li>
                         {{ end }}
                     </ul>
@@ -155,7 +155,7 @@
     <script src="/static/js/jquery-3.5.1.slim.min.js"></script>
     <script src="/static/js/popper.min.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
-    {{ template "extraJS" . }}
+    {{ block "extraJS" . }}{{ end }}
 </body>
 </html>
 {{ end }}

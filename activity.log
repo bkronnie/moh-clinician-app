@@ -56,3 +56,38 @@ INFO 2026/04/16 21:14:02 utilities.go:60: Logout successful
 INFO 2026/04/16 21:17:14 utilities.go:60: Login successful
 INFO 2026/04/16 21:17:22 utilities.go:60: Logout successful
 INFO 2026/04/16 21:17:26 utilities.go:60: Login successful
+INFO 2026/04/16 21:31:41 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/16 21:31:54 utilities.go:65: Invalid username or password
+INFO 2026/04/16 21:32:07 utilities.go:60: Login successful
+INFO 2026/04/16 21:36:54 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/16 21:37:05 utilities.go:60: Login successful
+INFO 2026/04/16 21:38:30 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/16 21:38:41 utilities.go:60: Login successful
+INFO 2026/04/16 21:40:13 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/16 21:40:25 utilities.go:60: Login successful
+INFO 2026/04/16 21:42:10 utilities.go:60: Logout successful
+INFO 2026/04/16 21:42:16 utilities.go:60: Login successful
+INFO 2026/04/16 21:46:52 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/16 21:47:02 utilities.go:60: Login successful
+INFO 2026/04/16 21:53:20 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/16 21:53:28 utilities.go:60: Login successful
+INFO 2026/04/16 21:55:38 utilities.go:60: Logout successful
+INFO 2026/04/16 21:55:43 utilities.go:60: Login successful
+INFO 2026/04/16 22:05:16 utilities.go:60: Logout successful
+INFO 2026/04/16 22:05:21 utilities.go:60: Login successful
+INFO 2026/04/16 22:07:52 utilities.go:60: Logout successful
+INFO 2026/04/16 22:07:58 utilities.go:60: Login successful
+INFO 2026/04/16 22:09:15 utilities.go:60: Logout successful
+INFO 2026/04/16 22:12:57 utilities.go:60: Login successful
+INFO 2026/04/16 22:14:43 utilities.go:60: Logout successful
+INFO 2026/04/16 22:14:52 utilities.go:60: Login successful
+INFO 2026/04/16 22:20:28 utilities.go:60: Logout successful
+INFO 2026/04/16 22:20:36 utilities.go:60: Login successful
+INFO 2026/04/16 22:24:07 utilities.go:60: Logout successful
+INFO 2026/04/16 22:25:19 utilities.go:60: Login successful
+INFO 2026/04/16 22:25:57 utilities.go:60: Logout successful
+INFO 2026/04/16 22:26:02 utilities.go:60: Login successful
+INFO 2026/04/16 22:27:15 utilities.go:60: Logout successful
+INFO 2026/04/16 22:27:29 utilities.go:60: Login successful
+INFO 2026/04/16 22:28:14 utilities.go:60: Logout successful
+INFO 2026/04/16 22:28:30 utilities.go:60: Login successful
