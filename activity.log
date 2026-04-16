@@ -32,3 +32,5 @@ INFO 2026/04/16 20:33:19 utilities.go:60: Login successful
 INFO 2026/04/16 20:38:52 utilities.go:60: starting server on 0.0.0.0:8081
 INFO 2026/04/16 20:39:01 utilities.go:60: Login successful
 INFO 2026/04/16 20:54:51 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/16 20:55:23 utilities.go:65: Invalid username or password -sql: no rows in result set
+ERROR 2026/04/16 20:55:37 utilities.go:65: Invalid username or password -sql: no rows in result set
