@@ -27,6 +27,12 @@
                 <div class="brand-mark">MOH</div>
                 <h3>Sign In</h3>
                 <p class="auth-muted">Use your assigned username and password to continue.</p>
+                {{ if .Message }}
+                <div class="alert alert-success" role="alert">{{ .Message }}</div>
+                {{ end }}
+                {{ if .Error }}
+                <div class="alert alert-danger" role="alert">{{ .Error }}</div>
+                {{ end }}
 
                 <form id="loginForm" class="auth-form" method="post" action="/login">
                     <table>
@@ -45,6 +51,7 @@
                     </div>
                     <div class="auth-link-row">
                         <a href="/forgot">Forgot Password?</a>
+                        <a href="/register">Create clinician account</a>
                     </div>
                 </form>
             </section>

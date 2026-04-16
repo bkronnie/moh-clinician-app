@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -23,21 +24,31 @@ type DashboardKPIView struct {
 }
 
 type HomeViewModel struct {
-	Role                string
-	ScopeTitle          string
-	ScopeSubtitle       string
-	Stats               []map[string]interface{}
-	KPIs                []DashboardKPIView
-	SeriesTitle         string
-	SeriesLabels        []string
-	SeriesA             []int
-	SeriesALabel        string
-	SeriesB             []int
-	SeriesBLabel        string
-	PerformanceRows     []models.FacilityPerformanceRow
-	DepartmentRows      []models.DepartmentProgressRow
-	DataEntryURL        string
-	LatestSubmission    string
+	Role              string
+	ScopeTitle        string
+	ScopeSubtitle     string
+	OfficerName       string
+	OfficerID         int
+	OfficerTitle      string
+	OfficerFacility   string
+	OfficerDepartment string
+	SelectedYear      int
+	SelectedWeek      int
+	SelectedWeekLabel string
+	AvailableYears    []int
+	AvailableWeeks    []models.ClinicianWeekOption
+	Stats             []map[string]interface{}
+	KPIs              []DashboardKPIView
+	SeriesTitle       string
+	SeriesLabels      []string
+	SeriesA           []int
+	SeriesALabel      string
+	SeriesB           []int
+	SeriesBLabel      string
+	PerformanceRows   []models.FacilityPerformanceRow
+	DepartmentRows    []models.DepartmentProgressRow
+	DataEntryURL      string
+	LatestSubmission  string
 }
 
 func HandlerHome2(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -217,12 +228,12 @@ func buildNationalHome(c *gin.Context, db *sql.DB) (HomeViewModel, error) {
 	}
 
 	view := HomeViewModel{
-		Role:          "admin",
-		ScopeTitle:    "National Performance Overview",
-		ScopeSubtitle: "Monitor facility participation, submissions, and approval follow-up across the referral network.",
-		SeriesTitle:   "Weekly Facility Submission Snapshot",
-		SeriesALabel:  "Entered",
-		SeriesBLabel:  "Submitted",
+		Role:            "admin",
+		ScopeTitle:      "National Performance Overview",
+		ScopeSubtitle:   "Monitor facility participation, submissions, and approval follow-up across the referral network.",
+		SeriesTitle:     "Weekly Facility Submission Snapshot",
+		SeriesALabel:    "Entered",
+		SeriesBLabel:    "Submitted",
 		PerformanceRows: snapshot.FacilityPerformance,
 	}
 
@@ -249,13 +260,13 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 	}
 
 	view := HomeViewModel{
-		Role:            "approver",
-		ScopeTitle:      fmt.Sprintf("%s Follow-up Dashboard", facilityName),
-		ScopeSubtitle:   "Track who has entered data, who has submitted, and which departments still need follow-up this week.",
-		SeriesTitle:     "Department Submission Status",
-		SeriesALabel:    "Entered",
-		SeriesBLabel:    "Submitted",
-		DepartmentRows:  snapshot.Departments,
+		Role:           "approver",
+		ScopeTitle:     fmt.Sprintf("%s Follow-up Dashboard", facilityName),
+		ScopeSubtitle:  "Track who has entered data, who has submitted, and which departments still need follow-up this week.",
+		SeriesTitle:    "Department Submission Status",
+		SeriesALabel:   "Entered",
+		SeriesBLabel:   "Submitted",
+		DepartmentRows: snapshot.Departments,
 	}
 
 	view.Stats = []map[string]interface{}{
@@ -275,19 +286,44 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 }
 
 func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName string) (HomeViewModel, error) {
-	snapshot, err := models.GetClinicianDashboardSnapshot(c.Request.Context(), db, employeeID)
+	selectedYear, _ := strconv.Atoi(c.Query("year"))
+	selectedWeek, _ := strconv.Atoi(c.Query("week"))
+
+	snapshot, err := models.GetClinicianDashboardSnapshot(c.Request.Context(), db, employeeID, selectedYear, selectedWeek)
 	if err != nil {
 		return HomeViewModel{}, err
 	}
 
+	entryStatus := "Not entered"
+	if snapshot.WeeksEntered > 0 {
+		entryStatus = "Entered"
+	}
+
+	submissionStatus := "Not submitted"
+	if snapshot.SelectedWeekSubmitted {
+		submissionStatus = "Submitted"
+	} else if snapshot.WeeksEntered > 0 {
+		submissionStatus = "Saved as draft"
+	}
+
 	view := HomeViewModel{
-		Role:           "user",
-		ScopeTitle:     "My Weekly KPI Dashboard",
-		ScopeSubtitle:  "Review your recent performance, compare against targets, and open your weekly data entry form.",
-		DataEntryURL:   "/reports/new/0",
-		SeriesTitle:    "My Recent Reporting Trend",
-		SeriesALabel:   "Patients Reviewed",
-		SeriesBLabel:   "Procedures",
+		Role:              "user",
+		ScopeTitle:        "My Weekly KPI Dashboard",
+		ScopeSubtitle:     "Choose a reporting year and week to review your performance for that reporting period.",
+		OfficerName:       snapshot.EmployeeName,
+		OfficerID:         snapshot.EmployeeID,
+		OfficerTitle:      snapshot.EmployeeTitle,
+		OfficerFacility:   snapshot.FacilityName,
+		OfficerDepartment: snapshot.DepartmentName,
+		SelectedYear:      snapshot.SelectedYear,
+		SelectedWeek:      snapshot.SelectedWeek,
+		SelectedWeekLabel: snapshot.SelectedWeekLabel,
+		AvailableYears:    snapshot.AvailableYears,
+		AvailableWeeks:    snapshot.AvailableWeeks,
+		DataEntryURL:      "/reports/new/0",
+		SeriesTitle:       fmt.Sprintf("My %d Weekly Trend", snapshot.SelectedYear),
+		SeriesALabel:      "Patients Reviewed",
+		SeriesBLabel:      "Procedures",
 	}
 
 	view.KPIs = []DashboardKPIView{
@@ -315,10 +351,10 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 	}
 
 	view.Stats = []map[string]interface{}{
-		{"Title": "Weeks Entered", "Value": snapshot.WeeksEntered, "Tone": "stat-primary"},
-		{"Title": "Weeks Submitted", "Value": snapshot.WeeksSubmitted, "Tone": "stat-success"},
+		{"Title": "Selected Week", "Value": snapshot.SelectedWeekLabel, "Tone": "stat-primary"},
+		{"Title": "Entry Status", "Value": entryStatus, "Tone": "stat-info"},
 		{"Title": "Patients Reviewed", "Value": snapshot.PatientsReviewed, "Tone": "stat-info"},
-		{"Title": "Procedures Logged", "Value": snapshot.Procedures, "Tone": "stat-warning"},
+		{"Title": "Submission Status", "Value": submissionStatus, "Tone": "stat-warning"},
 	}
 
 	for _, point := range snapshot.RecentWeeks {
@@ -327,13 +363,7 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 		view.SeriesB = append(view.SeriesB, point.Procedures)
 	}
 
-	if snapshot.LatestWeekLabel != "" {
-		status := "Not submitted yet"
-		if snapshot.LatestWeekSubmitted {
-			status = "Submitted"
-		}
-		view.LatestSubmission = fmt.Sprintf("%s: %s", snapshot.LatestWeekLabel, status)
-	}
+	view.LatestSubmission = fmt.Sprintf("%s: %s", snapshot.SelectedWeekLabel, submissionStatus)
 
 	_ = facilityName
 

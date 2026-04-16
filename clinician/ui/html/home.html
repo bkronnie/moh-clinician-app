@@ -96,6 +96,74 @@
         font-size: 0.95rem;
         margin: 0;
     }
+
+    .clinician-toolbar {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .officer-summary {
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .officer-name {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #12343b;
+        margin: 0;
+    }
+
+    .officer-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        color: #58727a;
+        font-size: 0.95rem;
+    }
+
+    .officer-meta span {
+        background: #f4fafb;
+        border: 1px solid #d9e8ec;
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+    }
+
+    .dashboard-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.85rem;
+        align-items: end;
+    }
+
+    .filter-field label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.9rem;
+        color: #204650;
+        font-weight: 600;
+    }
+
+    .filter-field select {
+        width: 100%;
+        border: 1px solid #c5dadd;
+        border-radius: 12px;
+        padding: 0.7rem 0.85rem;
+        background: #ffffff;
+        color: #12343b;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 0.65rem;
+        align-items: center;
+    }
+
+    @media (max-width: 640px) {
+        .filter-actions .btn {
+            width: 100%;
+        }
+    }
 </style>
 {{ end }}
 
@@ -116,9 +184,46 @@
 
     {{ if eq .Form.Role "user" }}
     <div class="dashboard-section">
-        <div class="entry-cta">
-            <a class="btn btn-primary" href="{{ .Form.DataEntryURL }}">Open My Weekly Entry Form</a>
-            <p class="entry-note">{{ .Form.LatestSubmission }}</p>
+        <div class="clinician-toolbar">
+            <div class="officer-summary">
+                <div class="section-title">Medical Officer Profile</div>
+                <p class="officer-name">{{ .Form.OfficerName }}</p>
+                <div class="officer-meta">
+                    <span>ID: {{ .Form.OfficerID }}</span>
+                    <span>{{ .Form.OfficerTitle }}</span>
+                    <span>{{ .Form.OfficerDepartment }}</span>
+                    <span>{{ .Form.OfficerFacility }}</span>
+                </div>
+            </div>
+
+            <form
+                class="dashboard-filters"
+                method="GET"
+                action="/"
+                id="clinicianDashboardFilters"
+                data-week-options='{{ toJSON .Form.AvailableWeeks }}'
+                data-selected-week='{{ .Form.SelectedWeek }}'>
+                <div class="filter-field">
+                    <label for="dashboardYear">Year</label>
+                    <select id="dashboardYear" name="year">
+                        {{ range .Form.AvailableYears }}
+                        <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ . }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="dashboardWeek">Week</label>
+                    <select id="dashboardWeek" name="week"></select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-outline-primary" type="submit">Apply Filter</button>
+                </div>
+            </form>
+
+            <div class="entry-cta">
+                <a class="btn btn-primary" href="{{ .Form.DataEntryURL }}">Open My Weekly Entry Form</a>
+                <p class="entry-note">{{ .Form.LatestSubmission }}</p>
+            </div>
         </div>
     </div>
 
@@ -214,6 +319,37 @@
 {{ define "extraJS" }}
 <script>
 (() => {
+    const filterForm = document.getElementById('clinicianDashboardFilters');
+    if (filterForm) {
+        const yearSelect = document.getElementById('dashboardYear');
+        const weekSelect = document.getElementById('dashboardWeek');
+        const allWeeks = JSON.parse(filterForm.dataset.weekOptions || '[]');
+        const initialWeek = Number(filterForm.dataset.selectedWeek || '0');
+
+        const populateWeeks = (selectedYear, preferredWeek) => {
+            const matchingWeeks = allWeeks.filter((option) => option.year === Number(selectedYear));
+            weekSelect.innerHTML = '';
+
+            matchingWeeks.forEach((option, index) => {
+                const element = document.createElement('option');
+                element.value = String(option.week);
+                element.textContent = option.label;
+
+                const shouldSelect = option.week === Number(preferredWeek) || (!preferredWeek && index === 0);
+                if (shouldSelect) {
+                    element.selected = true;
+                }
+
+                weekSelect.appendChild(element);
+            });
+
+            weekSelect.disabled = matchingWeeks.length === 0;
+        };
+
+        populateWeeks(yearSelect.value, initialWeek);
+        yearSelect.addEventListener('change', () => populateWeeks(yearSelect.value, 0));
+    }
+
     const canvas = document.getElementById('roleDashboardChart');
     if (!canvas) return;
 

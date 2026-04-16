@@ -34,3 +34,25 @@ INFO 2026/04/16 20:39:01 utilities.go:60: Login successful
 INFO 2026/04/16 20:54:51 utilities.go:60: starting server on 0.0.0.0:8081
 ERROR 2026/04/16 20:55:23 utilities.go:65: Invalid username or password -sql: no rows in result set
 ERROR 2026/04/16 20:55:37 utilities.go:65: Invalid username or password -sql: no rows in result set
+INFO 2026/04/16 20:58:06 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/16 20:58:12 utilities.go:60: Login successful
+INFO 2026/04/16 20:58:14 utilities.go:60: Logout successful
+INFO 2026/04/16 20:58:24 utilities.go:60: Login successful
+INFO 2026/04/16 20:59:41 utilities.go:60: Logout successful
+INFO 2026/04/16 20:59:48 utilities.go:60: Login successful
+INFO 2026/04/16 21:11:11 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/16 21:11:28 utilities.go:65: Invalid username or password -sql: no rows in result set
+ERROR 2026/04/16 21:11:44 utilities.go:65: Invalid username or password -sql: no rows in result set
+INFO 2026/04/16 21:11:53 utilities.go:60: Login successful
+INFO 2026/04/16 21:11:56 utilities.go:60: Logout successful
+ERROR 2026/04/16 21:12:00 utilities.go:65: Invalid username or password -sql: no rows in result set
+ERROR 2026/04/16 21:12:16 utilities.go:65: Invalid username or password -sql: no rows in result set
+ERROR 2026/04/16 21:12:26 utilities.go:65: Invalid username or password -sql: no rows in result set
+INFO 2026/04/16 21:12:36 utilities.go:60: Login successful
+INFO 2026/04/16 21:12:40 utilities.go:60: Logout successful
+ERROR 2026/04/16 21:12:46 utilities.go:65: Invalid username or password -sql: no rows in result set
+INFO 2026/04/16 21:13:04 utilities.go:60: Login successful
+INFO 2026/04/16 21:14:02 utilities.go:60: Logout successful
+INFO 2026/04/16 21:17:14 utilities.go:60: Login successful
+INFO 2026/04/16 21:17:22 utilities.go:60: Logout successful
+INFO 2026/04/16 21:17:26 utilities.go:60: Login successful

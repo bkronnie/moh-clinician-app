@@ -73,6 +73,15 @@ CREATE TABLE IF NOT EXISTS clinician_app.employees (
     title BIGINT REFERENCES clinician_app.specialist_titles(id)
 );
 
+ALTER TABLE clinician_app.employees
+    ADD COLUMN IF NOT EXISTS employee_number TEXT,
+    ADD COLUMN IF NOT EXISTS date_of_birth DATE,
+    ADD COLUMN IF NOT EXISTS phone_number TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_employee_number_unique
+    ON clinician_app.employees(employee_number)
+    WHERE employee_number IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS clinician_app.employeerights (
     id BIGSERIAL PRIMARY KEY,
     employee BIGINT REFERENCES clinician_app.employees(id),
@@ -88,6 +97,24 @@ CREATE TABLE IF NOT EXISTS clinician_app.users (
     created_on TIMESTAMP,
     rights TEXT NOT NULL DEFAULT 'user'
 );
+
+ALTER TABLE clinician_app.users
+    ADD COLUMN IF NOT EXISTS access_scope TEXT NOT NULL DEFAULT 'individual';
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_access_scope_check'
+          AND conrelid = 'clinician_app.users'::regclass
+    ) THEN
+        ALTER TABLE clinician_app.users
+            ADD CONSTRAINT users_access_scope_check
+            CHECK (access_scope IN ('national', 'facility', 'individual'));
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS clinician_app.indicators (
     id BIGSERIAL PRIMARY KEY,

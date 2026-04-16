@@ -1,0 +1,309 @@
+package models
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+)
+
+type SpecialistTitleOption struct {
+	ID    int64
+	Title string
+}
+
+type RegistrationOption struct {
+	ID   int64
+	Name string
+}
+
+type ClinicianRegistrationInput struct {
+	FirstName      string
+	LastName       string
+	OtherName      string
+	EmployeeNumber string
+	DateOfBirth    *time.Time
+	PhoneNumber    string
+	Email          string
+	PasswordHash   string
+	FacilityID     int64
+	DepartmentID   int64
+	TitleID        int64
+	Specialisation string
+}
+
+type RegistrationAccountResult struct {
+	EmployeeID int64
+	UserID     int64
+}
+
+func RegistrationOptions(ctx context.Context, db *sql.DB) ([]RegistrationOption, []RegistrationOption, []SpecialistTitleOption, error) {
+	facilities := []RegistrationOption{}
+	departments := []RegistrationOption{}
+	titles := []SpecialistTitleOption{}
+
+	facilityRows, err := db.QueryContext(ctx, `
+		SELECT id, f_name
+		FROM clinician_app.facilities
+		ORDER BY f_name
+	`)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer facilityRows.Close()
+
+	for facilityRows.Next() {
+		var option RegistrationOption
+		if err := facilityRows.Scan(&option.ID, &option.Name); err != nil {
+			return nil, nil, nil, err
+		}
+		facilities = append(facilities, option)
+	}
+	if err := facilityRows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	departmentRows, err := db.QueryContext(ctx, `
+		SELECT id, d_name
+		FROM clinician_app.departments
+		ORDER BY d_name
+	`)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer departmentRows.Close()
+
+	for departmentRows.Next() {
+		var option RegistrationOption
+		if err := departmentRows.Scan(&option.ID, &option.Name); err != nil {
+			return nil, nil, nil, err
+		}
+		departments = append(departments, option)
+	}
+	if err := departmentRows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	titleRows, err := db.QueryContext(ctx, `
+		SELECT id, title
+		FROM clinician_app.specialist_titles
+		ORDER BY title
+	`)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer titleRows.Close()
+
+	for titleRows.Next() {
+		var option SpecialistTitleOption
+		if err := titleRows.Scan(&option.ID, &option.Title); err != nil {
+			return nil, nil, nil, err
+		}
+		titles = append(titles, option)
+	}
+
+	return facilities, departments, titles, titleRows.Err()
+}
+
+func CreateClinicianSelfRegistration(ctx context.Context, db *sql.DB, input ClinicianRegistrationInput) (RegistrationAccountResult, error) {
+	var result RegistrationAccountResult
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback()
+
+	if err := validateRegistrationInput(tx, ctx, input); err != nil {
+		return result, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE clinician_app.employees IN EXCLUSIVE MODE`); err != nil {
+		return result, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(id), 1000) + 1
+		FROM clinician_app.employees
+	`).Scan(&result.EmployeeID); err != nil {
+		return result, err
+	}
+
+	now := time.Now()
+	var dob interface{}
+	if input.DateOfBirth != nil {
+		dob = *input.DateOfBirth
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.employees (
+			id, fname, lname, oname, specialisation, department, facility, created_by, created_on, title,
+			employee_number, date_of_birth, phone_number
+		) VALUES (
+			$1, $2, $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7, $8, $9, $10, NULLIF($11, ''), $12, NULLIF($13, '')
+		)
+	`,
+		result.EmployeeID,
+		input.FirstName,
+		input.LastName,
+		input.OtherName,
+		input.Specialisation,
+		input.DepartmentID,
+		input.FacilityID,
+		result.EmployeeID,
+		now,
+		input.TitleID,
+		input.EmployeeNumber,
+		dob,
+		input.PhoneNumber,
+	); err != nil {
+		return result, err
+	}
+
+	var rightsID int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT id
+		FROM clinician_app.rights
+		WHERE rights = 'user'
+		LIMIT 1
+	`).Scan(&rightsID); err != nil {
+		return result, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.employeerights (employee, rights)
+		VALUES ($1, $2)
+	`, result.EmployeeID, rightsID); err != nil {
+		return result, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+		INSERT INTO clinician_app.users (
+			username, pssword, employees, created_by, created_on, rights, access_scope
+		) VALUES (
+			$1, $2, $3, $4, $5, 'user', 'individual'
+		)
+		RETURNING id
+	`, input.Email, input.PasswordHash, result.EmployeeID, result.EmployeeID, now).Scan(&result.UserID); err != nil {
+		return result, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func CreateInitialAdminAccount(ctx context.Context, db *sql.DB, firstName, lastName, email, passwordHash string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var exists int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COUNT(1)
+		FROM clinician_app.users
+	`).Scan(&exists); err != nil {
+		return err
+	}
+	if exists > 0 {
+		return fmt.Errorf("initial setup is only available before users exist")
+	}
+
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE clinician_app.employees IN EXCLUSIVE MODE`); err != nil {
+		return err
+	}
+
+	var employeeID int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(id), 1000) + 1
+		FROM clinician_app.employees
+	`).Scan(&employeeID); err != nil {
+		return err
+	}
+
+	now := time.Now()
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.employees (
+			id, fname, lname, created_by, created_on
+		) VALUES (
+			$1, $2, $3, $4, $5
+		)
+	`, employeeID, firstName, lastName, employeeID, now); err != nil {
+		return err
+	}
+
+	var rightsID int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT id
+		FROM clinician_app.rights
+		WHERE rights = 'admin'
+		LIMIT 1
+	`).Scan(&rightsID); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.employeerights (employee, rights)
+		VALUES ($1, $2)
+	`, employeeID, rightsID); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.users (
+			username, pssword, employees, created_by, created_on, rights, access_scope
+		) VALUES (
+			$1, $2, $3, $4, $5, 'admin', 'national'
+		)
+	`, email, passwordHash, employeeID, employeeID, now); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func validateRegistrationInput(tx *sql.Tx, ctx context.Context, input ClinicianRegistrationInput) error {
+	if strings.TrimSpace(input.FirstName) == "" || strings.TrimSpace(input.LastName) == "" {
+		return fmt.Errorf("first name and last name are required")
+	}
+	if strings.TrimSpace(input.EmployeeNumber) == "" {
+		return fmt.Errorf("medical officer ID is required")
+	}
+	if strings.TrimSpace(input.Email) == "" {
+		return fmt.Errorf("email address is required")
+	}
+	if input.FacilityID == 0 || input.DepartmentID == 0 || input.TitleID == 0 {
+		return fmt.Errorf("facility, department, and specialist title are required")
+	}
+
+	var existingUsers int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COUNT(1)
+		FROM clinician_app.users
+		WHERE LOWER(username) = LOWER($1)
+	`, input.Email).Scan(&existingUsers); err != nil {
+		return err
+	}
+	if existingUsers > 0 {
+		return fmt.Errorf("an account with that email already exists")
+	}
+
+	var existingEmployees int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COUNT(1)
+		FROM clinician_app.employees
+		WHERE employee_number = $1
+	`, input.EmployeeNumber).Scan(&existingEmployees); err != nil {
+		return err
+	}
+	if existingEmployees > 0 {
+		return fmt.Errorf("that medical officer ID is already registered")
+	}
+
+	return nil
+}

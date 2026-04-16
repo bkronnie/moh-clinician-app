@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/alexedwards/scs/v2"
@@ -35,30 +36,7 @@ func SetupHandler(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	employee := models.Employee{}
-
-	employee.Fname.String = firstname
-	employee.Fname.Valid = true
-	employee.Lname.String = lastname
-	employee.Lname.Valid = true
-
-	var emp int64
-
-	err := employee.Insert(c, db)
-
-	if err != nil {
-		emp = 0
-	} else {
-		emp = int64(employee.EmpID)
-	}
-
-	user := models.User{}
-	user.Employees = sql.NullInt64{Int64: emp, Valid: true}
-	user.Username = username
-	user.Pssword = models.Encrypt(password)
-	user.Rights = "admin"
-
-	err = user.Insert(c, db)
+	err := models.CreateInitialAdminAccount(c, db, firstname, lastname, username, models.Encrypt(password))
 	if err != nil {
 		utilities.Danger("Setup failed: could not insert user - " + err.Error())
 		c.Redirect(http.StatusFound, "/login")
@@ -79,8 +57,8 @@ func LoginHandler(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager
 	// Authenticate user
 	user, err := models.UserByEmailPass(c.Request.Context(), db, username, password)
 	if err != nil {
-		utilities.Danger("Invalid username or password -" + err.Error())
-		c.Redirect(http.StatusFound, "/login")
+		utilities.Danger("Invalid username or password")
+		c.Redirect(http.StatusFound, "/login?error="+url.QueryEscape("Invalid username or password"))
 		c.Abort()
 		return
 	}
@@ -141,8 +119,8 @@ func LoginHandler(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager
 		c.Redirect(http.StatusFound, "/")
 		return
 	} else {
-		utilities.Danger("Login failure")
-		c.Redirect(http.StatusFound, "/login")
+		utilities.Danger("Invalid username or password")
+		c.Redirect(http.StatusFound, "/login?error="+url.QueryEscape("Invalid username or password"))
 		c.Abort()
 	}
 }

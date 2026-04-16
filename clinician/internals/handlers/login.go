@@ -13,6 +13,10 @@ import (
 )
 
 func HandlerLoginForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	viewData := gin.H{
+		"Message": c.Query("message"),
+		"Error":   c.Query("error"),
+	}
 
 	if security.IsAuthenticated(c, sessionManager) {
 		// If authenticated, redirect to the home page or any other page
@@ -24,13 +28,13 @@ func HandlerLoginForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 	if er != nil {
 		//c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
 		utilities.Danger(er.Error())
-		utilities.GenerateHTML(c, nil, "login")
+		utilities.GenerateHTML(c, viewData, "login")
 		return
 	}
 
 	if count > 0 {
 		fmt.Println("login form loading")
-		utilities.GenerateHTML(c, nil, "login")
+		utilities.GenerateHTML(c, viewData, "login")
 	} else {
 		fmt.Println("setup form loading")
 		utilities.GenerateHTML(c, nil, "setup")

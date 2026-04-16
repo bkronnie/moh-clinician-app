@@ -1,3 +1,28 @@
 .env
 clinician_app
 clinician/web.exe
+
+# Logs
+*.log
+logs/
+log/
+
+# Local build outputs
+*.exe
+*.out
+*.test
+
+# Go cache and coverage
+.gocache/
+coverage.out
+
+# Temporary and backup files
+*~
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# OS and editor files
+.DS_Store
+Thumbs.db

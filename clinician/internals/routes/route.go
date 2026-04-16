@@ -15,9 +15,11 @@ func SetupRoutes(router *gin.Engine, db *sql.DB, sessionManager *scs.SessionMana
 	// Public routes
 	router.POST("/login", func(c *gin.Context) { handlers.LoginHandler(c, db, sessionManager) })
 	router.POST("/setup", func(c *gin.Context) { handlers.SetupHandler(c, db) })
+	router.POST("/register", func(c *gin.Context) { handlers.HandlerRegistrationSave(c, db, sessionManager) })
 	router.POST("/forgot", func(c *gin.Context) { handlers.LoginHandler(c, db, sessionManager) })
 
 	router.GET("/login", func(c *gin.Context) { handlers.HandlerLoginForm(c, db, sessionManager) })
+	router.GET("/register", func(c *gin.Context) { handlers.HandlerRegistrationForm(c, db, sessionManager) })
 
 	router.GET("/about", handlers.AboutHandler)
 	router.GET("/forget", handlers.HandlerLoginForgot)
