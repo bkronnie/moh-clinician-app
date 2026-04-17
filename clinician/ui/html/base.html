@@ -36,11 +36,22 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/reports/history"><span class="nav-link-icon">{{ navIcon "history" }}</span><span>Report History</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
+                </li>
+                {{ end }}
+                {{ if $isManager }}
+                <li class="nav-item">
+                    <a class="nav-link" href="/reports/review"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submitted Reports</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
+                </li>
                 {{ end }}
                 {{ if or $isManager $isAdmin }}
-                <li class="nav-item">
-                    <a class="nav-link" href="/reports/submissions"><span class="nav-link-icon">{{ navIcon "weekly" }}</span><span>Weekly Outputs</span></a>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Analysis</span></a>
                 </li>
@@ -69,9 +80,14 @@
                     <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                     {{ if $isClinician }}
                     <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
+                    <a class="nav-link" href="/reports/history"><span class="nav-link-icon">{{ navIcon "history" }}</span><span>Report History</span></a>
+                    <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
+                    {{ end }}
+                    {{ if $isManager }}
+                    <a class="nav-link" href="/reports/review"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submitted Reports</span></a>
+                    <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
                     {{ end }}
                     {{ if or $isManager $isAdmin }}
-                    <a class="nav-link" href="/reports/submissions"><span class="nav-link-icon">{{ navIcon "weekly" }}</span><span>Weekly Outputs</span></a>
                     <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
                     <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                     {{ end }}
@@ -93,14 +109,22 @@
                         <li class="nav-item">
                             <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/history"><span class="nav-link-icon">{{ navIcon "history" }}</span><span>Report History</span></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
+                        </li>
+                        {{ end }}
+                        {{ if $isManager }}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/review"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submitted Reports</span></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
+                        </li>
                         {{ end }}
                         {{ if or $isManager $isAdmin }}
-                        <li class="nav-item">
-                            <a class="nav-link" href="/reports/submissions"><span class="nav-link-icon">{{ navIcon "weekly" }}</span><span>Weekly Outputs</span></a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/reports/list"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submissions</span></a>
-                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
                         </li>

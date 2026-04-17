@@ -34,6 +34,7 @@ type Employee struct {
 type LeaveHistory struct {
 	ID             int
 	EmpID          sql.NullInt64
+	LeaveTypeName  sql.NullString
 	LeaveTypeID    sql.NullInt64
 	StartDate      sql.NullTime
 	EndDate        sql.NullTime
@@ -43,6 +44,27 @@ type LeaveHistory struct {
 	SubmissionDate sql.NullTime
 	// xo fields
 	_exists, _deleted bool
+}
+
+type FacilityLeaveReviewRow struct {
+	ID             int
+	EmpID          int64
+	EmployeeName   string
+	DepartmentName string
+	LeaveTypeName  string
+	StartDate      sql.NullTime
+	EndDate        sql.NullTime
+	LeaveStatus    sql.NullString
+	Comments       sql.NullString
+	SubmissionDate sql.NullTime
+	ApprovedByName sql.NullString
+	Actionable     bool
+}
+
+type FacilityLeaveReviewSummary struct {
+	PendingLeaves  int
+	ApprovedLeaves int
+	DeclinedLeaves int
 }
 
 // DashboardData holds the data for the cards
@@ -122,10 +144,7 @@ func (e *LeaveHistory) InsertLeave(ctx context.Context, db DB) error {
 
 	// Calculate new ID starting from lastID + 1
 	newID := lastID + 1
-	status := e.LeaveStatus
-
 	log.Printf("New leave_id: %+d", newID)
-	log.Printf("New leave_id: %s", status)
 
 	// insert (primary key generated and returned by database)
 	const sqlstr = `INSERT INTO clinician_app.staffleave (` +
@@ -135,7 +154,7 @@ func (e *LeaveHistory) InsertLeave(ctx context.Context, db DB) error {
 		`) RETURNING leave_id`
 	// run
 	logf(sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments)
-	if err := db.QueryRowContext(ctx, sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments).Scan(&e.EmpID); err != nil {
+	if err := db.QueryRowContext(ctx, sqlstr, newID, e.EmpID, e.StartDate, e.EndDate, e.LeaveStatus, e.SubmittedBy, e.SubmissionDate, e.LeaveTypeID, e.Comments).Scan(&e.ID); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -169,6 +188,43 @@ func (e *Employee) Save(ctx context.Context, db DB) error {
 		return e.Update(ctx, db)
 	}
 	return e.Insert(ctx, db)
+}
+
+// UpdatePendingLeave updates a pending leave request owned by the employee.
+func (e *LeaveHistory) UpdatePendingLeave(ctx context.Context, db DB) (bool, error) {
+	const sqlstr = `UPDATE clinician_app.staffleave SET ` +
+		`start_date = $1, end_date = $2, leave_type_id = $3, notes = $4 ` +
+		`WHERE leave_id = $5 AND employee_id = $6 AND leave_status = 'Pending'`
+
+	result, err := db.ExecContext(ctx, sqlstr, e.StartDate, e.EndDate, e.LeaveTypeID, e.Comments, e.ID, e.EmpID)
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	return rowsAffected > 0, nil
+}
+
+// DeletePendingLeave deletes a pending leave request owned by the employee.
+func DeletePendingLeave(ctx context.Context, db DB, leaveID int, employeeID int64) (bool, error) {
+	const sqlstr = `DELETE FROM clinician_app.staffleave ` +
+		`WHERE leave_id = $1 AND employee_id = $2 AND leave_status = 'Pending'`
+
+	result, err := db.ExecContext(ctx, sqlstr, leaveID, employeeID)
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Upsert performs an upsert for [Employee].
@@ -256,7 +312,11 @@ func Employees(ctx context.Context, db *sql.DB, hospitalID int64, leave string, 
 		if whereString != "" {
 			whereString += " AND "
 		}
-		whereString += fmt.Sprintf(" s.leave_status = '%s'", leave)
+		if leave == "Valid" {
+			whereString += " s.leave_status IN ('Valid', 'Approved')"
+		} else {
+			whereString += fmt.Sprintf(" s.leave_status = '%s'", leave)
+		}
 		log.Printf("WhereString: %s", whereString)
 	}
 
@@ -361,11 +421,11 @@ func GetFacilitiesAndDepartments(db *sql.DB) ([]*Facility, []*Department, error)
 // GetHistory() fxn to retrieve user leave request history from the db
 func GetHistory(db *sql.DB, employeeID int) ([]*LeaveHistory, error) {
 	query := `
-        SELECT a.absence_id, l.leave_type_name, a.start_date, a.end_date, a.status, a.comments, a.submission_date
+        SELECT a.leave_id, a.employee_id, l.leave_type_name, a.leave_type_id, a.start_date, a.end_date, a.leave_status, a.notes, a.created_on
         FROM clinician_app.staffleave a
         JOIN clinician_app.leavetypes l ON a.leave_type_id = l.leave_type_id
-        WHERE a.employee_id = ?
-        ORDER BY a.submission_date ASC
+        WHERE a.employee_id = $1
+        ORDER BY a.created_on DESC, a.leave_id DESC
     `
 
 	rows, err := db.Query(query, employeeID)
@@ -377,7 +437,7 @@ func GetHistory(db *sql.DB, employeeID int) ([]*LeaveHistory, error) {
 	history := []*LeaveHistory{}
 	for rows.Next() {
 		h := &LeaveHistory{}
-		err = rows.Scan(&h.ID, &h.LeaveTypeID, &h.StartDate, &h.EndDate, &h.LeaveStatus, &h.Comments, &h.SubmissionDate)
+		err = rows.Scan(&h.ID, &h.EmpID, &h.LeaveTypeName, &h.LeaveTypeID, &h.StartDate, &h.EndDate, &h.LeaveStatus, &h.Comments, &h.SubmissionDate)
 		if err != nil {
 			return nil, err
 		}
@@ -389,6 +449,182 @@ func GetHistory(db *sql.DB, employeeID int) ([]*LeaveHistory, error) {
 	}
 
 	return history, nil
+}
+
+// PendingLeaveByID returns a pending leave request owned by the specified employee.
+func PendingLeaveByID(ctx context.Context, db DB, leaveID int, employeeID int64) (*LeaveHistory, error) {
+	const sqlstr = `SELECT ` +
+		`a.leave_id, a.employee_id, l.leave_type_name, a.leave_type_id, a.start_date, a.end_date, a.leave_status, a.notes, a.created_on ` +
+		`FROM clinician_app.staffleave a ` +
+		`JOIN clinician_app.leavetypes l ON a.leave_type_id = l.leave_type_id ` +
+		`WHERE a.leave_id = $1 AND a.employee_id = $2 AND a.leave_status = 'Pending'`
+
+	leave := &LeaveHistory{_exists: true}
+	err := db.QueryRowContext(ctx, sqlstr, leaveID, employeeID).Scan(
+		&leave.ID,
+		&leave.EmpID,
+		&leave.LeaveTypeName,
+		&leave.LeaveTypeID,
+		&leave.StartDate,
+		&leave.EndDate,
+		&leave.LeaveStatus,
+		&leave.Comments,
+		&leave.SubmissionDate,
+	)
+	if err != nil {
+		return nil, logerror(err)
+	}
+
+	return leave, nil
+}
+
+func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filterStatus string) ([]*FacilityLeaveReviewRow, error) {
+	whereClause := `WHERE e.facility = $1`
+	args := []interface{}{facilityID}
+
+	switch filterStatus {
+	case "pending":
+		whereClause += ` AND COALESCE(a.leave_status, '') = 'Pending'`
+	case "approved":
+		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Approved', 'Valid')`
+	case "declined":
+		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Rejected', 'Declined')`
+	default:
+		filterStatus = "all"
+	}
+
+	sqlstr := `
+		SELECT
+			a.leave_id,
+			e.id,
+			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS employee_name,
+			COALESCE(d.d_name, '') AS department_name,
+			COALESCE(l.leave_type_name, '') AS leave_type_name,
+			a.start_date,
+			a.end_date,
+			a.leave_status,
+			a.notes,
+			a.created_on,
+			NULLIF(TRIM(CONCAT(COALESCE(ap.fname, ''), ' ', COALESCE(ap.lname, ''))), '') AS approved_by_name
+		FROM clinician_app.staffleave a
+		JOIN clinician_app.employees e ON e.id = a.employee_id
+		LEFT JOIN clinician_app.departments d ON d.id = e.department
+		LEFT JOIN clinician_app.leavetypes l ON l.leave_type_id = a.leave_type_id
+		LEFT JOIN clinician_app.employees ap ON ap.id = a.approved_by
+		` + whereClause + `
+		ORDER BY a.created_on DESC, a.leave_id DESC
+	`
+
+	rows, err := db.QueryContext(ctx, sqlstr, args...)
+	if err != nil {
+		return nil, logerror(err)
+	}
+	defer rows.Close()
+
+	items := []*FacilityLeaveReviewRow{}
+	for rows.Next() {
+		item := &FacilityLeaveReviewRow{}
+		if err := rows.Scan(
+			&item.ID,
+			&item.EmpID,
+			&item.EmployeeName,
+			&item.DepartmentName,
+			&item.LeaveTypeName,
+			&item.StartDate,
+			&item.EndDate,
+			&item.LeaveStatus,
+			&item.Comments,
+			&item.SubmissionDate,
+			&item.ApprovedByName,
+		); err != nil {
+			return nil, logerror(err)
+		}
+
+		item.Actionable = item.LeaveStatus.Valid && item.LeaveStatus.String == "Pending"
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, logerror(err)
+	}
+
+	return items, nil
+}
+
+func ApproveFacilityLeave(ctx context.Context, db DB, leaveID int, facilityID int64, approverID int64) (bool, error) {
+	const sqlstr = `
+		UPDATE clinician_app.staffleave a
+		SET leave_status = 'Approved', approved_by = $3
+		FROM clinician_app.employees e
+		WHERE a.leave_id = $1
+			AND e.id = a.employee_id
+			AND e.facility = $2
+			AND COALESCE(a.leave_status, '') = 'Pending'
+	`
+
+	result, err := db.ExecContext(ctx, sqlstr, leaveID, facilityID, approverID)
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	return rowsAffected > 0, nil
+}
+
+func DeclineFacilityLeave(ctx context.Context, db DB, leaveID int, facilityID int64, approverID int64) (bool, error) {
+	const sqlstr = `
+		UPDATE clinician_app.staffleave a
+		SET leave_status = 'Rejected', approved_by = $3
+		FROM clinician_app.employees e
+		WHERE a.leave_id = $1
+			AND e.id = a.employee_id
+			AND e.facility = $2
+			AND COALESCE(a.leave_status, '') = 'Pending'
+	`
+
+	result, err := db.ExecContext(ctx, sqlstr, leaveID, facilityID, approverID)
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, logerror(err)
+	}
+
+	return rowsAffected > 0, nil
+}
+
+func GetFacilityLeaveReviewSummary(ctx context.Context, db DB, facilityID int64) (FacilityLeaveReviewSummary, error) {
+	var summary FacilityLeaveReviewSummary
+
+	const sqlstr = `
+		SELECT
+			COUNT(*) FILTER (
+				WHERE COALESCE(a.leave_status, '') = 'Pending'
+			) AS pending_leaves,
+			COUNT(*) FILTER (
+				WHERE COALESCE(a.leave_status, '') IN ('Approved', 'Valid')
+			) AS approved_leaves,
+			COUNT(*) FILTER (
+				WHERE COALESCE(a.leave_status, '') IN ('Rejected', 'Declined')
+			) AS declined_leaves
+		FROM clinician_app.staffleave a
+		JOIN clinician_app.employees e ON e.id = a.employee_id
+		WHERE e.facility = $1
+	`
+
+	err := db.QueryRowContext(ctx, sqlstr, facilityID).Scan(
+		&summary.PendingLeaves,
+		&summary.ApprovedLeaves,
+		&summary.DeclinedLeaves,
+	)
+
+	return summary, err
 }
 
 // Query the db for dashboard card data
@@ -413,7 +649,7 @@ func GetDashboardData(db *sql.DB, facilityID int) (DashboardData, error) {
 		SELECT COUNT(*)
 		FROM clinician_app.staffleave_view s
 		INNER JOIN clinician_app.employees e ON s.employee_id = e.id
-		WHERE e.facility = $1 AND s.leave_status = 'Valid'
+		WHERE e.facility = $1 AND s.leave_status IN ('Valid', 'Approved')
 	`
 	err = db.QueryRow(queryLeave, facilityID).Scan(&staffOnLeave)
 	if err != nil {

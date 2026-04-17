@@ -9,8 +9,8 @@
 
     .dashboard-overview {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.8rem;
     }
 
     .dashboard-section {
@@ -27,47 +27,57 @@
         color: #12343b;
     }
 
+    .section-subtitle {
+        color: #58727a;
+        font-size: 0.92rem;
+        margin: -0.25rem 0 0.9rem;
+    }
+
     .kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.8rem;
     }
 
     .kpi-card {
         background: #f8fbfc;
         border: 1px solid #d9e8ec;
-        border-radius: 14px;
-        padding: 1rem;
+        border-radius: 12px;
+        padding: 0.8rem 0.85rem;
+    }
+
+    .kpi-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .kpi-card-link .kpi-card {
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .kpi-card-link:hover .kpi-card,
+    .kpi-card-link:focus .kpi-card {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(11, 44, 54, 0.08);
+        border-color: #9fc4cb;
     }
 
     .kpi-card h4 {
-        font-size: 0.96rem;
-        margin-bottom: 0.45rem;
+        font-size: 0.88rem;
+        margin-bottom: 0.35rem;
         color: #204650;
     }
 
     .kpi-card strong {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         color: #12343b;
     }
 
     .kpi-meta {
-        font-size: 0.9rem;
+        font-size: 0.82rem;
         color: #58727a;
-        margin: 0.35rem 0 0.55rem;
-    }
-
-    .progress-track {
-        height: 10px;
-        border-radius: 999px;
-        background: #dfecef;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #156b7a 0%, #218da0 100%);
+        margin: 0.25rem 0 0;
     }
 
     .dashboard-chart canvas {
@@ -75,13 +85,147 @@
         min-height: 280px;
     }
 
-    .dashboard-table {
-        margin-bottom: 0;
+    .dashboard-list {
+        display: grid;
+        gap: 0.8rem;
     }
 
-    .dashboard-table td,
-    .dashboard-table th {
-        vertical-align: middle;
+    .dashboard-list-item {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        padding: 0.95rem 1rem;
+        border: 1px solid #d9e8ec;
+        border-radius: 14px;
+        background: #f8fbfc;
+    }
+
+    .dashboard-list-item strong {
+        display: block;
+        color: #12343b;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+
+    .dashboard-list-item span {
+        color: #204650;
+        font-size: 0.95rem;
+    }
+
+    .summary-stack {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .summary-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        padding: 0.95rem 1rem;
+        border: 1px solid #d9e8ec;
+        border-radius: 14px;
+        background: #f8fbfc;
+    }
+
+    .summary-cell strong {
+        display: block;
+        color: #12343b;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-cell span {
+        color: #204650;
+        font-size: 0.95rem;
+    }
+
+    .analysis-stack {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .analysis-row {
+        display: grid;
+        gap: 0.75rem;
+        padding: 1rem;
+        border: 1px solid #d9e8ec;
+        border-radius: 14px;
+        background: #f8fbfc;
+    }
+
+    .analysis-row-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .analysis-row-title {
+        font-size: 1rem;
+        color: #12343b;
+        margin: 0;
+    }
+
+    .analysis-row-subtitle {
+        color: #58727a;
+        font-size: 0.92rem;
+        margin: 0.25rem 0 0;
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .analysis-cell strong {
+        display: block;
+        color: #12343b;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+
+    .analysis-cell span {
+        color: #204650;
+        font-size: 0.95rem;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: #edf4f2;
+        color: #204650;
+    }
+
+    .status-chip.success {
+        background: #e3f6ea;
+        color: #0f6b3a;
+    }
+
+    .status-chip.warning {
+        background: #fff4dd;
+        color: #8a5a00;
+    }
+
+    .status-chip.danger {
+        background: #fde9e7;
+        color: #a33c2f;
+    }
+
+    .status-chip.info {
+        background: #e8eefc;
+        color: #3154a5;
     }
 
     .entry-cta {
@@ -159,6 +303,12 @@
         align-items: center;
     }
 
+    .filter-hint {
+        font-size: 0.82rem;
+        color: #58727a;
+        margin: 0;
+    }
+
     @media (max-width: 640px) {
         .filter-actions .btn {
             width: 100%;
@@ -207,7 +357,7 @@
                     <label for="dashboardYear">Year</label>
                     <select id="dashboardYear" name="year">
                         {{ range .Form.AvailableYears }}
-                        <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ . }}</option>
+                        <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ if eq . 0 }}All{{ else }}{{ . }}{{ end }}</option>
                         {{ end }}
                     </select>
                 </div>
@@ -215,29 +365,15 @@
                     <label for="dashboardWeek">Week</label>
                     <select id="dashboardWeek" name="week"></select>
                 </div>
-                <div class="filter-actions">
-                    <button class="btn btn-outline-primary" type="submit">Apply Filter</button>
-                </div>
             </form>
+            <p class="filter-hint">Dashboard values refresh automatically when you change a filter.</p>
 
             <div class="entry-cta">
                 <a class="btn btn-primary" href="{{ .Form.DataEntryURL }}">Open My Weekly Entry Form</a>
+                <a class="btn btn-outline-secondary" href="{{ .Form.ReportHistoryURL }}">View Report History</a>
                 <p class="entry-note">{{ .Form.LatestSubmission }}</p>
             </div>
         </div>
-    </div>
-
-    <div class="kpi-grid">
-        {{ range .Form.KPIs }}
-        <div class="kpi-card">
-            <h4>{{ .Title }}</h4>
-            <strong>{{ .Value }}{{ .Unit }}</strong>
-            <div class="kpi-meta">Target: {{ .Target }}{{ .Unit }}</div>
-            <div class="progress-track">
-                <div class="progress-fill" style="width: {{ .Progress }}%;"></div>
-            </div>
-        </div>
-        {{ end }}
     </div>
     {{ end }}
 
@@ -245,7 +381,7 @@
     <div class="dashboard-section">
         <div class="clinician-toolbar">
             <div class="section-title">National Dashboard Filter</div>
-            <form class="dashboard-filters" method="GET" action="/">
+            <form class="dashboard-filters dashboard-auto-submit" method="GET" action="/">
                 <div class="filter-field">
                     <label for="dashboardFacility">Facility</label>
                     <select id="dashboardFacility" name="facility">
@@ -255,10 +391,19 @@
                         {{ end }}
                     </select>
                 </div>
-                <div class="filter-actions">
-                    <button class="btn btn-outline-primary" type="submit">Apply Filter</button>
+                {{ if .Form.DepartmentOptions }}
+                <div class="filter-field">
+                    <label for="dashboardAdminDepartment">Department</label>
+                    <select id="dashboardAdminDepartment" name="department">
+                        <option value="0">All departments</option>
+                        {{ range .Form.DepartmentOptions }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
                 </div>
+                {{ end }}
             </form>
+            <p class="filter-hint">Dashboard values refresh automatically when you change a filter.</p>
         </div>
     </div>
     {{ end }}
@@ -267,7 +412,7 @@
     <div class="dashboard-section">
         <div class="clinician-toolbar">
             <div class="section-title">Facility Dashboard Filter</div>
-            <form class="dashboard-filters" method="GET" action="/">
+            <form class="dashboard-filters dashboard-auto-submit" method="GET" action="/">
                 <div class="filter-field">
                     <label for="dashboardDepartment">Department</label>
                     <select id="dashboardDepartment" name="department">
@@ -277,11 +422,23 @@
                         {{ end }}
                     </select>
                 </div>
-                <div class="filter-actions">
-                    <button class="btn btn-outline-primary" type="submit">Apply Filter</button>
-                </div>
             </form>
+            <p class="filter-hint">Dashboard values refresh automatically when you change a filter.</p>
         </div>
+    </div>
+    {{ end }}
+
+    {{ if .Form.KPIs }}
+    <div class="kpi-grid">
+        {{ range .Form.KPIs }}
+        <a class="kpi-card-link" href="{{ .Link }}">
+            <div class="kpi-card">
+                <h4>{{ .Title }}</h4>
+                <strong>{{ .Value }}</strong>
+                <div class="kpi-meta">{{ .Unit }}{{ if .Meta }} - {{ .Meta }}{{ end }}</div>
+            </div>
+        </a>
+        {{ end }}
     </div>
     {{ end }}
 
@@ -301,59 +458,350 @@
     {{ if eq .Form.Role "admin" }}
     <div class="dashboard-section">
         <div class="section-title">Facility Performance This Week</div>
-        <div class="table-responsive">
-            <table class="table table-striped dashboard-table">
-                <thead>
-                    <tr>
-                        <th>Facility</th>
-                        <th>Clinicians</th>
-                        <th>Entered</th>
-                        <th>Submitted</th>
-                        <th>Pending</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ range .Form.PerformanceRows }}
-                    <tr>
-                        <td>{{ .FacilityName }}</td>
-                        <td>{{ .Clinicians }}</td>
-                        <td>{{ .EnteredThisWeek }}</td>
-                        <td>{{ .SubmittedThisWeek }}</td>
-                        <td>{{ .PendingThisWeek }}</td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-            </table>
+        <p class="section-subtitle">Weekly reporting activity across facilities, shown as compact list cards.</p>
+        <div class="summary-stack">
+            {{ if .Form.PerformanceRows }}
+                {{ range .Form.PerformanceRows }}
+                <div class="summary-row">
+                    <div class="summary-cell">
+                        <strong>Facility</strong>
+                        <span>{{ .FacilityName }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Clinicians</strong>
+                        <span>{{ .Clinicians }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Entered</strong>
+                        <span>{{ .EnteredThisWeek }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Submitted</strong>
+                        <span>{{ .SubmittedThisWeek }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Pending</strong>
+                        <span>{{ .PendingThisWeek }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Pending Approval</strong>
+                        <span>{{ .PendingApproval }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Reporting Rate</strong>
+                        <span>{{ .ReportingRate }}%</span>
+                    </div>
+                </div>
+                {{ end }}
+            {{ else }}
+            <p class="filter-hint">No facility performance records are available for this selection.</p>
+            {{ end }}
         </div>
+    </div>
+    {{ end }}
+
+    {{ if or .Form.TopFacilities .Form.AttentionFacilities }}
+    <div class="dashboard-section">
+        <div class="section-title">National Analysis</div>
+        <p class="section-subtitle">Best suited for national oversight: compare network reporting coverage, identify facilities needing support, and then drill down into departments and clinicians only after selecting a facility.</p>
+        {{ if .Form.TopFacilities }}
+        <div class="section-subtitle" style="margin-top: 0;">Top Performing Facilities</div>
+        <div class="analysis-stack">
+            {{ range .Form.TopFacilities }}
+            <div class="analysis-row">
+                <div class="analysis-row-header">
+                    <div>
+                        <h4 class="analysis-row-title">{{ .FacilityName }}</h4>
+                        <p class="analysis-row-subtitle">{{ .Clinicians }} clinicians tracked this week</p>
+                    </div>
+                    <span class="status-chip success">{{ .ReportingRate }}% reporting rate</span>
+                </div>
+                <div class="analysis-grid">
+                    <div class="analysis-cell">
+                        <strong>Submitted</strong>
+                        <span>{{ .SubmittedThisWeek }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Entered</strong>
+                        <span>{{ .EnteredThisWeek }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Pending Approval</strong>
+                        <span>{{ .PendingApproval }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Missing Submissions</strong>
+                        <span>{{ .PendingThisWeek }}</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+        {{ end }}
+        {{ if .Form.AttentionFacilities }}
+        <div class="section-subtitle" style="margin-top: 1rem;">Facilities Needing Support</div>
+        <div class="analysis-stack">
+            {{ range .Form.AttentionFacilities }}
+            <div class="analysis-row">
+                <div class="analysis-row-header">
+                    <div>
+                        <h4 class="analysis-row-title">{{ .FacilityName }}</h4>
+                        <p class="analysis-row-subtitle">Network follow-up should focus here first</p>
+                    </div>
+                    <span class="status-chip {{ if ge .ReportingRate 80 }}success{{ else if ge .ReportingRate 50 }}warning{{ else }}danger{{ end }}">{{ .ReportingRate }}% reporting rate</span>
+                </div>
+                <div class="analysis-grid">
+                    <div class="analysis-cell">
+                        <strong>Pending Approval</strong>
+                        <span>{{ .PendingApproval }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Missing Submissions</strong>
+                        <span>{{ .PendingThisWeek }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Submitted</strong>
+                        <span>{{ .SubmittedThisWeek }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Clinicians</strong>
+                        <span>{{ .Clinicians }}</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+        {{ end }}
     </div>
     {{ end }}
 
     {{ if eq .Form.Role "approver" }}
     <div class="dashboard-section">
         <div class="section-title">Department Follow-up Status</div>
-        <div class="table-responsive">
-            <table class="table table-striped dashboard-table">
-                <thead>
-                    <tr>
-                        <th>Department</th>
-                        <th>Clinicians</th>
-                        <th>Entered</th>
-                        <th>Submitted</th>
-                        <th>Pending</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ range .Form.DepartmentRows }}
-                    <tr>
-                        <td>{{ .DepartmentName }}</td>
-                        <td>{{ .Clinicians }}</td>
-                        <td>{{ .EnteredThisWeek }}</td>
-                        <td>{{ .SubmittedThisWeek }}</td>
-                        <td>{{ .PendingThisWeek }}</td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-            </table>
+        <p class="section-subtitle">Department-level follow-up for review work inside your facility.</p>
+        <div class="summary-stack">
+            {{ if .Form.DepartmentRows }}
+                {{ range .Form.DepartmentRows }}
+                <div class="summary-row">
+                    <div class="summary-cell">
+                        <strong>Department</strong>
+                        <span>{{ .DepartmentName }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Clinicians</strong>
+                        <span>{{ .Clinicians }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Entered</strong>
+                        <span>{{ .EnteredThisWeek }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Submitted</strong>
+                        <span>{{ .SubmittedThisWeek }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Pending</strong>
+                        <span>{{ .PendingThisWeek }}</span>
+                    </div>
+                    <div class="summary-cell">
+                        <strong>Reporting Rate</strong>
+                        <span>{{ .ReportingRate }}%</span>
+                    </div>
+                </div>
+                {{ end }}
+            {{ else }}
+            <p class="filter-hint">No department records are available for this selection.</p>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+
+    {{ if .Form.DepartmentAnalysis }}
+    <div class="dashboard-section">
+        <div class="section-title">Department Analysis</div>
+        <p class="section-subtitle">Brief weekly analysis using reporting activity, ward rounds, attendance, and clinical workload indicators from the database.</p>
+        <div class="analysis-stack">
+            {{ range .Form.DepartmentAnalysis }}
+            <div class="analysis-row">
+                <div class="analysis-row-header">
+                    <div>
+                        <h4 class="analysis-row-title">{{ .DepartmentName }}</h4>
+                        <p class="analysis-row-subtitle">{{ .Clinicians }} clinicians tracked this week</p>
+                    </div>
+                    <span class="status-chip {{ if ge .ReportingRate 80 }}success{{ else if ge .ReportingRate 50 }}warning{{ else }}danger{{ end }}">{{ .ReportingRate }}% reporting rate</span>
+                </div>
+                <div class="analysis-grid">
+                    <div class="analysis-cell">
+                        <strong>Reports Entered</strong>
+                        <span>{{ .ReportsEntered }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Reports Submitted</strong>
+                        <span>{{ .ReportsSubmitted }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Pending Reports</strong>
+                        <span>{{ .PendingReports }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Ward Rounds</strong>
+                        <span>{{ .WardRounds }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Patients Reviewed</strong>
+                        <span>{{ .PatientsReviewed }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Procedures</strong>
+                        <span>{{ .Procedures }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Avg Patients / Report</strong>
+                        <span>{{ .AvgPatients }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Avg Procedures / Report</strong>
+                        <span>{{ .AvgProcedures }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Attendance Records</strong>
+                        <span>{{ .AttendanceRecords }}</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ else if and (eq .Form.Role "admin") (eq .Form.SelectedFacility 0) }}
+    <div class="dashboard-section">
+        <div class="section-title">Department Analysis</div>
+        <p class="section-subtitle">Select a facility above to drill down into department and clinician performance indicators.</p>
+    </div>
+    {{ end }}
+
+    {{ if or .Form.PriorityDepartments .Form.PriorityClinicians }}
+    <div class="dashboard-section">
+        <div class="section-title">Priority Follow-up</div>
+        <p class="section-subtitle">Best suited for facility administration: focus on departments with weak reporting rates and staff who still need action this week.</p>
+        {{ if .Form.PriorityDepartments }}
+        <div class="section-subtitle" style="margin-top: 0;">Departments Requiring Attention</div>
+        <div class="analysis-stack">
+            {{ range .Form.PriorityDepartments }}
+            <div class="analysis-row">
+                <div class="analysis-row-header">
+                    <div>
+                        <h4 class="analysis-row-title">{{ .DepartmentName }}</h4>
+                        <p class="analysis-row-subtitle">{{ .PendingReports }} pending submissions out of {{ .Clinicians }} clinicians</p>
+                    </div>
+                    <span class="status-chip {{ if ge .ReportingRate 80 }}success{{ else if ge .ReportingRate 50 }}warning{{ else }}danger{{ end }}">{{ .ReportingRate }}% reporting rate</span>
+                </div>
+                <div class="analysis-grid">
+                    <div class="analysis-cell">
+                        <strong>Submitted</strong>
+                        <span>{{ .ReportsSubmitted }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Pending</strong>
+                        <span>{{ .PendingReports }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Ward Rounds</strong>
+                        <span>{{ .WardRounds }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Patients Reviewed</strong>
+                        <span>{{ .PatientsReviewed }}</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+        {{ end }}
+        {{ if .Form.PriorityClinicians }}
+        <div class="section-subtitle" style="margin-top: 1rem;">Clinicians Needing Follow-up</div>
+        <div class="analysis-stack">
+            {{ range .Form.PriorityClinicians }}
+            <div class="analysis-row">
+                <div class="analysis-row-header">
+                    <div>
+                        <h4 class="analysis-row-title">{{ .EmployeeName }}</h4>
+                        <p class="analysis-row-subtitle">{{ if .Title }}{{ .Title }}{{ else }}Clinician{{ end }}{{ if .DepartmentName }} - {{ .DepartmentName }}{{ end }}</p>
+                    </div>
+                    <div class="d-flex flex-wrap" style="gap: 0.5rem;">
+                        <span class="status-chip {{ if eq .SubmissionStatus "Declined" }}danger{{ else if eq .SubmissionStatus "Draft" }}warning{{ else if eq .SubmissionStatus "Not Entered" }}warning{{ else if eq .SubmissionStatus "Submitted" }}info{{ else }}success{{ end }}">{{ .SubmissionStatus }}</span>
+                        <span class="status-chip {{ if eq .LeaveStatus "On Leave" }}warning{{ else }}success{{ end }}">{{ .LeaveStatus }}</span>
+                    </div>
+                </div>
+                <div class="analysis-grid">
+                    <div class="analysis-cell">
+                        <strong>Reports Entered</strong>
+                        <span>{{ .ReportsEntered }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Reports Submitted</strong>
+                        <span>{{ .ReportsSubmitted }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Ward Rounds</strong>
+                        <span>{{ .WardRounds }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Patients Reviewed</strong>
+                        <span>{{ .PatientsReviewed }}</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+        {{ end }}
+    </div>
+    {{ end }}
+
+    {{ if .Form.ClinicianAnalysis }}
+    <div class="dashboard-section">
+        <div class="section-title">Clinician Analysis</div>
+        <p class="section-subtitle">Weekly staff activity based on report submission, attendance, ward rounds, patients reviewed, procedures, and current leave status.</p>
+        <div class="analysis-stack">
+            {{ range .Form.ClinicianAnalysis }}
+            <div class="analysis-row">
+                <div class="analysis-row-header">
+                    <div>
+                        <h4 class="analysis-row-title">{{ .EmployeeName }}</h4>
+                        <p class="analysis-row-subtitle">{{ if .Title }}{{ .Title }}{{ else }}Clinician{{ end }}{{ if .DepartmentName }} - {{ .DepartmentName }}{{ end }}</p>
+                    </div>
+                    <div class="d-flex flex-wrap" style="gap: 0.5rem;">
+                        <span class="status-chip {{ if eq .SubmissionStatus "Approved" }}success{{ else if eq .SubmissionStatus "Submitted" }}info{{ else if eq .SubmissionStatus "Draft" }}warning{{ else if eq .SubmissionStatus "Declined" }}danger{{ else }}warning{{ end }}">{{ .SubmissionStatus }}</span>
+                        <span class="status-chip {{ if eq .LeaveStatus "On Leave" }}warning{{ else }}success{{ end }}">{{ .LeaveStatus }}</span>
+                    </div>
+                </div>
+                <div class="analysis-grid">
+                    <div class="analysis-cell">
+                        <strong>Reports Entered</strong>
+                        <span>{{ .ReportsEntered }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Reports Submitted</strong>
+                        <span>{{ .ReportsSubmitted }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Attendance Records</strong>
+                        <span>{{ .AttendanceRecords }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Ward Rounds</strong>
+                        <span>{{ .WardRounds }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Patients Reviewed</strong>
+                        <span>{{ .PatientsReviewed }}</span>
+                    </div>
+                    <div class="analysis-cell">
+                        <strong>Procedures</strong>
+                        <span>{{ .Procedures }}</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
         </div>
     </div>
     {{ end }}
@@ -374,24 +822,56 @@
             const matchingWeeks = allWeeks.filter((option) => option.year === Number(selectedYear));
             weekSelect.innerHTML = '';
 
+            const allOption = document.createElement('option');
+            allOption.value = '0';
+            allOption.textContent = Number(selectedYear) === 0 ? 'All' : 'All';
+            allOption.selected = Number(preferredWeek) === 0;
+            weekSelect.appendChild(allOption);
+
+            if (Number(selectedYear) === 0) {
+                weekSelect.disabled = false;
+                return;
+            }
+
             matchingWeeks.forEach((option, index) => {
                 const element = document.createElement('option');
                 element.value = String(option.week);
                 element.textContent = option.label;
 
-                const shouldSelect = option.week === Number(preferredWeek) || (!preferredWeek && index === 0);
+                const shouldSelect = option.week === Number(preferredWeek) || (Number(preferredWeek) !== 0 && index === 0 && matchingWeeks.length === 1);
                 if (shouldSelect) {
                     element.selected = true;
+                    allOption.selected = false;
                 }
 
                 weekSelect.appendChild(element);
             });
 
-            weekSelect.disabled = matchingWeeks.length === 0;
+            weekSelect.disabled = false;
         };
 
         populateWeeks(yearSelect.value, initialWeek);
-        yearSelect.addEventListener('change', () => populateWeeks(yearSelect.value, 0));
+        yearSelect.addEventListener('change', () => {
+            populateWeeks(yearSelect.value, 0);
+            filterForm.requestSubmit();
+        });
+        weekSelect.addEventListener('change', () => filterForm.requestSubmit());
+    }
+
+    document.querySelectorAll('.dashboard-auto-submit').forEach((form) => {
+        form.querySelectorAll('select').forEach((select) => {
+            select.addEventListener('change', () => form.requestSubmit());
+        });
+    });
+
+    if (filterForm) {
+        filterForm.querySelectorAll('select').forEach((select) => {
+            select.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                }
+            });
+        });
     }
 
     const canvas = document.getElementById('roleDashboardChart');

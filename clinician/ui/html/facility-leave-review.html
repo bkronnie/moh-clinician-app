@@ -1,0 +1,224 @@
+{{ define "title"}} Leave Requests Review {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    .review-card {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .review-header p {
+        margin: 0.35rem 0 0;
+        color: #58727a;
+    }
+
+    .review-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: #edf4f2;
+        color: #204650;
+    }
+
+    .status-chip.pending {
+        background: #fff4dd;
+        color: #8a5a00;
+    }
+
+    .status-chip.approved {
+        background: #e3f6ea;
+        color: #0f6b3a;
+    }
+
+    .status-chip.declined {
+        background: #fde9e7;
+        color: #a33c2f;
+    }
+
+    .review-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .review-item {
+        border: 1px solid #d9e8ec;
+        border-radius: 16px;
+        background: #f8fbfc;
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .review-item-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .review-item-title {
+        font-size: 1rem;
+        color: #12343b;
+        margin: 0;
+    }
+
+    .review-item-subtitle {
+        margin: 0.3rem 0 0;
+        color: #58727a;
+        font-size: 0.92rem;
+    }
+
+    .review-item-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .review-item-grid strong {
+        display: block;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #204650;
+        margin-bottom: 0.25rem;
+    }
+
+    .review-item-grid span {
+        color: #12343b;
+        font-size: 0.95rem;
+    }
+
+    .review-item-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        padding-top: 0.15rem;
+        border-top: 1px solid #d9e8ec;
+    }
+
+    .review-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .review-actions form {
+        margin: 0;
+    }
+
+    .review-empty {
+        padding: 1rem;
+        border: 1px dashed #c8dadd;
+        border-radius: 14px;
+        color: #58727a;
+        background: #fbfdfd;
+        text-align: center;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }}Leave Requests Review{{ end }}
+
+{{ define "content" }}
+<div class="review-card app-panel">
+    <div class="review-header">
+        <div>
+            <h3 class="mb-0">{{ .Form.FilterTitle }}</h3>
+            <p>Review staff leave requests for {{ .Ses.HFName }} and approve or decline pending requests.</p>
+        </div>
+        <div class="d-flex flex-wrap" style="gap: 0.75rem;">
+            <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+            <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
+            <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
+        </div>
+    </div>
+
+    <div class="review-filter-bar">
+        <a href="{{ .Form.PendingURL }}" class="btn {{ if eq .Form.FilterStatus "pending" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Pending</a>
+        <a href="{{ .Form.ApprovedURL }}" class="btn {{ if eq .Form.FilterStatus "approved" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Approved</a>
+        <a href="{{ .Form.DeclinedURL }}" class="btn {{ if eq .Form.FilterStatus "declined" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Declined</a>
+        <a href="{{ .Form.AllURL }}" class="btn {{ if eq .Form.FilterStatus "all" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">All</a>
+    </div>
+
+    <div class="review-list">
+        {{ if .Form.Rows }}
+            {{ range .Form.Rows }}
+            {{ $status := .LeaveStatus.String }}
+            <div class="review-item">
+                <div class="review-item-top">
+                    <div>
+                        <h4 class="review-item-title">{{ .EmployeeName }}</h4>
+                        <p class="review-item-subtitle">{{ .DepartmentName }} - {{ .LeaveTypeName }}</p>
+                    </div>
+                    <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Approved") (eq $status "Valid") }}approved{{ else if or (eq $status "Rejected") (eq $status "Declined") }}declined{{ end }}">
+                        {{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else }}{{ $status }}{{ end }}
+                    </span>
+                </div>
+
+                <div class="review-item-grid">
+                    <div>
+                        <strong>Leave Period</strong>
+                        <span>
+                            {{ if and .StartDate.Valid .EndDate.Valid }}
+                            {{ .StartDate.Time.Format "02 Jan 2006" }} - {{ .EndDate.Time.Format "02 Jan 2006" }}
+                            {{ else }}
+                            -
+                            {{ end }}
+                        </span>
+                    </div>
+                    <div>
+                        <strong>Submitted</strong>
+                        <span>{{ if .SubmissionDate.Valid }}{{ humanDate .SubmissionDate.Time }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div>
+                        <strong>Comments</strong>
+                        <span>{{ if .Comments.Valid }}{{ .Comments.String }}{{ else }}-{{ end }}</span>
+                    </div>
+                </div>
+
+                <div class="review-item-footer">
+                    <span class="text-muted">Request ID {{ .ID }}</span>
+                    {{ if .Actionable }}
+                    <div class="review-actions">
+                        <form method="post" action="/leave/review/{{ .ID }}/approve">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
+                        </form>
+                        <form method="post" action="/leave/review/{{ .ID }}/decline" onsubmit="return confirm('Decline this leave request?');">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Decline</button>
+                        </form>
+                    </div>
+                    {{ else }}
+                    <span class="text-muted">No actions available</span>
+                    {{ end }}
+                </div>
+            </div>
+            {{ end }}
+        {{ else }}
+        <div class="review-empty">No leave requests found for this selection.</div>
+        {{ end }}
+    </div>
+</div>
+{{ end }}

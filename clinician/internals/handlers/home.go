@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -16,43 +17,50 @@ import (
 )
 
 type DashboardKPIView struct {
-	Title    string
-	Value    int
-	Target   int
-	Unit     string
-	Progress int
+	Title string
+	Value int
+	Unit  string
+	Meta  string
+	Link  string
 }
 
 type HomeViewModel struct {
-	Role               string
-	ScopeTitle         string
-	ScopeSubtitle      string
-	SelectedFacility   int
-	FacilityOptions    []models.DashboardFilterOption
-	SelectedDepartment int
-	DepartmentOptions  []models.DashboardFilterOption
-	OfficerName        string
-	OfficerID          int
-	OfficerTitle       string
-	OfficerFacility    string
-	OfficerDepartment  string
-	SelectedYear       int
-	SelectedWeek       int
-	SelectedWeekLabel  string
-	AvailableYears     []int
-	AvailableWeeks     []models.ClinicianWeekOption
-	Stats              []map[string]interface{}
-	KPIs               []DashboardKPIView
-	SeriesTitle        string
-	SeriesLabels       []string
-	SeriesA            []int
-	SeriesALabel       string
-	SeriesB            []int
-	SeriesBLabel       string
-	PerformanceRows    []models.FacilityPerformanceRow
-	DepartmentRows     []models.DepartmentProgressRow
-	DataEntryURL       string
-	LatestSubmission   string
+	Role                string
+	ScopeTitle          string
+	ScopeSubtitle       string
+	SelectedFacility    int
+	FacilityOptions     []models.DashboardFilterOption
+	SelectedDepartment  int
+	DepartmentOptions   []models.DashboardFilterOption
+	OfficerName         string
+	OfficerID           int
+	OfficerTitle        string
+	OfficerFacility     string
+	OfficerDepartment   string
+	SelectedYear        int
+	SelectedWeek        int
+	SelectedWeekLabel   string
+	AvailableYears      []int
+	AvailableWeeks      []models.ClinicianWeekOption
+	Stats               []map[string]interface{}
+	KPIs                []DashboardKPIView
+	SeriesTitle         string
+	SeriesLabels        []string
+	SeriesA             []int
+	SeriesALabel        string
+	SeriesB             []int
+	SeriesBLabel        string
+	PerformanceRows     []models.FacilityPerformanceRow
+	DepartmentRows      []models.DepartmentProgressRow
+	DepartmentAnalysis  []models.DepartmentAnalysisRow
+	ClinicianAnalysis   []models.ClinicianAnalysisRow
+	TopFacilities       []models.FacilityPerformanceRow
+	AttentionFacilities []models.FacilityPerformanceRow
+	PriorityDepartments []models.DepartmentAnalysisRow
+	PriorityClinicians  []models.ClinicianAnalysisRow
+	DataEntryURL        string
+	LatestSubmission    string
+	ReportHistoryURL    string
 }
 
 func HandlerHome2(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -220,7 +228,7 @@ func buildHomeViewModel(c *gin.Context, db *sql.DB, ses utilities.SessionDetails
 
 	switch ses.Rights {
 	case "admin":
-		return buildNationalHome(c, db, selectedFacility)
+		return buildNationalHome(c, db, selectedFacility, selectedDepartment)
 	case "approver":
 		return buildFacilityManagerHome(c, db, int(ses.HFID), ses.HFName, selectedDepartment)
 	default:
@@ -228,21 +236,22 @@ func buildHomeViewModel(c *gin.Context, db *sql.DB, ses utilities.SessionDetails
 	}
 }
 
-func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int) (HomeViewModel, error) {
+func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selectedDepartmentID int) (HomeViewModel, error) {
 	snapshot, err := models.GetNationalDashboardSnapshot(c.Request.Context(), db)
 	if err != nil {
 		return HomeViewModel{}, err
 	}
 
 	view := HomeViewModel{
-		Role:             "admin",
-		ScopeTitle:       "National Performance Overview",
-		ScopeSubtitle:    "Monitor facility participation, submissions, and approval follow-up across the referral network.",
-		SeriesTitle:      "Weekly Facility Submission Snapshot",
-		SeriesALabel:     "Entered",
-		SeriesBLabel:     "Submitted",
-		PerformanceRows:  snapshot.FacilityPerformance,
-		SelectedFacility: selectedFacilityID,
+		Role:               "admin",
+		ScopeTitle:         "National Performance Overview",
+		ScopeSubtitle:      "Monitor facility participation, submissions, and approval follow-up across the referral network. Select a facility to drill down into department and clinician performance.",
+		SeriesTitle:        "Weekly Facility Submission Snapshot",
+		SeriesALabel:       "Entered",
+		SeriesBLabel:       "Submitted",
+		PerformanceRows:    snapshot.FacilityPerformance,
+		SelectedFacility:   selectedFacilityID,
+		SelectedDepartment: selectedDepartmentID,
 	}
 
 	for _, row := range snapshot.FacilityPerformance {
@@ -264,15 +273,15 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int) (Home
 			view.ScopeSubtitle = "National administrator view filtered to a single referral facility."
 			view.Stats = []map[string]interface{}{
 				{"Title": "Selected Facility", "Value": row.FacilityName, "Tone": "stat-primary"},
-				{"Title": "Clinicians Tracked", "Value": row.Clinicians, "Tone": "stat-success"},
-				{"Title": "Reports Entered This Week", "Value": row.EnteredThisWeek, "Tone": "stat-info"},
-				{"Title": "Pending Approval", "Value": row.PendingThisWeek, "Tone": "stat-warning"},
+				{"Title": "Reporting Rate", "Value": fmt.Sprintf("%d%%", row.ReportingRate), "Tone": "stat-success"},
+				{"Title": "Pending Approval", "Value": row.PendingApproval, "Tone": "stat-warning"},
+				{"Title": "Missing Submissions", "Value": row.PendingThisWeek, "Tone": "stat-info"},
 			}
 			break
 		}
 	}
 
-	if len(view.Stats) == 0 {
+	if selectedFacilityID == 0 {
 		view.SelectedFacility = 0
 		view.Stats = []map[string]interface{}{
 			{"Title": "Referral Facilities", "Value": snapshot.TotalFacilities, "Tone": "stat-primary"},
@@ -280,6 +289,8 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int) (Home
 			{"Title": "Reports Entered This Week", "Value": snapshot.ReportsEnteredThisWeek, "Tone": "stat-info"},
 			{"Title": "Pending Approval", "Value": snapshot.PendingApproval, "Tone": "stat-warning"},
 		}
+		view.TopFacilities = topFacilityPerformers(snapshot.FacilityPerformance, 3)
+		view.AttentionFacilities = facilitiesNeedingSupport(snapshot.FacilityPerformance, 3)
 	}
 
 	view.PerformanceRows = filteredRows
@@ -288,6 +299,62 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int) (Home
 		view.SeriesLabels = append(view.SeriesLabels, row.FacilityName)
 		view.SeriesA = append(view.SeriesA, row.EnteredThisWeek)
 		view.SeriesB = append(view.SeriesB, row.SubmittedThisWeek)
+	}
+
+	if selectedFacilityID > 0 {
+		departmentAnalysis, err := models.GetFacilityDepartmentAnalysis(c.Request.Context(), db, selectedFacilityID)
+		if err != nil {
+			return HomeViewModel{}, err
+		}
+
+		for _, row := range departmentAnalysis {
+			view.DepartmentOptions = append(view.DepartmentOptions, models.DashboardFilterOption{
+				ID:   row.DepartmentID,
+				Name: row.DepartmentName,
+			})
+		}
+
+		if selectedDepartmentID > 0 {
+			filteredDepartments := make([]models.DepartmentAnalysisRow, 0, len(departmentAnalysis))
+			for _, row := range departmentAnalysis {
+				if row.DepartmentID == selectedDepartmentID {
+					filteredDepartments = append(filteredDepartments, row)
+					view.ScopeTitle = fmt.Sprintf("%s: %s", view.ScopeTitle, row.DepartmentName)
+					view.ScopeSubtitle = "National administrator drill-down focused on a single department inside the selected facility."
+				}
+			}
+			if len(filteredDepartments) > 0 {
+				departmentAnalysis = filteredDepartments
+			} else {
+				view.SelectedDepartment = 0
+			}
+		}
+
+		view.DepartmentAnalysis = departmentAnalysis
+
+		clinicianAnalysis, err := models.GetFacilityClinicianAnalysis(c.Request.Context(), db, selectedFacilityID, view.SelectedDepartment)
+		if err != nil {
+			return HomeViewModel{}, err
+		}
+		view.ClinicianAnalysis = clinicianAnalysis
+
+		if len(view.DepartmentAnalysis) > 0 {
+			summary := summarizeDepartmentAnalysis(view.DepartmentAnalysis)
+			scopeName := "Selected Facility"
+			scopeValue := view.ScopeTitle
+			if selectedDepartmentID > 0 && len(view.DepartmentAnalysis) == 1 {
+				scopeName = "Selected Department"
+				scopeValue = view.DepartmentAnalysis[0].DepartmentName
+			}
+			view.Stats = []map[string]interface{}{
+				{"Title": scopeName, "Value": scopeValue, "Tone": "stat-primary"},
+				{"Title": "Reporting Rate", "Value": fmt.Sprintf("%d%%", percentage(summary.Submitted, summary.Clinicians)), "Tone": "stat-success"},
+				{"Title": "Ward Rounds", "Value": summary.WardRounds, "Tone": "stat-info"},
+				{"Title": "Patients Reviewed", "Value": summary.PatientsReviewed, "Tone": "stat-info"},
+			}
+		}
+		view.PriorityDepartments = priorityDepartments(view.DepartmentAnalysis, 3)
+		view.PriorityClinicians = priorityClinicians(view.ClinicianAnalysis, 5)
 	}
 
 	return view, nil
@@ -299,10 +366,20 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 		return HomeViewModel{}, err
 	}
 
+	reportSummary, err := models.GetFacilityReportReviewSummary(c.Request.Context(), db, int64(facilityID))
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+
+	leaveSummary, err := models.GetFacilityLeaveReviewSummary(c.Request.Context(), db, int64(facilityID))
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+
 	view := HomeViewModel{
 		Role:               "approver",
 		ScopeTitle:         fmt.Sprintf("%s Follow-up Dashboard", facilityName),
-		ScopeSubtitle:      "Track who has entered data, who has submitted, and which departments still need follow-up this week.",
+		ScopeSubtitle:      "Review submitted reports and leave requests across your facility, then act on anything still pending.",
 		SeriesTitle:        "Department Submission Status",
 		SeriesALabel:       "Entered",
 		SeriesBLabel:       "Submitted",
@@ -341,10 +418,62 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 		view.SelectedDepartment = 0
 		view.Stats = []map[string]interface{}{
 			{"Title": "Clinicians in Facility", "Value": snapshot.TotalClinicians, "Tone": "stat-primary"},
-			{"Title": "Entered This Week", "Value": snapshot.ReportsEnteredThisWeek, "Tone": "stat-info"},
-			{"Title": "Submitted This Week", "Value": snapshot.SubmittedThisWeek, "Tone": "stat-success"},
-			{"Title": "Pending Follow-up", "Value": snapshot.PendingSubmission, "Tone": "stat-warning"},
+			{"Title": "Reports Entered This Week", "Value": snapshot.ReportsEnteredThisWeek, "Tone": "stat-info"},
+			{"Title": "Facility Review Queue", "Value": reportSummary.PendingReports + leaveSummary.PendingLeaves, "Tone": "stat-warning"},
 		}
+	}
+
+	currentYear, currentWeek := time.Now().ISOWeek()
+	view.KPIs = []DashboardKPIView{
+		{
+			Title: "Report Submissions Pending Approval",
+			Value: reportSummary.PendingReports,
+			Unit:  "pending reports",
+			Meta:  "Needs facility review",
+			Link:  buildFacilityReportReviewURL("pending", 0, 0),
+		},
+		{
+			Title: "Leave Requests Pending Approval",
+			Value: leaveSummary.PendingLeaves,
+			Unit:  "pending leave requests",
+			Meta:  "Needs facility review",
+			Link:  buildFacilityLeaveReviewURL("pending"),
+		},
+		{
+			Title: "Approved Report Submissions",
+			Value: reportSummary.ApprovedReports,
+			Unit:  "approved reports",
+			Meta:  "Facility history",
+			Link:  buildFacilityReportReviewURL("approved", 0, 0),
+		},
+		{
+			Title: "Declined Report Submissions",
+			Value: reportSummary.DeclinedReports,
+			Unit:  "declined reports",
+			Meta:  "Facility history",
+			Link:  buildFacilityReportReviewURL("declined", 0, 0),
+		},
+		{
+			Title: "Approved Leave Requests",
+			Value: leaveSummary.ApprovedLeaves,
+			Unit:  "approved leave requests",
+			Meta:  "Facility history",
+			Link:  buildFacilityLeaveReviewURL("approved"),
+		},
+		{
+			Title: "Declined Leave Requests",
+			Value: leaveSummary.DeclinedLeaves,
+			Unit:  "declined leave requests",
+			Meta:  "Facility history",
+			Link:  buildFacilityLeaveReviewURL("declined"),
+		},
+		{
+			Title: "Reports Submitted This Week",
+			Value: reportSummary.SubmittedThisWeek,
+			Unit:  "submitted this week",
+			Meta:  "Current reporting week",
+			Link:  buildFacilityReportReviewURL("all", currentYear, currentWeek),
+		},
 	}
 
 	view.DepartmentRows = filteredRows
@@ -354,6 +483,49 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 		view.SeriesA = append(view.SeriesA, row.EnteredThisWeek)
 		view.SeriesB = append(view.SeriesB, row.SubmittedThisWeek)
 	}
+
+	departmentAnalysis, err := models.GetFacilityDepartmentAnalysis(c.Request.Context(), db, facilityID)
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+
+	if selectedDepartmentID > 0 {
+		filteredDepartmentAnalysis := make([]models.DepartmentAnalysisRow, 0, len(departmentAnalysis))
+		for _, row := range departmentAnalysis {
+			if row.DepartmentID == selectedDepartmentID {
+				filteredDepartmentAnalysis = append(filteredDepartmentAnalysis, row)
+				break
+			}
+		}
+		if len(filteredDepartmentAnalysis) > 0 {
+			departmentAnalysis = filteredDepartmentAnalysis
+		}
+	}
+	view.DepartmentAnalysis = departmentAnalysis
+
+	clinicianAnalysis, err := models.GetFacilityClinicianAnalysis(c.Request.Context(), db, facilityID, selectedDepartmentID)
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+	view.ClinicianAnalysis = clinicianAnalysis
+
+	if len(view.DepartmentAnalysis) > 0 {
+		summary := summarizeDepartmentAnalysis(view.DepartmentAnalysis)
+		scopeName := "Facility Reporting Rate"
+		scopeValue := fmt.Sprintf("%d%%", percentage(summary.Submitted, summary.Clinicians))
+		if selectedDepartmentID > 0 && len(view.DepartmentAnalysis) == 1 {
+			scopeName = "Department Reporting Rate"
+		}
+		view.Stats = []map[string]interface{}{
+			{"Title": scopeName, "Value": scopeValue, "Tone": "stat-success"},
+			{"Title": "Total Ward Rounds", "Value": summary.WardRounds, "Tone": "stat-info"},
+			{"Title": "Patients Reviewed", "Value": summary.PatientsReviewed, "Tone": "stat-info"},
+			{"Title": "Procedures", "Value": summary.Procedures, "Tone": "stat-primary"},
+		}
+	}
+
+	view.PriorityDepartments = priorityDepartments(view.DepartmentAnalysis, 3)
+	view.PriorityClinicians = priorityClinicians(view.ClinicianAnalysis, 5)
 
 	return view, nil
 }
@@ -373,7 +545,16 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 	}
 
 	submissionStatus := "Not submitted"
-	if snapshot.SelectedWeekSubmitted {
+	if snapshot.SelectedWeek == 0 {
+		switch {
+		case snapshot.WeeksEntered == 0:
+			submissionStatus = "Not submitted"
+		case snapshot.WeeksSubmitted == snapshot.WeeksEntered:
+			submissionStatus = "Submitted"
+		default:
+			submissionStatus = "Partially submitted"
+		}
+	} else if snapshot.SelectedWeekSubmitted {
 		submissionStatus = "Submitted"
 	} else if snapshot.WeeksEntered > 0 {
 		submissionStatus = "Saved as draft"
@@ -394,37 +575,50 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 		AvailableYears:    snapshot.AvailableYears,
 		AvailableWeeks:    snapshot.AvailableWeeks,
 		DataEntryURL:      "/reports/new/0",
-		SeriesTitle:       fmt.Sprintf("My %d Weekly Trend", snapshot.SelectedYear),
+		SeriesTitle:       "My Weekly Trend",
 		SeriesALabel:      "Patients Reviewed",
 		SeriesBLabel:      "Procedures",
+		ReportHistoryURL:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedWeek),
+	}
+
+	if snapshot.SelectedYear > 0 {
+		view.SeriesTitle = fmt.Sprintf("My %d Weekly Trend", snapshot.SelectedYear)
+	} else {
+		view.SeriesTitle = "My Weekly Trend Across All Records"
 	}
 
 	view.KPIs = []DashboardKPIView{
 		{
-			Title:    "Specialist Output",
-			Value:    snapshot.PatientsReviewed,
-			Target:   snapshot.OutputTarget,
-			Unit:     "patients",
-			Progress: cappedProgress(snapshot.PatientsReviewed, snapshot.OutputTarget),
+			Title: "Total Reports",
+			Value: snapshot.TotalReports,
+			Unit:  "reports",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+			Link:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedWeek),
 		},
 		{
-			Title:    "Attendance Rate",
-			Value:    snapshot.AttendanceRate,
-			Target:   snapshot.AttendanceTarget,
-			Unit:     "%",
-			Progress: cappedProgress(snapshot.AttendanceRate, snapshot.AttendanceTarget),
+			Title: "Submitted",
+			Value: snapshot.SubmittedReports,
+			Unit:  "reports",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+			Link:  buildReportHistoryPeriodFilterQuery("submitted", snapshot.SelectedYear, snapshot.SelectedWeek),
 		},
 		{
-			Title:    "Ward Round Coverage",
-			Value:    snapshot.WardRounds,
-			Target:   snapshot.WardRoundsTarget,
-			Unit:     "rounds",
-			Progress: cappedProgress(snapshot.WardRounds, snapshot.WardRoundsTarget),
+			Title: "Approved",
+			Value: snapshot.ApprovedReports,
+			Unit:  "reports",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+			Link:  buildReportHistoryPeriodFilterQuery("approved", snapshot.SelectedYear, snapshot.SelectedWeek),
+		},
+		{
+			Title: "Declined",
+			Value: snapshot.DeclinedReports,
+			Unit:  "reports",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+			Link:  buildReportHistoryPeriodFilterQuery("declined", snapshot.SelectedYear, snapshot.SelectedWeek),
 		},
 	}
 
 	view.Stats = []map[string]interface{}{
-		{"Title": "Selected Week", "Value": snapshot.SelectedWeekLabel, "Tone": "stat-primary"},
 		{"Title": "Entry Status", "Value": entryStatus, "Tone": "stat-info"},
 		{"Title": "Patients Reviewed", "Value": snapshot.PatientsReviewed, "Tone": "stat-info"},
 		{"Title": "Submission Status", "Value": submissionStatus, "Tone": "stat-warning"},
@@ -456,6 +650,160 @@ func cappedProgress(value, target int) int {
 		return 0
 	}
 	return progress
+}
+
+type departmentAnalysisSummary struct {
+	Clinicians       int
+	Entered          int
+	Submitted        int
+	Attendance       int
+	WardRounds       int
+	PatientsReviewed int
+	Procedures       int
+}
+
+func summarizeDepartmentAnalysis(rows []models.DepartmentAnalysisRow) departmentAnalysisSummary {
+	var summary departmentAnalysisSummary
+	for _, row := range rows {
+		summary.Clinicians += row.Clinicians
+		summary.Entered += row.ReportsEntered
+		summary.Submitted += row.ReportsSubmitted
+		summary.Attendance += row.AttendanceRecords
+		summary.WardRounds += row.WardRounds
+		summary.PatientsReviewed += row.PatientsReviewed
+		summary.Procedures += row.Procedures
+	}
+	return summary
+}
+
+func percentage(numerator int, denominator int) int {
+	if denominator <= 0 {
+		return 0
+	}
+
+	value := int(float64(numerator) / float64(denominator) * 100)
+	if value < 0 {
+		return 0
+	}
+	if value > 100 {
+		return 100
+	}
+	return value
+}
+
+func topFacilityPerformers(rows []models.FacilityPerformanceRow, limit int) []models.FacilityPerformanceRow {
+	if len(rows) == 0 || limit <= 0 {
+		return nil
+	}
+
+	cloned := append([]models.FacilityPerformanceRow(nil), rows...)
+	sort.SliceStable(cloned, func(i, j int) bool {
+		if cloned[i].ReportingRate != cloned[j].ReportingRate {
+			return cloned[i].ReportingRate > cloned[j].ReportingRate
+		}
+		if cloned[i].SubmittedThisWeek != cloned[j].SubmittedThisWeek {
+			return cloned[i].SubmittedThisWeek > cloned[j].SubmittedThisWeek
+		}
+		return cloned[i].PendingApproval < cloned[j].PendingApproval
+	})
+
+	if len(cloned) > limit {
+		cloned = cloned[:limit]
+	}
+	return cloned
+}
+
+func facilitiesNeedingSupport(rows []models.FacilityPerformanceRow, limit int) []models.FacilityPerformanceRow {
+	if len(rows) == 0 || limit <= 0 {
+		return nil
+	}
+
+	cloned := append([]models.FacilityPerformanceRow(nil), rows...)
+	sort.SliceStable(cloned, func(i, j int) bool {
+		if cloned[i].ReportingRate != cloned[j].ReportingRate {
+			return cloned[i].ReportingRate < cloned[j].ReportingRate
+		}
+		if cloned[i].PendingApproval != cloned[j].PendingApproval {
+			return cloned[i].PendingApproval > cloned[j].PendingApproval
+		}
+		return cloned[i].PendingThisWeek > cloned[j].PendingThisWeek
+	})
+
+	if len(cloned) > limit {
+		cloned = cloned[:limit]
+	}
+	return cloned
+}
+
+func priorityDepartments(rows []models.DepartmentAnalysisRow, limit int) []models.DepartmentAnalysisRow {
+	if len(rows) == 0 || limit <= 0 {
+		return nil
+	}
+
+	cloned := append([]models.DepartmentAnalysisRow(nil), rows...)
+	sort.SliceStable(cloned, func(i, j int) bool {
+		if cloned[i].ReportingRate != cloned[j].ReportingRate {
+			return cloned[i].ReportingRate < cloned[j].ReportingRate
+		}
+		if cloned[i].PendingReports != cloned[j].PendingReports {
+			return cloned[i].PendingReports > cloned[j].PendingReports
+		}
+		return cloned[i].DepartmentName < cloned[j].DepartmentName
+	})
+
+	if len(cloned) > limit {
+		cloned = cloned[:limit]
+	}
+	return cloned
+}
+
+func priorityClinicians(rows []models.ClinicianAnalysisRow, limit int) []models.ClinicianAnalysisRow {
+	if len(rows) == 0 || limit <= 0 {
+		return nil
+	}
+
+	cloned := append([]models.ClinicianAnalysisRow(nil), rows...)
+	sort.SliceStable(cloned, func(i, j int) bool {
+		leftPriority := clinicianPriorityScore(cloned[i])
+		rightPriority := clinicianPriorityScore(cloned[j])
+		if leftPriority != rightPriority {
+			return leftPriority > rightPriority
+		}
+		if cloned[i].PatientsReviewed != cloned[j].PatientsReviewed {
+			return cloned[i].PatientsReviewed < cloned[j].PatientsReviewed
+		}
+		return cloned[i].EmployeeName < cloned[j].EmployeeName
+	})
+
+	if len(cloned) > limit {
+		cloned = cloned[:limit]
+	}
+	return cloned
+}
+
+func clinicianPriorityScore(row models.ClinicianAnalysisRow) int {
+	switch row.SubmissionStatus {
+	case "Declined":
+		return 5
+	case "Draft":
+		return 4
+	case "Not Entered":
+		if row.LeaveStatus == "On Leave" {
+			return 1
+		}
+		return 3
+	case "Submitted":
+		return 2
+	default:
+		return 0
+	}
+}
+
+func addReportPeriodSuffix(selectedWeekLabel string) string {
+	if selectedWeekLabel == "" {
+		return "Across all records"
+	}
+	return selectedWeekLabel
 }
 
 func LogoutHandler(c *gin.Context, sessionManager *scs.SessionManager) {

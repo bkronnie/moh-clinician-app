@@ -1,0 +1,257 @@
+{{ define "title"}} Report History {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    .report-history-card {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .report-history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .report-history-header p {
+        margin: 0.35rem 0 0;
+        color: #58727a;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: #edf4f2;
+        color: #204650;
+    }
+
+    .status-chip.submitted,
+    .status-chip.approved {
+        background: #e3f6ea;
+        color: #0f6b3a;
+    }
+
+    .status-chip.draft {
+        background: #fff4dd;
+        color: #8a5a00;
+    }
+
+    .status-chip.pending {
+        background: #e8eefc;
+        color: #3154a5;
+    }
+
+    .status-chip.declined {
+        background: #fde9e7;
+        color: #a33c2f;
+    }
+
+    .history-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+    }
+
+    .history-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .history-item {
+        border: 1px solid #d9e8ec;
+        border-radius: 16px;
+        background: #f8fbfc;
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .history-item-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .history-item-title {
+        font-size: 1rem;
+        color: #12343b;
+        margin: 0;
+    }
+
+    .history-item-subtitle {
+        margin: 0.3rem 0 0;
+        color: #58727a;
+        font-size: 0.92rem;
+    }
+
+    .history-item-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .history-item-grid strong {
+        display: block;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #204650;
+        margin-bottom: 0.25rem;
+    }
+
+    .history-item-grid span {
+        color: #12343b;
+        font-size: 0.95rem;
+    }
+
+    .history-status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .history-status-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        color: #204650;
+        font-size: 0.92rem;
+    }
+
+    .history-item-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        padding-top: 0.15rem;
+        border-top: 1px solid #d9e8ec;
+    }
+
+    .history-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .history-actions form {
+        margin: 0;
+    }
+
+    .history-empty {
+        padding: 1rem;
+        border: 1px dashed #c8dadd;
+        border-radius: 14px;
+        color: #58727a;
+        background: #fbfdfd;
+        text-align: center;
+    }
+</style>
+{{ end }}
+
+{{ define "header" }}Report History{{ end }}
+
+{{ define "content" }}
+<div class="report-history-card app-panel">
+    <div class="report-history-header">
+        <div>
+            <h3 class="mb-0">{{ .Form.FilterTitle }}</h3>
+            <p>Review your weekly report history. Current view: {{ .Form.PeriodLabel }}.</p>
+        </div>
+        <div class="d-flex flex-wrap" style="gap: 0.75rem;">
+            <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+            <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
+            <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
+            <a href="/reports/new/0" class="btn btn-primary">Open My Weekly Entry Form</a>
+        </div>
+    </div>
+
+    <div class="history-filter-bar">
+        <a href="{{ .Form.AllURL }}" class="btn {{ if eq .Form.FilterStatus "all" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">All</a>
+        <a href="{{ .Form.SubmittedURL }}" class="btn {{ if eq .Form.FilterStatus "submitted" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Submitted</a>
+        <a href="{{ .Form.ApprovedURL }}" class="btn {{ if eq .Form.FilterStatus "approved" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Approved</a>
+        <a href="{{ .Form.DeclinedURL }}" class="btn {{ if eq .Form.FilterStatus "declined" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Declined</a>
+        <a href="{{ .Form.DraftURL }}" class="btn {{ if eq .Form.FilterStatus "draft" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Draft</a>
+    </div>
+
+    <div class="history-list">
+        {{ if .Form.Rows }}
+            {{ range .Form.Rows }}
+            {{ $submitStatus := .SubmitStatus.String }}
+            {{ $reportStatus := .ReportStatus.String }}
+            <div class="history-item">
+                <div class="history-item-top">
+                    <div>
+                        <h4 class="history-item-title">
+                            {{ if and .WeekStart.Valid .WeekStop.Valid }}
+                            {{ .WeekStart.Time.Format "02 Jan 2006" }} - {{ .WeekStop.Time.Format "02 Jan 2006" }}
+                            {{ else }}
+                            Weekly report
+                            {{ end }}
+                        </h4>
+                        <p class="history-item-subtitle">Entered {{ if .EnteredOn.Valid }}{{ humanDate .EnteredOn.Time }}{{ else }}-{{ end }}</p>
+                    </div>
+                    <div class="history-status-row">
+                        <div class="history-status-group">
+                            <strong>Submission</strong>
+                            <span class="status-chip {{ if eq $submitStatus "Submitted" }}submitted{{ else }}draft{{ end }}">
+                                {{ if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
+                            </span>
+                        </div>
+                        <div class="history-status-group">
+                            <strong>Approval</strong>
+                            <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else }}pending{{ end }}">
+                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else }}Pending Review{{ end }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history-item-grid">
+                    <div>
+                        <strong>Attendance</strong>
+                        <span>{{ .Attendance }}</span>
+                    </div>
+                    <div>
+                        <strong>Patients Reviewed</strong>
+                        <span>{{ .PatientsReviewed }}</span>
+                    </div>
+                    <div>
+                        <strong>Procedures</strong>
+                        <span>{{ .Procedures }}</span>
+                    </div>
+                </div>
+
+                <div class="history-item-footer">
+                    <span class="text-muted">Report ID {{ .ReportID }}</span>
+                    {{ if .Actionable }}
+                    <div class="history-actions">
+                        <a class="btn btn-sm btn-outline-primary" href="/reports/new/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">Edit</a>
+                        <form method="post" action="/reports/delete-self/{{ .ReportID }}" onsubmit="return confirm('Delete this report?');">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                        </form>
+                    </div>
+                    {{ else }}
+                    <span class="text-muted">No actions available</span>
+                    {{ end }}
+                </div>
+            </div>
+            {{ end }}
+        {{ else }}
+        <div class="history-empty">No report submissions found for this selection.</div>
+        {{ end }}
+    </div>
+</div>
+{{ end }}

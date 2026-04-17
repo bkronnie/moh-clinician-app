@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -23,6 +24,46 @@ type ClinicianEntryView struct {
 	FacilityName   string
 	StartDate      string
 	StopDate       string
+	ReportID       int
+	ActionURL      string
+	SubmitLabel    string
+	Values         map[string]string
+	IsEdit         bool
+	StatusLabel    string
+	ReturnURL      string
+}
+
+type ClinicianReportHistoryView struct {
+	Rows         []*models.ClinicianReportHistoryRow
+	FilterStatus string
+	FilterTitle  string
+	Year         int
+	Week         int
+	PeriodLabel  string
+	AllURL       string
+	SubmittedURL string
+	ApprovedURL  string
+	DeclinedURL  string
+	DraftURL     string
+	CurrentURL   string
+	ExportCSVURL string
+	ExportPDFURL string
+}
+
+type FacilityReportReviewView struct {
+	Rows         []*models.FacilityReportReviewRow
+	FilterStatus string
+	FilterTitle  string
+	Year         int
+	Week         int
+	PeriodLabel  string
+	AllURL       string
+	PendingURL   string
+	ApprovedURL  string
+	DeclinedURL  string
+	CurrentURL   string
+	ExportCSVURL string
+	ExportPDFURL string
 }
 
 // Handler used for entering weekly report for a single user
@@ -48,6 +89,56 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	employee, err := models.EmployeeByID(c, db, int(empID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load employee details"})
+		return
+	}
+
+	reportID, _ := strconv.Atoi(c.Param("i"))
+	returnURL := sanitizeHistoryReturnURL(c.Query("return_to"))
+
+	if reportID > 0 {
+		report, err := models.ClinicianEditableReportByID(c.Request.Context(), db, reportID, sesDetails.EmpID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.String(http.StatusNotFound, "This report cannot be edited.")
+				return
+			}
+			log.Printf("Error loading clinician report for editing: %v", err)
+			c.String(http.StatusInternalServerError, "Error loading report")
+			return
+		}
+
+		reportDepartment, err := models.DepartmentByID(c, db, int(report.DepartmentID))
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Unable to load department details")
+			return
+		}
+
+		facilityName := sesDetails.HFName
+		if facilityName == "" && report.FacilityID > 0 {
+			facility, err := models.FacilityByID(c, db, int(report.FacilityID))
+			if err == nil {
+				facilityName = facility.FacilityName
+			}
+		}
+
+		sessionData.Form = ClinicianEntryView{
+			EmployeeID:     empID,
+			EmployeeName:   fmt.Sprintf("%s %s", employee.Fname.String, employee.Lname.String),
+			DepartmentID:   report.DepartmentID,
+			DepartmentName: reportDepartment.DepartmentName.String,
+			FacilityName:   facilityName,
+			StartDate:      formatNullDate(report.WeekStart),
+			StopDate:       formatNullDate(report.WeekStop),
+			ReportID:       report.ReportID,
+			ActionURL:      fmt.Sprintf("/reports/update-self/%d", report.ReportID),
+			SubmitLabel:    "Update Weekly Entry",
+			Values:         clinicianEntryValuesFromReport(report),
+			IsEdit:         true,
+			StatusLabel:    clinicianEntryStatusLabel(report.HistoryStatus),
+			ReturnURL:      returnURL,
+		}
+
+		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
 		return
 	}
 
@@ -77,6 +168,10 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		FacilityName:   facilityName,
 		StartDate:      weekStart.Format("2006-01-02"),
 		StopDate:       weekEnd.Format("2006-01-02"),
+		ActionURL:      "/reports/zave",
+		SubmitLabel:    "Save Weekly Entry",
+		Values:         defaultClinicianEntryValues(),
+		ReturnURL:      returnURL,
 	}
 
 	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
@@ -193,8 +288,10 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 		}
 	}
 
-	//redirect to report submissions
-	c.Redirect(http.StatusFound, "/reports/submissions")
+	// Redirect clinicians to their own report history for the reporting period they just saved.
+	reportStart := parseDate(start)
+	reportYear, reportWeek := reportStart.ISOWeek()
+	c.Redirect(http.StatusFound, buildReportHistoryPeriodFilterQuery("all", reportYear, reportWeek))
 
 	// Return a success response
 	//c.JSON(http.StatusOK, gin.H{"message": "Reports saved successfully"})
@@ -217,6 +314,822 @@ func empIDToInt(empID string) int64 {
 func parseInt(val string) int64 {
 	result, _ := strconv.ParseInt(val, 10, 64)
 	return result
+}
+
+func HandlerClinicianReportHistory(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "all")))
+	switch filterStatus {
+	case "all", "submitted", "approved", "declined", "draft":
+	default:
+		filterStatus = "all"
+	}
+
+	year, _ := strconv.Atoi(c.Query("year"))
+	week, _ := strconv.Atoi(c.Query("week"))
+	if year <= 0 {
+		year = 0
+		week = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	rows, err := models.GetClinicianReportHistory(c.Request.Context(), db, sesDetails.EmpID, filterStatus, year, week)
+	if err != nil {
+		log.Printf("Error retrieving clinician report history: %v", err)
+		c.String(http.StatusInternalServerError, "Error retrieving report history")
+		return
+	}
+
+	sessionData.Form = ClinicianReportHistoryView{
+		Rows:         rows,
+		FilterStatus: filterStatus,
+		FilterTitle:  clinicianReportHistoryFilterTitle(filterStatus),
+		Year:         year,
+		Week:         week,
+		PeriodLabel:  clinicianReportHistoryPeriodLabel(year, week),
+		AllURL:       buildReportHistoryPeriodFilterQuery("all", year, week),
+		SubmittedURL: buildReportHistoryPeriodFilterQuery("submitted", year, week),
+		ApprovedURL:  buildReportHistoryPeriodFilterQuery("approved", year, week),
+		DeclinedURL:  buildReportHistoryPeriodFilterQuery("declined", year, week),
+		DraftURL:     buildReportHistoryPeriodFilterQuery("draft", year, week),
+		CurrentURL:   buildReportHistoryPeriodFilterQuery(filterStatus, year, week),
+		ExportCSVURL: buildReportHistoryExportURL("csv", filterStatus, year, week),
+		ExportPDFURL: buildReportHistoryExportURL("pdf", filterStatus, year, week),
+	}
+	utilities.GenerateHTML(c, sessionData, "base", "reporthistory")
+}
+
+func HandlerClinicianReportHistoryExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	if format != "csv" && format != "pdf" {
+		c.String(http.StatusBadRequest, "Invalid export format")
+		return
+	}
+
+	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "all")))
+	switch filterStatus {
+	case "all", "submitted", "approved", "declined", "draft":
+	default:
+		filterStatus = "all"
+	}
+
+	year, _ := strconv.Atoi(c.Query("year"))
+	week, _ := strconv.Atoi(c.Query("week"))
+	if year <= 0 {
+		year = 0
+		week = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	rows, err := models.GetClinicianReportHistory(c.Request.Context(), db, sesDetails.EmpID, filterStatus, year, week)
+	if err != nil {
+		log.Printf("Error exporting clinician report history: %v", err)
+		c.String(http.StatusInternalServerError, "Error exporting report history")
+		return
+	}
+
+	headers := []string{"Week", "Entered On", "Attendance", "Patients Reviewed", "Procedures", "Submission", "Approval", "Actionable"}
+	csvRows := [][]string{}
+	pdfLines := []string{
+		fmt.Sprintf("Filter: %s", clinicianReportHistoryFilterTitle(filterStatus)),
+		fmt.Sprintf("Period: %s", clinicianReportHistoryPeriodLabel(year, week)),
+		"",
+	}
+
+	for index, row := range rows {
+		weekLabel := exportWeekRange(row.WeekStart, row.WeekStop)
+		enteredOn := exportDateTime(row.EnteredOn)
+		submission := exportReportSubmissionStatus(row.SubmitStatus)
+		approval := exportReportApprovalStatus(row.ReportStatus)
+		actionable := "No"
+		if row.Actionable {
+			actionable = "Yes"
+		}
+
+		csvRows = append(csvRows, []string{
+			weekLabel,
+			enteredOn,
+			strconv.Itoa(row.Attendance),
+			strconv.Itoa(row.PatientsReviewed),
+			strconv.Itoa(row.Procedures),
+			submission,
+			approval,
+			actionable,
+		})
+
+		pdfLines = append(pdfLines,
+			fmt.Sprintf("%d. %s", index+1, weekLabel),
+			fmt.Sprintf("   Entered: %s | Submission: %s | Approval: %s", enteredOn, submission, approval),
+			fmt.Sprintf("   Attendance: %d | Patients Reviewed: %d | Procedures: %d | Actionable: %s", row.Attendance, row.PatientsReviewed, row.Procedures, actionable),
+			"",
+		)
+	}
+
+	filenameBase := buildReportHistoryExportFilename(filterStatus, year, week)
+	if format == "pdf" {
+		writeSimplePDFDownload(c, filenameBase+".pdf", "Clinician Report History", pdfLines)
+		return
+	}
+	writeCSVDownload(c, filenameBase+".csv", headers, csvRows)
+}
+
+func HandlerClinicianReportEditForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	redirectURL := fmt.Sprintf("/reports/new/%s", c.Param("id"))
+	returnURL := sanitizeHistoryReturnURL(c.Query("return_to"))
+	if returnURL != "/reports/history" {
+		redirectURL += "?return_to=" + returnURL
+	}
+	c.Redirect(http.StatusFound, redirectURL)
+}
+
+func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	reportID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid report ID")
+		return
+	}
+
+	start, err := time.Parse("2006-01-02", c.PostForm("start"))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid start date")
+		return
+	}
+
+	stop, err := time.Parse("2006-01-02", c.PostForm("stop"))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid stop date")
+		return
+	}
+
+	updated, err := models.UpdateClinicianReport(
+		c.Request.Context(),
+		db,
+		reportID,
+		sesDetails.EmpID,
+		start,
+		stop,
+		collectClinicianEntryValues(c, sesDetails.EmpID),
+	)
+	if err != nil {
+		log.Printf("Error updating clinician report: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to update report")
+		return
+	}
+	if !updated {
+		c.String(http.StatusForbidden, "This report can no longer be edited.")
+		return
+	}
+
+	c.Redirect(http.StatusFound, sanitizeHistoryReturnURL(c.PostForm("return_to")))
+}
+
+func HandlerClinicianReportDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	reportID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid report ID")
+		return
+	}
+
+	deleted, err := models.DeleteClinicianReport(c.Request.Context(), db, reportID, sesDetails.EmpID)
+	if err != nil {
+		log.Printf("Error deleting clinician report: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to delete report")
+		return
+	}
+	if !deleted {
+		c.String(http.StatusForbidden, "This report can no longer be deleted.")
+		return
+	}
+
+	c.Redirect(http.StatusFound, sanitizeHistoryReturnURL(c.PostForm("return_to")))
+}
+
+func HandlerFacilityReportReview(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "pending")))
+	switch filterStatus {
+	case "all", "pending", "approved", "declined":
+	default:
+		filterStatus = "pending"
+	}
+
+	year, _ := strconv.Atoi(c.Query("year"))
+	week, _ := strconv.Atoi(c.Query("week"))
+	if year <= 0 {
+		year = 0
+		week = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	rows, err := models.GetFacilityReportReview(c.Request.Context(), db, sesDetails.HFID, filterStatus, year, week)
+	if err != nil {
+		log.Printf("Error retrieving facility report review data: %v", err)
+		c.String(http.StatusInternalServerError, "Error retrieving submitted reports")
+		return
+	}
+
+	sessionData.Form = FacilityReportReviewView{
+		Rows:         rows,
+		FilterStatus: filterStatus,
+		FilterTitle:  facilityReportReviewFilterTitle(filterStatus),
+		Year:         year,
+		Week:         week,
+		PeriodLabel:  clinicianReportHistoryPeriodLabel(year, week),
+		AllURL:       buildFacilityReportReviewURL("all", year, week),
+		PendingURL:   buildFacilityReportReviewURL("pending", year, week),
+		ApprovedURL:  buildFacilityReportReviewURL("approved", year, week),
+		DeclinedURL:  buildFacilityReportReviewURL("declined", year, week),
+		CurrentURL:   buildFacilityReportReviewURL(filterStatus, year, week),
+		ExportCSVURL: buildFacilityReportReviewExportURL("csv", filterStatus, year, week),
+		ExportPDFURL: buildFacilityReportReviewExportURL("pdf", filterStatus, year, week),
+	}
+
+	utilities.GenerateHTML(c, sessionData, "base", "facility-report-review")
+}
+
+func HandlerFacilityReportReviewExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+	if format != "csv" && format != "pdf" {
+		c.String(http.StatusBadRequest, "Invalid export format")
+		return
+	}
+
+	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "pending")))
+	switch filterStatus {
+	case "all", "pending", "approved", "declined":
+	default:
+		filterStatus = "pending"
+	}
+
+	year, _ := strconv.Atoi(c.Query("year"))
+	week, _ := strconv.Atoi(c.Query("week"))
+	if year <= 0 {
+		year = 0
+		week = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	rows, err := models.GetFacilityReportReview(c.Request.Context(), db, sesDetails.HFID, filterStatus, year, week)
+	if err != nil {
+		log.Printf("Error exporting facility report review: %v", err)
+		c.String(http.StatusInternalServerError, "Error exporting submitted reports")
+		return
+	}
+
+	headers := []string{"Employee", "Department", "Week", "Submitted On", "Patients Reviewed", "Procedures", "Status", "Actionable"}
+	csvRows := [][]string{}
+	pdfLines := []string{
+		fmt.Sprintf("Facility: %s", sesDetails.HFName),
+		fmt.Sprintf("Filter: %s", facilityReportReviewFilterTitle(filterStatus)),
+		fmt.Sprintf("Period: %s", clinicianReportHistoryPeriodLabel(year, week)),
+		"",
+	}
+
+	for index, row := range rows {
+		status := exportReportApprovalStatus(row.ReportStatus)
+		actionable := "No"
+		if row.Actionable {
+			actionable = "Yes"
+		}
+
+		csvRows = append(csvRows, []string{
+			row.EmployeeName,
+			row.DepartmentName,
+			exportWeekRange(row.WeekStart, row.WeekStop),
+			exportDateTime(row.SubmittedOn),
+			strconv.Itoa(row.PatientsReviewed),
+			strconv.Itoa(row.Procedures),
+			status,
+			actionable,
+		})
+
+		pdfLines = append(pdfLines,
+			fmt.Sprintf("%d. %s - %s", index+1, row.EmployeeName, row.DepartmentName),
+			fmt.Sprintf("   Week: %s | Submitted: %s | Status: %s", exportWeekRange(row.WeekStart, row.WeekStop), exportDateTime(row.SubmittedOn), status),
+			fmt.Sprintf("   Patients Reviewed: %d | Procedures: %d | Actionable: %s", row.PatientsReviewed, row.Procedures, actionable),
+			"",
+		)
+	}
+
+	filenameBase := buildFacilityReportReviewExportFilename(filterStatus, year, week)
+	if format == "pdf" {
+		writeSimplePDFDownload(c, filenameBase+".pdf", "Facility Submitted Reports Review", pdfLines)
+		return
+	}
+	writeCSVDownload(c, filenameBase+".csv", headers, csvRows)
+}
+
+func HandlerFacilityReportApprove(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	handleFacilityReportDecision(c, db, sessionManager, true)
+}
+
+func HandlerFacilityReportDecline(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	handleFacilityReportDecision(c, db, sessionManager, false)
+}
+
+func handleFacilityReportDecision(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager, approve bool) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	reportID, err := strconv.Atoi(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid report ID")
+		return
+	}
+
+	var updated bool
+	if approve {
+		updated, err = models.ApproveFacilityReport(c.Request.Context(), db, reportID, sesDetails.HFID, sesDetails.EmpID)
+	} else {
+		updated, err = models.DeclineFacilityReport(c.Request.Context(), db, reportID, sesDetails.HFID, sesDetails.EmpID)
+	}
+	if err != nil {
+		log.Printf("Error updating report review decision: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to update report status")
+		return
+	}
+	if !updated {
+		c.String(http.StatusForbidden, "Only pending submitted reports within your facility can be updated")
+		return
+	}
+
+	c.Redirect(http.StatusFound, sanitizeFacilityReportReviewURL(c.PostForm("return_to")))
+}
+
+func defaultClinicianEntryValues() map[string]string {
+	return map[string]string{
+		"attendance":         "0",
+		"ward_rounds":        "0",
+		"patients_reviewed":  "0",
+		"theatre_days":       "0",
+		"elective":           "0",
+		"emergency":          "0",
+		"postmortems":        "0",
+		"OPD_clinics":        "0",
+		"OPD_patients":       "0",
+		"anc_patients":       "0",
+		"teaching_rounds":    "0",
+		"students_taught":    "0",
+		"mortality_reviews":  "0",
+		"maternal":           "0",
+		"perinatal":          "0",
+		"surgical":           "0",
+		"medical":            "0",
+		"paed":               "0",
+		"labs_requests":      "0",
+		"imaging_requests":   "0",
+		"lab_investigations": "0",
+		"BS":                 "0",
+		"HIV":                "0",
+		"malaria":            "0",
+		"TB":                 "0",
+		"CBC":                "0",
+		"chemistry":          "0",
+		"hematology":         "0",
+		"urinalysis":         "0",
+		"gram_stain":         "0",
+		"culture":            "0",
+		"microbiology":       "0",
+		"sensitivity_tests":  "0",
+		"diagnostics":        "0",
+		"xrays":              "0",
+		"ct_scans":           "0",
+		"obstetrics_scans":   "0",
+		"abdominal_scans":    "0",
+	}
+}
+
+func clinicianEntryValuesFromReport(report *models.ClinicianReportHistoryRow) map[string]string {
+	values := defaultClinicianEntryValues()
+	values["attendance"] = formatNullInt(report.Qn01)
+	values["ward_rounds"] = formatNullInt(report.Qn02)
+	values["patients_reviewed"] = formatNullInt(report.Qn03)
+	values["theatre_days"] = formatNullInt(report.Qn04)
+	values["elective"] = formatNullInt(report.Qn05)
+	values["emergency"] = formatNullInt(report.Qn06)
+	values["postmortems"] = formatNullInt(report.Qn07)
+	values["OPD_clinics"] = formatNullInt(report.Qn08)
+	values["OPD_patients"] = formatNullInt(report.Qn09)
+	values["anc_patients"] = formatNullInt(report.Qn10)
+	values["teaching_rounds"] = formatNullInt(report.Qn11)
+	values["students_taught"] = formatNullInt(report.Qn12)
+	values["mortality_reviews"] = formatNullInt(report.Qn13)
+	values["maternal"] = formatNullInt(report.Qn14)
+	values["perinatal"] = formatNullInt(report.Qn15)
+	values["surgical"] = formatNullInt(report.Qn16)
+	values["medical"] = formatNullInt(report.Qn17)
+	values["paed"] = formatNullInt(report.Qn18)
+	values["labs_requests"] = formatNullInt(report.Qn19)
+	values["imaging_requests"] = formatNullInt(report.Qn20)
+	values["lab_investigations"] = formatNullInt(report.Qn21)
+	values["BS"] = formatNullInt(report.Qn22)
+	values["HIV"] = formatNullInt(report.Qn23)
+	values["malaria"] = formatNullInt(report.Qn24)
+	values["TB"] = formatNullInt(report.Qn25)
+	values["CBC"] = formatNullInt(report.Qn26)
+	values["chemistry"] = formatNullInt(report.Qn27)
+	values["hematology"] = formatNullInt(report.Qn28)
+	values["urinalysis"] = formatNullInt(report.Qn29)
+	values["gram_stain"] = formatNullInt(report.Qn30)
+	values["culture"] = formatNullInt(report.Qn31)
+	values["microbiology"] = formatNullInt(report.Qn32)
+	values["sensitivity_tests"] = formatNullInt(report.Qn33)
+	values["diagnostics"] = formatNullInt(report.Qn34)
+	values["xrays"] = formatNullInt(report.Qn35)
+	values["ct_scans"] = formatNullInt(report.Qn36)
+	values["obstetrics_scans"] = formatNullInt(report.Qn37)
+	values["abdominal_scans"] = formatNullInt(report.Qn38)
+	return values
+}
+
+func collectClinicianEntryValues(c *gin.Context, employeeID int64) map[string]int64 {
+	field := func(name string) int64 {
+		return parseInt(c.PostForm(fmt.Sprintf("input[%d][%s]", employeeID, name)))
+	}
+
+	return map[string]int64{
+		"attendance":         field("attendance"),
+		"ward_rounds":        field("ward_rounds"),
+		"patients_reviewed":  field("patients_reviewed"),
+		"theatre_days":       field("theatre_days"),
+		"elective":           field("elective"),
+		"emergency":          field("emergency"),
+		"postmortems":        field("postmortems"),
+		"OPD_clinics":        field("OPD_clinics"),
+		"OPD_patients":       field("OPD_patients"),
+		"anc_patients":       field("anc_patients"),
+		"teaching_rounds":    field("teaching_rounds"),
+		"students_taught":    field("students_taught"),
+		"mortality_reviews":  field("mortality_reviews"),
+		"maternal":           field("maternal"),
+		"perinatal":          field("perinatal"),
+		"surgical":           field("surgical"),
+		"medical":            field("medical"),
+		"paed":               field("paed"),
+		"labs_requests":      field("labs_requests"),
+		"imaging_requests":   field("imaging_requests"),
+		"lab_investigations": field("lab_investigations"),
+		"BS":                 field("BS"),
+		"HIV":                field("HIV"),
+		"malaria":            field("malaria"),
+		"TB":                 field("TB"),
+		"CBC":                field("CBC"),
+		"chemistry":          field("chemistry"),
+		"hematology":         field("hematology"),
+		"urinalysis":         field("urinalysis"),
+		"gram_stain":         field("gram_stain"),
+		"culture":            field("culture"),
+		"microbiology":       field("microbiology"),
+		"sensitivity_tests":  field("sensitivity_tests"),
+		"diagnostics":        field("diagnostics"),
+		"xrays":              field("xrays"),
+		"ct_scans":           field("ct_scans"),
+		"obstetrics_scans":   field("obstetrics_scans"),
+		"abdominal_scans":    field("abdominal_scans"),
+	}
+}
+
+func buildReportHistoryPeriodQuery(year, week int) string {
+	params := []string{}
+	if year > 0 {
+		params = append(params, fmt.Sprintf("year=%d", year))
+	}
+	if week > 0 {
+		params = append(params, fmt.Sprintf("week=%d", week))
+	}
+	if len(params) == 0 {
+		return ""
+	}
+	return "?" + strings.Join(params, "&")
+}
+
+func buildReportHistoryPeriodFilterQuery(status string, year, week int) string {
+	params := []string{}
+	if status != "" && status != "all" {
+		params = append(params, fmt.Sprintf("status=%s", status))
+	}
+	if year > 0 {
+		params = append(params, fmt.Sprintf("year=%d", year))
+	}
+	if week > 0 {
+		params = append(params, fmt.Sprintf("week=%d", week))
+	}
+	if len(params) == 0 {
+		return "/reports/history"
+	}
+	return "/reports/history?" + strings.Join(params, "&")
+}
+
+func buildFacilityReportReviewURL(status string, year, week int) string {
+	params := []string{}
+	if status != "" && status != "pending" {
+		params = append(params, fmt.Sprintf("status=%s", status))
+	}
+	if year > 0 {
+		params = append(params, fmt.Sprintf("year=%d", year))
+	}
+	if week > 0 {
+		params = append(params, fmt.Sprintf("week=%d", week))
+	}
+	if len(params) == 0 {
+		return "/reports/review"
+	}
+	return "/reports/review?" + strings.Join(params, "&")
+}
+
+func buildReportHistoryExportURL(format, status string, year, week int) string {
+	params := []string{}
+	if format != "" {
+		params = append(params, fmt.Sprintf("format=%s", format))
+	}
+	if status != "" && status != "all" {
+		params = append(params, fmt.Sprintf("status=%s", status))
+	}
+	if year > 0 {
+		params = append(params, fmt.Sprintf("year=%d", year))
+	}
+	if week > 0 {
+		params = append(params, fmt.Sprintf("week=%d", week))
+	}
+	if len(params) == 0 {
+		return "/reports/history/export"
+	}
+	return "/reports/history/export?" + strings.Join(params, "&")
+}
+
+func buildFacilityReportReviewExportURL(format, status string, year, week int) string {
+	params := []string{}
+	if format != "" {
+		params = append(params, fmt.Sprintf("format=%s", format))
+	}
+	if status != "" && status != "pending" {
+		params = append(params, fmt.Sprintf("status=%s", status))
+	}
+	if year > 0 {
+		params = append(params, fmt.Sprintf("year=%d", year))
+	}
+	if week > 0 {
+		params = append(params, fmt.Sprintf("week=%d", week))
+	}
+	if len(params) == 0 {
+		return "/reports/review/export"
+	}
+	return "/reports/review/export?" + strings.Join(params, "&")
+}
+
+func buildReportHistoryExportFilename(filterStatus string, year, week int) string {
+	name := "clinician-report-history"
+	if filterStatus != "" && filterStatus != "all" {
+		name += "-" + filterStatus
+	}
+	if year > 0 {
+		name += fmt.Sprintf("-%d", year)
+	}
+	if week > 0 {
+		name += fmt.Sprintf("-week-%02d", week)
+	}
+	return name
+}
+
+func buildFacilityReportReviewExportFilename(filterStatus string, year, week int) string {
+	name := "facility-report-review"
+	if filterStatus != "" && filterStatus != "pending" {
+		name += "-" + filterStatus
+	}
+	if year > 0 {
+		name += fmt.Sprintf("-%d", year)
+	}
+	if week > 0 {
+		name += fmt.Sprintf("-week-%02d", week)
+	}
+	return name
+}
+
+func clinicianReportHistoryFilterTitle(filterStatus string) string {
+	switch filterStatus {
+	case "submitted":
+		return "Submitted Reports"
+	case "approved":
+		return "Approved Reports"
+	case "declined":
+		return "Declined Reports"
+	case "draft":
+		return "Draft Reports"
+	default:
+		return "All Reports"
+	}
+}
+
+func facilityReportReviewFilterTitle(filterStatus string) string {
+	switch filterStatus {
+	case "approved":
+		return "Approved Submitted Reports"
+	case "declined":
+		return "Declined Submitted Reports"
+	case "all":
+		return "All Submitted Reports"
+	default:
+		return "Pending Submitted Reports"
+	}
+}
+
+func clinicianReportHistoryPeriodLabel(year, week int) string {
+	switch {
+	case year <= 0:
+		return "Across all records"
+	case week <= 0:
+		return fmt.Sprintf("Across all weeks in %d", year)
+	default:
+		return fmt.Sprintf("Week %02d in %d", week, year)
+	}
+}
+
+func clinicianEntryStatusLabel(historyStatus string) string {
+	switch historyStatus {
+	case "declined":
+		return "Declined"
+	case "submitted":
+		return "Submitted"
+	default:
+		return "Draft"
+	}
+}
+
+func sanitizeHistoryReturnURL(value string) string {
+	if value == "" {
+		return "/reports/history"
+	}
+	if strings.HasPrefix(value, "/reports/history") {
+		return value
+	}
+	return "/reports/history"
+}
+
+func sanitizeFacilityReportReviewURL(value string) string {
+	if value == "" {
+		return "/reports/review"
+	}
+	if strings.HasPrefix(value, "/reports/review") {
+		return value
+	}
+	return "/reports/review"
+}
+
+func exportWeekRange(start, stop sql.NullTime) string {
+	if start.Valid && stop.Valid {
+		return fmt.Sprintf("%s - %s", start.Time.Format("02 Jan 2006"), stop.Time.Format("02 Jan 2006"))
+	}
+	if start.Valid {
+		return start.Time.Format("02 Jan 2006")
+	}
+	if stop.Valid {
+		return stop.Time.Format("02 Jan 2006")
+	}
+	return "-"
+}
+
+func exportDateTime(value sql.NullTime) string {
+	if !value.Valid {
+		return "-"
+	}
+	return value.Time.Format("02 Jan 2006 15:04")
+}
+
+func exportReportSubmissionStatus(value sql.NullString) string {
+	if !value.Valid {
+		return "Draft"
+	}
+	switch value.String {
+	case "Submitted":
+		return "Submitted"
+	default:
+		return "Draft"
+	}
+}
+
+func exportReportApprovalStatus(value sql.NullString) string {
+	if !value.Valid {
+		return "Pending Review"
+	}
+	switch value.String {
+	case "Approved":
+		return "Approved"
+	case "Rejected", "Declined":
+		return "Declined"
+	default:
+		return "Pending Review"
+	}
+}
+
+func formatNullDate(value sql.NullTime) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.Time.Format("2006-01-02")
+}
+
+func formatNullInt(value sql.NullInt64) string {
+	if !value.Valid {
+		return "0"
+	}
+	return strconv.FormatInt(value.Int64, 10)
 }
 
 func beginningOfWeek(now time.Time) time.Time {

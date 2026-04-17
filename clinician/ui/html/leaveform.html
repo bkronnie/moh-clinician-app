@@ -1,72 +1,99 @@
-{{ define "title"}} Leave Request Entry Form {{ end }}
+{{ define "title"}} Office Leave {{ end }}
 
 {{ define "extraStyles" }}
 <style>
-    .form-inline .form-group {
-        margin-right: 5px;
+    .leave-page {
+        display: grid;
+        gap: 1rem;
     }
 
-    .form-control-sm {
-        width: auto;
-        font-size: 100%;
-        line-height: 1.2;
-        border-radius: 1px;
-        margin: 0;
+    .leave-card {
+        display: grid;
+        gap: 1.25rem;
     }
 
-    .btn-sm {
-        padding: 3px 8px;
-        font-size: 12px;
-        line-height: 1.5;
-        border-radius: 3px;
+    .leave-intro p {
+        margin: 0.35rem 0 0;
+        color: #58727a;
     }
 
-    #leaveForm {
-        display: flex;
-        flex-direction: column;
+    .leave-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .summary-pill {
+        border: 1px solid #d9e8ec;
+        border-radius: 14px;
+        background: #f8fbfc;
+        padding: 0.95rem 1rem;
+    }
+
+    .summary-pill span {
+        display: block;
+        font-size: 0.82rem;
+        color: #58727a;
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .summary-pill strong {
+        color: #12343b;
+        font-size: 1rem;
+    }
+
+    .leave-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .leave-field label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-weight: 600;
+        color: #204650;
+    }
+
+    .leave-field input,
+    .leave-field select,
+    .leave-field textarea {
         width: 100%;
+        border: 1px solid #c5dadd;
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        background: #ffffff;
+        color: #12343b;
     }
 
-    .form-inline .form-group label {
-       margin-right: 5px;
-   }
+    .leave-field textarea {
+        min-height: 140px;
+        resize: vertical;
+    }
 
-    .data-entry-row {
+    .leave-field-wide {
+        grid-column: 1 / -1;
+    }
+
+    .leave-actions {
         display: flex;
         flex-wrap: wrap;
-        margin-bottom: 10px;
+        gap: 0.75rem;
+        justify-content: flex-end;
     }
 
-    .data-entry-row label {
-        min-width: 125px;
-        font-weight: bold;
-        margin-right: 5px;
-    }
-
-    .data-entry-row input {
-        margin-right: 30px;
-        margin-bottom: 10px;
-    }
-
-    h6.collapsible {
-        cursor: pointer;
-        background-color: #edf4f2;
-        padding: 10px;
-        border: 2px solid #d8e4e0;
-        border-radius: 5px;
-        margin-bottom: 5px;
-        font-weight: bold;
-    }
-
-    .hidden-content {
-        display: none;
-        margin-bottom: 10px;
+    @media (max-width: 640px) {
+        .leave-actions .btn {
+            width: 100%;
+        }
     }
 </style>
 {{ end }}
 
 {{ define "header" }} 
-{{ .Ses.HFName }} Hospital: Leave Request
+Office Leave
 {{ end }}
 
 {{ define "footer" }} 
@@ -76,49 +103,87 @@
 {{ end }}
 
 {{define "content"}}
-<form id="leaveForm" class="app-panel" action="/employee/leave/save" method="POST">
-
-    <div class="mb-3">
-        <label for="employee_id" class="form-label">Employee ID:</label>
-        <input type="text" id="employee_id" name="employee_id" class="form-control"  required>
-    </div>
-    <div class="mb-3">
-        <label for="leave_type_id" class="form-label">Leave Type:</label>
-        <select id="leave_type_id" name="leave_type_id" class="form-select" required>
-            <option value="1">Annual Leave</option>
-            <option value="2">Sick Leave</option>
-            <option value="3">Maternity Leave</option>
-            <option value="4">Paternity Leave</option>
-            <option value="5">Bereavement Leave</option>
-            <option value="6">Unpaid Leave</option>
-            <option value="7">Study Leave</option>
-            <option value="8">Field Activities Leave</option>
-            <option value="9">Emergency Leave</option>
-        </select>
-    </div>
-    <div class="mb-3">
-        <label for="start_date" class="form-label">Start Date:</label>
-        <input type="date" id="start_date" name="start_date" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label for="end_date" class="form-label">End Date:</label>
-        <input type="date" id="end_date" name="end_date" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label for="comments" class="form-label">Comments:</label>
-        <textarea id="comments" name="comments" class="form-control" rows="4"></textarea>
-    </div>
-
-    <div class="form-group row">
-        <div class="col-sm-12 text-center">
-            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>            
-            <button type="submit" class="btn btn-primary">Submit</button>
-            
+{{ $ses := session . }}
+{{ $form := .Form }}
+<div class="leave-page">
+    <div class="leave-card app-panel">
+        <div class="leave-intro">
+            <h3>{{ if $form.IsEdit }}Edit leave application{{ else }}Leave application form{{ end }}</h3>
+            <p>{{ if $form.IsEdit }}Update your pending office leave request before it is reviewed.{{ else }}Submit your office leave request with the dates and leave type you need. Medical officers submit requests under their own profile automatically.{{ end }}</p>
         </div>
+
+        {{ if hasRole . "user" }}
+        <div class="leave-summary">
+            <div class="summary-pill">
+                <span>Medical Officer</span>
+                <strong>{{ $ses.FName }} {{ $ses.LName }}</strong>
+            </div>
+            <div class="summary-pill">
+                <span>Employee ID</span>
+                <strong>{{ $ses.EmpID }}</strong>
+            </div>
+            <div class="summary-pill">
+                <span>Facility</span>
+                <strong>{{ $ses.HFName }}</strong>
+            </div>
+        </div>
+        {{ end }}
+
+        <form id="leaveForm" action="{{ if $form.ActionURL }}{{ $form.ActionURL }}{{ else if hasRole . "user" }}/leave/save{{ else }}/employee/leave/save{{ end }}" method="POST">
+            <div class="leave-form-grid">
+                {{ if hasRole . "user" }}
+                <input type="hidden" id="employee_id" name="employee_id" value="{{ $ses.EmpID }}">
+                {{ else }}
+                <div class="leave-field">
+                    <label for="employee_id">Employee ID</label>
+                    <input type="text" id="employee_id" name="employee_id" class="form-control" value="{{ if and $form.Leave $form.Leave.EmpID.Valid }}{{ $form.Leave.EmpID.Int64 }}{{ end }}" required>
+                </div>
+                {{ end }}
+
+                <div class="leave-field">
+                    <label for="leave_type_id">Leave Type</label>
+                    <select id="leave_type_id" name="leave_type_id" class="form-select" required>
+                        <option value="1" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 1) }}selected{{ end }}>Annual Leave</option>
+                        <option value="2" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 2) }}selected{{ end }}>Sick Leave</option>
+                        <option value="3" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 3) }}selected{{ end }}>Maternity Leave</option>
+                        <option value="4" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 4) }}selected{{ end }}>Paternity Leave</option>
+                        <option value="5" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 5) }}selected{{ end }}>Bereavement Leave</option>
+                        <option value="6" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 6) }}selected{{ end }}>Unpaid Leave</option>
+                        <option value="7" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 7) }}selected{{ end }}>Study Leave</option>
+                        <option value="8" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 8) }}selected{{ end }}>Field Activities Leave</option>
+                        <option value="9" {{ if and $form.Leave $form.Leave.LeaveTypeID.Valid (eq $form.Leave.LeaveTypeID.Int64 9) }}selected{{ end }}>Emergency Leave</option>
+                    </select>
+                </div>
+
+                <div class="leave-field">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" class="form-control" value="{{ if and $form.Leave $form.Leave.StartDate.Valid }}{{ $form.Leave.StartDate.Time.Format "2006-01-02" }}{{ end }}" required>
+                </div>
+
+                <div class="leave-field">
+                    <label for="end_date">End Date</label>
+                    <input type="date" id="end_date" name="end_date" class="form-control" value="{{ if and $form.Leave $form.Leave.EndDate.Valid }}{{ $form.Leave.EndDate.Time.Format "2006-01-02" }}{{ end }}" required>
+                </div>
+
+                <div class="leave-field leave-field-wide">
+                    <label for="comments">Comments</label>
+                    <textarea id="comments" name="comments" class="form-control" placeholder="Add any handover or supporting notes for this leave request.">{{ if and $form.Leave $form.Leave.Comments.Valid }}{{ $form.Leave.Comments.String }}{{ end }}</textarea>
+                </div>
+            </div>
+
+            <div class="leave-actions mt-4">
+                {{ if hasRole . "user" }}
+                <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+                <a href="/leave/history" class="btn btn-outline-secondary">My Leave History</a>
+                {{ else }}
+                <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+                <a href="/employee/list" class="btn btn-outline-secondary">Back to Employees</a>
+                {{ end }}
+                <button type="submit" class="btn btn-primary">{{ if $form.SubmitLabel }}{{ $form.SubmitLabel }}{{ else }}Submit Leave Request{{ end }}</button>
+            </div>
+        </form>
     </div>
-</form>
-
-
+</div>
 {{end}}
 
 {{ define "extraJS" }}

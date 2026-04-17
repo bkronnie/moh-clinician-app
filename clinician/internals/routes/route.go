@@ -38,6 +38,7 @@ func SetupRoutes(router *gin.Engine, db *sql.DB, sessionManager *scs.SessionMana
 		RouteFacilities(protected, db, sessionManager)
 		RouteDepartment(protected, db, sessionManager)
 		RouteEmployeee(protected, db, sessionManager)
+		RouteLeave(protected, db, sessionManager)
 	}
 
 }
@@ -46,7 +47,12 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 	v := r.Group("/reports")
 	{
 		v.GET("/new/:i", func(c *gin.Context) { handlers.SingleEntryForm(c, db, sessionManager) })
+		v.GET("/history", func(c *gin.Context) { handlers.HandlerClinicianReportHistory(c, db, sessionManager) })
+		v.GET("/history/export", func(c *gin.Context) { handlers.HandlerClinicianReportHistoryExport(c, db, sessionManager) })
+		v.GET("/edit/:id", func(c *gin.Context) { handlers.HandlerClinicianReportEditForm(c, db, sessionManager) })
 		v.POST("/zave", func(c *gin.Context) { handlers.HandlerReportZave(c, db, sessionManager) })
+		v.POST("/update-self/:id", func(c *gin.Context) { handlers.HandlerClinicianReportUpdate(c, db, sessionManager) })
+		v.POST("/delete-self/:id", func(c *gin.Context) { handlers.HandlerClinicianReportDelete(c, db, sessionManager) })
 	}
 
 	managerOrAdmin := v.Group("/")
@@ -65,10 +71,19 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 		managerOrAdmin.GET("/submissions/departments", func(c *gin.Context) { handlers.HandlerReportFacilities2(c, db, sessionManager) })
 		managerOrAdmin.GET("/list", func(c *gin.Context) { handlers.HandlerReportList2(c, db, sessionManager) })
 		managerOrAdmin.GET("/list/:facility", func(c *gin.Context) { handlers.HandlerReportList(c, db, sessionManager) })
-		managerOrAdmin.POST("/approve", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
-		managerOrAdmin.POST("/submit", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
 		managerOrAdmin.GET("/analysis", func(c *gin.Context) { handlers.HandlerReportsAnalysis(c, db, sessionManager) })
 		managerOrAdmin.GET("/report-summaries", func(c *gin.Context) { handlers.HandlerReportSummaries(c, db, sessionManager) })
+	}
+
+	approverOnly := v.Group("/")
+	approverOnly.Use(middleware.RequireRoles(db, sessionManager, "approver"))
+	{
+		approverOnly.POST("/approve", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
+		approverOnly.POST("/submit", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
+		approverOnly.GET("/review", func(c *gin.Context) { handlers.HandlerFacilityReportReview(c, db, sessionManager) })
+		approverOnly.GET("/review/export", func(c *gin.Context) { handlers.HandlerFacilityReportReviewExport(c, db, sessionManager) })
+		approverOnly.POST("/review/:id/approve", func(c *gin.Context) { handlers.HandlerFacilityReportApprove(c, db, sessionManager) })
+		approverOnly.POST("/review/:id/decline", func(c *gin.Context) { handlers.HandlerFacilityReportDecline(c, db, sessionManager) })
 	}
 
 }
@@ -108,9 +123,34 @@ func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionM
 		v.GET("/leave/form", func(c *gin.Context) { handlers.HandlerEmployeeLeaveForm(c, db, sessionManager) })
 		v.POST("/leave/save", func(c *gin.Context) { handlers.HandlerEmployeeLeaveSave(c, db, sessionManager) })
 		v.GET("/leave/staffonleave", func(c *gin.Context) { handlers.HandlerLeaveList(c, db, sessionManager) })
-		v.GET("/leave/history", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistory(c, db, sessionManager) })
+		v.GET("/:id/leave/history", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistory(c, db, sessionManager) })
+		v.GET("/:id/leave/history/export", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistoryExport(c, db, sessionManager) })
 	}
 
+}
+
+func RouteLeave(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
+	v := r.Group("/leave")
+	userOnly := v.Group("/")
+	userOnly.Use(middleware.RequireRoles(db, sessionManager, "user"))
+	{
+		userOnly.GET("/form", func(c *gin.Context) { handlers.HandlerEmployeeLeaveForm(c, db, sessionManager) })
+		userOnly.POST("/save", func(c *gin.Context) { handlers.HandlerEmployeeLeaveSave(c, db, sessionManager) })
+		userOnly.GET("/edit/:id", func(c *gin.Context) { handlers.HandlerEmployeeLeaveEditForm(c, db, sessionManager) })
+		userOnly.POST("/update/:id", func(c *gin.Context) { handlers.HandlerEmployeeLeaveUpdate(c, db, sessionManager) })
+		userOnly.POST("/delete/:id", func(c *gin.Context) { handlers.HandlerEmployeeLeaveDelete(c, db, sessionManager) })
+		userOnly.GET("/history", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistory(c, db, sessionManager) })
+		userOnly.GET("/history/export", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistoryExport(c, db, sessionManager) })
+	}
+
+	approverOnly := v.Group("/")
+	approverOnly.Use(middleware.RequireRoles(db, sessionManager, "approver"))
+	{
+		approverOnly.GET("/review", func(c *gin.Context) { handlers.HandlerFacilityLeaveReview(c, db, sessionManager) })
+		approverOnly.GET("/review/export", func(c *gin.Context) { handlers.HandlerFacilityLeaveReviewExport(c, db, sessionManager) })
+		approverOnly.POST("/review/:id/approve", func(c *gin.Context) { handlers.HandlerFacilityLeaveApprove(c, db, sessionManager) })
+		approverOnly.POST("/review/:id/decline", func(c *gin.Context) { handlers.HandlerFacilityLeaveDecline(c, db, sessionManager) })
+	}
 }
 
 func RouteUnit(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {

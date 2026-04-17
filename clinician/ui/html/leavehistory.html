@@ -2,122 +2,229 @@
 
 {{ define "extraStyles" }}
 <style>
-    body {
-        font-family: "Times New Roman", Times, serif;
-        font-size: 14px;
+    .history-card {
+        display: grid;
+        gap: 1rem;
     }
 
-    .form-inline .form-group {
-        margin-right: 5px;
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
     }
 
-    .form-control-sm {
-        width: auto;
-        font-size: 100%;
-        line-height: 1.2;
-        border-radius: 1px;
+    .history-header p {
+        margin: 0.35rem 0 0;
+        color: #58727a;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: #edf4f2;
+        color: #204650;
+    }
+
+    .status-chip.pending {
+        background: #fff4dd;
+        color: #8a5a00;
+    }
+
+    .status-chip.valid {
+        background: #e3f6ea;
+        color: #0f6b3a;
+    }
+
+    .status-chip.completed {
+        background: #e8eefc;
+        color: #3154a5;
+    }
+
+    .status-chip.rejected {
+        background: #fbe7e9;
+        color: #9f2d3a;
+    }
+
+    .history-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .history-item {
+        border: 1px solid #d9e8ec;
+        border-radius: 16px;
+        background: #f8fbfc;
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .history-item-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .history-item-title {
+        font-size: 1rem;
+        color: #12343b;
         margin: 0;
     }
 
-    .btn-sm {
-        padding: 3px 8px;
-        font-size: 12px;
-        line-height: 1.5;
-        border-radius: 3px;
+    .history-item-subtitle {
+        margin: 0.3rem 0 0;
+        color: #58727a;
+        font-size: 0.92rem;
     }
 
-    #loginForm {
+    .history-item-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .history-item-grid strong {
+        display: block;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #204650;
+        margin-bottom: 0.25rem;
+    }
+
+    .history-item-grid span {
+        color: #12343b;
+        font-size: 0.95rem;
+    }
+
+    .history-item-footer {
         display: flex;
-        flex-direction: column;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-        width: 100%;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        padding-top: 0.15rem;
+        border-top: 1px solid #d9e8ec;
     }
 
-    .data-entry-row {
+    .history-actions {
         display: flex;
         flex-wrap: wrap;
-        margin-bottom: 10px;
+        gap: 0.5rem;
     }
 
-    .data-entry-row label {
-        min-width: 125px;
-        font-weight: bold;
-        margin-right: 5px;
+    .history-actions form {
+        margin: 0;
     }
 
-    .data-entry-row input {
-        margin-right: 30px;
-        margin-bottom: 10px;
-    }
-
-    h6.collapsible {
-        cursor: pointer;
-        background-color: #f1f1f1;
-        padding: 10px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        margin-bottom: 5px;
-        font-weight: bold;
-    }
-
-    .hidden-content {
-        display: none;
-        margin-bottom: 10px;
+    .history-empty {
+        padding: 1rem;
+        border: 1px dashed #c8dadd;
+        border-radius: 14px;
+        color: #58727a;
+        background: #fbfdfd;
+        text-align: center;
     }
 </style>
 {{ end }}
 
-{{ define "header" }} 
-{{ .Ses.HFName }} Hospital: Leave History
+{{ define "header" }}
+Leave History
 {{ end }}
 
-{{ define "footer" }} 
+{{ define "footer" }}
 {{ end }}
 
-{{ define "sidebar" }} 
+{{ define "sidebar" }}
 {{ end }}
 
-{{define "content"}}
-<form id= "loginForm" action="/employee/leave" method="POST"></form>
-    <table class="table table-hover table-bordered">
-        <thead class="thead-light">
-            <tr>
-                <th>ID</th>
-                <th>Submission Date</th>
-                <th>Leave Type</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Status</th>
-                <th>Comments</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ $index := 0 }} <!-- Initialize a counter -->
-            {{ if .Form }}
-                {{ range $key, $employee := .Form }}
-                    {{ $index = add $index 1 }} <!-- Increment the counter -->
-                        <tr>
-                            <td>{{.ID}}</td>
-                            <td>{{formatDate .SubmissionDate}}</td>
-                            <td>{{.LeaveType}}</td>
-                            <td>{{formatDate .StartDate}}</td>
-                            <td>{{formatDate .EndDate}}</td>
-                            <td>{{.Status}}</td>
-                            <td style="color: #212529;">{{.Comments}}</td> <!-- Ensures font color is consistent -->
-                        </tr>
-            {{else}}
-            <tr>
-                <td colspan="7" class="text-center">No leave records found.</td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
-</form>
+{{ define "content" }}
+<div class="history-card app-panel">
+    <div class="history-header">
+        <div>
+            <h3 class="mb-0">Office leave applications</h3>
+            <p>Review your previous leave requests and their current status.</p>
+        </div>
+        {{ if hasRole . "user" }}
+        <div class="d-flex flex-wrap" style="gap: 0.75rem;">
+            <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+            <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
+            <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
+            <a href="/leave/form" class="btn btn-primary">Apply for Office Leave</a>
+        </div>
+        {{ else }}
+        <div class="d-flex flex-wrap" style="gap: 0.75rem;">
+            <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+            <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
+            <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
+            <a href="/employee/list" class="btn btn-outline-secondary">Back to Employees</a>
+        </div>
+        {{ end }}
+    </div>
 
-{{end}}
+    <div class="history-list">
+        {{ if .Form.Rows }}
+            {{ range .Form.Rows }}
+            {{ $status := .LeaveStatus.String }}
+            <div class="history-item">
+                <div class="history-item-top">
+                    <div>
+                        <h4 class="history-item-title">{{ if .LeaveTypeName.Valid }}{{ .LeaveTypeName.String }}{{ else }}Office Leave{{ end }}</h4>
+                        <p class="history-item-subtitle">Application ID {{ .ID }}</p>
+                    </div>
+                    <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Valid") (eq $status "Approved") }}valid{{ else if eq $status "Completed" }}completed{{ else if eq $status "Rejected" }}rejected{{ end }}">
+                        {{ if .LeaveStatus.Valid }}{{ .LeaveStatus.String }}{{ else }}-{{ end }}
+                    </span>
+                </div>
+
+                <div class="history-item-grid">
+                    <div>
+                        <strong>Submitted</strong>
+                        <span>{{ if .SubmissionDate.Valid }}{{ humanDate .SubmissionDate.Time }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div>
+                        <strong>Start Date</strong>
+                        <span>{{ if .StartDate.Valid }}{{ .StartDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div>
+                        <strong>End Date</strong>
+                        <span>{{ if .EndDate.Valid }}{{ .EndDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div>
+                        <strong>Comments</strong>
+                        <span>{{ if .Comments.Valid }}{{ .Comments.String }}{{ else }}-{{ end }}</span>
+                    </div>
+                </div>
+
+                <div class="history-item-footer">
+                    <span class="text-muted">Manage pending requests only</span>
+                    {{ if and (hasRole $ "user") .LeaveStatus.Valid (eq .LeaveStatus.String "Pending") }}
+                    <div class="history-actions">
+                        <a href="/leave/edit/{{ .ID }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                        <form action="/leave/delete/{{ .ID }}" method="POST" onsubmit="return confirm('Delete this pending leave application?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </div>
+                    {{ else }}
+                    <span class="text-muted">No actions available</span>
+                    {{ end }}
+                </div>
+            </div>
+            {{ end }}
+        {{ else }}
+        <div class="history-empty">No leave records found.</div>
+        {{ end }}
+    </div>
+</div>
+{{ end }}
 
 {{ define "extraJS" }}
 <script>
