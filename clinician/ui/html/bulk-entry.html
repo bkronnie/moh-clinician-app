@@ -1,0 +1,144 @@
+{{ define "title" }} Facility Bulk Entry {{ end }}
+
+{{ define "extraStyles" }}
+<style>
+    .bulk-entry-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .bulk-entry-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.8rem;
+        border: 1px solid #d9e8ec;
+        border-radius: 999px;
+        background: #f8fbfc;
+        color: #204650;
+        font-weight: 600;
+        font-size: 0.88rem;
+    }
+
+    .bulk-entry-tab:hover,
+    .bulk-entry-tab.active {
+        background: #dceff2;
+        border-color: rgba(21, 107, 122, 0.28);
+        color: #0d5360;
+    }
+
+    .bulk-entry-tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.5rem;
+        padding: 0.1rem 0.35rem;
+        border-radius: 999px;
+        background: rgba(18, 52, 59, 0.1);
+        color: #12343b;
+        font-size: 0.76rem;
+    }
+
+    .bulk-entry-grid .app-list-grid-header,
+    .bulk-entry-grid .app-list-grid-row {
+        grid-template-columns: minmax(220px, 1.45fr) minmax(130px, 0.8fr) minmax(150px, 0.95fr) minmax(170px, 1fr) minmax(180px, 0.9fr);
+    }
+
+    .bulk-entry-grid .app-list-grid-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .bulk-entry-grid .app-list-grid-row:hover {
+        background: #e4f1f4;
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 980px) {
+        .bulk-entry-grid .app-list-grid-row {
+            grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        }
+    }
+</style>
+{{ end }}
+
+{{ define "header" }}{{ .Form.ScopeTitle }}{{ end }}
+
+{{ define "content" }}
+<div class="app-list-shell">
+    <div class="app-list-panel">
+        <div class="app-list-toolbar">
+            <p>{{ .Form.ScopeSubtitle }}</p>
+        </div>
+        <p class="app-list-note">{{ .Form.FilterSummary }}</p>
+        <div class="bulk-entry-tabs">
+            {{ range .Form.Tabs }}
+            <a href="{{ .URL }}" class="bulk-entry-tab {{ if eq $.Form.SelectedDepartment .DepartmentID }}active{{ end }}">
+                <span>{{ .Label }}</span>
+                <span class="bulk-entry-tab-count">{{ .Count }}</span>
+            </a>
+            {{ end }}
+        </div>
+    </div>
+
+    <div class="app-list-panel">
+        <div class="app-list-grid bulk-entry-grid">
+            <div class="app-list-grid-header">
+                <div>Staff</div>
+                <div>Title</div>
+                <div>Department</div>
+                <div>Specialization</div>
+                <div>Action</div>
+            </div>
+            {{ if .Form.Rows }}
+                {{ range .Form.Rows }}
+                <div class="app-list-grid-row" data-href="{{ .EntryURL }}" tabindex="0" role="link" aria-label="Open data entry for {{ .EmployeeName }}">
+                    <div class="app-list-cell">
+                        <strong>{{ .EmployeeName }}</strong>
+                        <span>Employee ID {{ .EmployeeID }}</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ if .EmployeeTitle }}{{ .EmployeeTitle }}{{ else }}Not set{{ end }}</strong>
+                        <span>Staff title</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ .DepartmentName }}</strong>
+                        <span>{{ $.Ses.HFName }}</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ if .Specialisation }}{{ .Specialisation }}{{ else }}General practice{{ end }}</strong>
+                        <span>Clinical focus</span>
+                    </div>
+                    <div class="app-row-actions">
+                        <a href="{{ .EntryURL }}" class="btn btn-sm btn-primary">Open Entry Form</a>
+                    </div>
+                </div>
+                {{ end }}
+            {{ else }}
+            <div class="app-list-empty">No staff records match the selected department tab.</div>
+            {{ end }}
+        </div>
+    </div>
+</div>
+{{ end }}
+
+{{ define "extraJS" }}
+<script>
+    document.querySelectorAll('.bulk-entry-grid .app-list-grid-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (event) {
+            if (event.target.closest('a, button, form, input, select, textarea, label')) {
+                return;
+            }
+            window.location.href = row.dataset.href;
+        });
+
+        row.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                window.location.href = row.dataset.href;
+            }
+        });
+    });
+</script>
+{{ end }}

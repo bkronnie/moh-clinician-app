@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS public.employees (
     title BIGINT REFERENCES public.specialist_titles(id)
 );
 
+ALTER TABLE public.employees
+    ADD COLUMN IF NOT EXISTS employee_number TEXT,
+    ADD COLUMN IF NOT EXISTS date_of_birth DATE,
+    ADD COLUMN IF NOT EXISTS phone_number TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_employee_number_unique
+    ON public.employees(employee_number)
+    WHERE employee_number IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS public.employeerights (
     id BIGSERIAL PRIMARY KEY,
     employee BIGINT REFERENCES public.employees(id),
@@ -72,6 +81,38 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_on TIMESTAMP,
     rights TEXT NOT NULL DEFAULT 'user'
 );
+
+ALTER TABLE public.users
+    ADD COLUMN IF NOT EXISTS access_scope TEXT NOT NULL DEFAULT 'individual';
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_access_scope_check'
+          AND conrelid = 'public.users'::regclass
+    ) THEN
+        ALTER TABLE public.users
+            ADD CONSTRAINT users_access_scope_check
+            CHECK (access_scope IN ('national', 'facility', 'individual'));
+    END IF;
+END
+$$;
+
+CREATE TABLE IF NOT EXISTS public.employee_profile_changes (
+    id BIGSERIAL PRIMARY KEY,
+    employee_id BIGINT NOT NULL REFERENCES public.employees(id),
+    changed_by_user BIGINT REFERENCES public.users(id),
+    changed_by_employee BIGINT REFERENCES public.employees(id),
+    changed_on TIMESTAMP NOT NULL DEFAULT NOW(),
+    change_summary TEXT NOT NULL,
+    previous_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    new_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_profile_changes_employee_changed_on
+    ON public.employee_profile_changes(employee_id, changed_on DESC);
 
 CREATE TABLE IF NOT EXISTS public.indicators (
     id BIGSERIAL PRIMARY KEY,

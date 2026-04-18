@@ -173,10 +173,8 @@ Office Leave
 
             <div class="leave-actions mt-4">
                 {{ if hasRole . "user" }}
-                <a href="/" class="btn btn-outline-secondary">Dashboard</a>
                 <a href="/leave/history" class="btn btn-outline-secondary">My Leave History</a>
                 {{ else }}
-                <a href="/" class="btn btn-outline-secondary">Dashboard</a>
                 <a href="/employee/list" class="btn btn-outline-secondary">Back to Employees</a>
                 {{ end }}
                 <button type="submit" class="btn btn-primary">{{ if $form.SubmitLabel }}{{ $form.SubmitLabel }}{{ else }}Submit Leave Request{{ end }}</button>

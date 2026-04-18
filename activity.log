@@ -1,123 +1,81 @@
-ERROR 2026/04/16 17:34:09 utilities.go:65: pq: password authentication failed for user "postgres" Cannot reach db
-ERROR 2026/04/16 17:34:09 utilities.go:65: Failed to open database
-INFO 2026/04/16 18:26:05 utilities.go:60: starting server on 0.0.0.0:8081
-ERROR 2026/04/16 18:26:23 utilities.go:65: error querying user count: pq: relation "users" does not exist
-ERROR 2026/04/16 18:26:37 utilities.go:65: Invalid username or password -pq: relation "clinician_app.users" does not exist
-ERROR 2026/04/16 18:26:37 utilities.go:65: error querying user count: pq: relation "users" does not exist
-ERROR 2026/04/16 18:28:16 utilities.go:65: error querying user count: pq: relation "users" does not exist
-INFO 2026/04/16 18:45:44 utilities.go:60: starting server on 0.0.0.0:8081
-ERROR 2026/04/16 18:45:47 utilities.go:65: error querying user count: pq: relation "users" does not exist
-ERROR 2026/04/16 18:45:54 utilities.go:65: Invalid username or password -pq: relation "clinician_app.users" does not exist
-ERROR 2026/04/16 18:45:54 utilities.go:65: error querying user count: pq: relation "users" does not exist
-ERROR 2026/04/16 18:46:05 utilities.go:65: Invalid username or password -pq: relation "clinician_app.users" does not exist
-ERROR 2026/04/16 18:46:05 utilities.go:65: error querying user count: pq: relation "users" does not exist
-INFO 2026/04/16 18:46:32 utilities.go:60: starting server on 0.0.0.0:8081
-ERROR 2026/04/16 18:46:43 utilities.go:65: error querying user count: pq: relation "users" does not exist
-ERROR 2026/04/16 18:46:50 utilities.go:65: Invalid username or password -pq: relation "clinician_app.users" does not exist
-ERROR 2026/04/16 18:46:50 utilities.go:65: error querying user count: pq: relation "users" does not exist
-ERROR 2026/04/16 18:52:33 utilities.go:65: required table clinician_app.users was not found; run cliniciandb/moh-clinician-app-db.sql and then cliniciandb/moh-clinician-app-seed.sql against the database configured in .env
-ERROR 2026/04/16 18:54:51 utilities.go:65: required table clinician_app.users was not found; run cliniciandb/moh-clinician-app-db.sql and then cliniciandb/moh-clinician-app-seed.sql against the database configured in .env
-ERROR 2026/04/16 18:58:26 utilities.go:65: pq: password authentication failed for user "warehouse" Cannot reach db
-ERROR 2026/04/16 18:58:26 utilities.go:65: Failed to open database
-ERROR 2026/04/16 18:58:43 utilities.go:65: pq: password authentication failed for user "warehouse" Cannot reach db
-ERROR 2026/04/16 18:58:43 utilities.go:65: Failed to open database
-INFO 2026/04/16 18:59:41 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 18:59:54 utilities.go:60: Login successful
-INFO 2026/04/16 19:08:09 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 19:08:29 utilities.go:60: Login successful
-INFO 2026/04/16 19:14:13 utilities.go:60: Logout successful
-INFO 2026/04/16 19:14:19 utilities.go:60: Login successful
-INFO 2026/04/16 19:56:32 utilities.go:60: Login successful
-INFO 2026/04/16 20:33:19 utilities.go:60: Login successful
-INFO 2026/04/16 20:38:52 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 20:39:01 utilities.go:60: Login successful
-INFO 2026/04/16 20:54:51 utilities.go:60: starting server on 0.0.0.0:8081
-ERROR 2026/04/16 20:55:23 utilities.go:65: Invalid username or password -sql: no rows in result set
-ERROR 2026/04/16 20:55:37 utilities.go:65: Invalid username or password -sql: no rows in result set
-INFO 2026/04/16 20:58:06 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 20:58:12 utilities.go:60: Login successful
-INFO 2026/04/16 20:58:14 utilities.go:60: Logout successful
-INFO 2026/04/16 20:58:24 utilities.go:60: Login successful
-INFO 2026/04/16 20:59:41 utilities.go:60: Logout successful
-INFO 2026/04/16 20:59:48 utilities.go:60: Login successful
-INFO 2026/04/16 21:11:11 utilities.go:60: starting server on 0.0.0.0:8081
-ERROR 2026/04/16 21:11:28 utilities.go:65: Invalid username or password -sql: no rows in result set
-ERROR 2026/04/16 21:11:44 utilities.go:65: Invalid username or password -sql: no rows in result set
-INFO 2026/04/16 21:11:53 utilities.go:60: Login successful
-INFO 2026/04/16 21:11:56 utilities.go:60: Logout successful
-ERROR 2026/04/16 21:12:00 utilities.go:65: Invalid username or password -sql: no rows in result set
-ERROR 2026/04/16 21:12:16 utilities.go:65: Invalid username or password -sql: no rows in result set
-ERROR 2026/04/16 21:12:26 utilities.go:65: Invalid username or password -sql: no rows in result set
-INFO 2026/04/16 21:12:36 utilities.go:60: Login successful
-INFO 2026/04/16 21:12:40 utilities.go:60: Logout successful
-ERROR 2026/04/16 21:12:46 utilities.go:65: Invalid username or password -sql: no rows in result set
-INFO 2026/04/16 21:13:04 utilities.go:60: Login successful
-INFO 2026/04/16 21:14:02 utilities.go:60: Logout successful
-INFO 2026/04/16 21:17:14 utilities.go:60: Login successful
-INFO 2026/04/16 21:17:22 utilities.go:60: Logout successful
-INFO 2026/04/16 21:17:26 utilities.go:60: Login successful
-INFO 2026/04/16 21:31:41 utilities.go:60: starting server on 0.0.0.0:8081
-ERROR 2026/04/16 21:31:54 utilities.go:65: Invalid username or password
-INFO 2026/04/16 21:32:07 utilities.go:60: Login successful
-INFO 2026/04/16 21:36:54 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 21:37:05 utilities.go:60: Login successful
-INFO 2026/04/16 21:38:30 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 21:38:41 utilities.go:60: Login successful
-INFO 2026/04/16 21:40:13 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 21:40:25 utilities.go:60: Login successful
-INFO 2026/04/16 21:42:10 utilities.go:60: Logout successful
-INFO 2026/04/16 21:42:16 utilities.go:60: Login successful
-INFO 2026/04/16 21:46:52 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 21:47:02 utilities.go:60: Login successful
-INFO 2026/04/16 21:53:20 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/16 21:53:28 utilities.go:60: Login successful
-INFO 2026/04/16 21:55:38 utilities.go:60: Logout successful
-INFO 2026/04/16 21:55:43 utilities.go:60: Login successful
-INFO 2026/04/16 22:05:16 utilities.go:60: Logout successful
-INFO 2026/04/16 22:05:21 utilities.go:60: Login successful
-INFO 2026/04/16 22:07:52 utilities.go:60: Logout successful
-INFO 2026/04/16 22:07:58 utilities.go:60: Login successful
-INFO 2026/04/16 22:09:15 utilities.go:60: Logout successful
-INFO 2026/04/16 22:12:57 utilities.go:60: Login successful
-INFO 2026/04/16 22:14:43 utilities.go:60: Logout successful
-INFO 2026/04/16 22:14:52 utilities.go:60: Login successful
-INFO 2026/04/16 22:20:28 utilities.go:60: Logout successful
-INFO 2026/04/16 22:20:36 utilities.go:60: Login successful
-INFO 2026/04/16 22:24:07 utilities.go:60: Logout successful
-INFO 2026/04/16 22:25:19 utilities.go:60: Login successful
-INFO 2026/04/16 22:25:57 utilities.go:60: Logout successful
-INFO 2026/04/16 22:26:02 utilities.go:60: Login successful
-INFO 2026/04/16 22:27:15 utilities.go:60: Logout successful
-INFO 2026/04/16 22:27:29 utilities.go:60: Login successful
-INFO 2026/04/16 22:28:14 utilities.go:60: Logout successful
-INFO 2026/04/16 22:28:30 utilities.go:60: Login successful
-INFO 2026/04/17 06:02:52 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/17 06:03:13 utilities.go:60: Login successful
-INFO 2026/04/17 06:22:08 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/17 06:22:24 utilities.go:60: Login successful
-INFO 2026/04/17 06:24:15 utilities.go:60: Logout successful
-INFO 2026/04/17 06:24:22 utilities.go:60: Login successful
-INFO 2026/04/17 06:25:46 utilities.go:60: Logout successful
-INFO 2026/04/17 06:25:53 utilities.go:60: Login successful
-INFO 2026/04/17 06:30:22 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/17 06:30:31 utilities.go:60: Login successful
-INFO 2026/04/17 06:39:43 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/17 06:39:51 utilities.go:60: Login successful
-INFO 2026/04/17 07:11:20 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/17 07:11:28 utilities.go:60: Login successful
-INFO 2026/04/17 07:58:00 utilities.go:60: starting server on 0.0.0.0:8081
-INFO 2026/04/17 07:58:13 utilities.go:60: Login successful
-INFO 2026/04/17 07:58:32 utilities.go:60: Logout successful
-INFO 2026/04/17 07:58:38 utilities.go:60: Login successful
-INFO 2026/04/17 07:59:32 utilities.go:60: Logout successful
-INFO 2026/04/17 07:59:38 utilities.go:60: Login successful
-INFO 2026/04/17 08:01:03 utilities.go:60: Logout successful
-INFO 2026/04/17 08:01:09 utilities.go:60: Login successful
-INFO 2026/04/17 08:11:09 utilities.go:60: Logout successful
-INFO 2026/04/17 08:11:15 utilities.go:60: Login successful
-INFO 2026/04/17 08:15:17 utilities.go:60: Logout successful
-INFO 2026/04/17 08:15:23 utilities.go:60: Login successful
-INFO 2026/04/17 08:15:44 utilities.go:60: Logout successful
-INFO 2026/04/17 08:15:48 utilities.go:60: Login successful
-INFO 2026/04/17 08:16:09 utilities.go:60: Logout successful
-INFO 2026/04/17 08:16:13 utilities.go:60: Login successful
+INFO 2026/04/17 12:50:28 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/17 12:50:37 utilities.go:60: Login successful
+INFO 2026/04/17 12:51:19 utilities.go:60: Logout successful
+INFO 2026/04/17 12:51:23 utilities.go:60: Login successful
+INFO 2026/04/17 12:52:54 utilities.go:60: Logout successful
+INFO 2026/04/17 12:52:59 utilities.go:60: Login successful
+INFO 2026/04/17 12:53:20 utilities.go:60: Logout successful
+INFO 2026/04/17 12:53:25 utilities.go:60: Login successful
+INFO 2026/04/17 13:05:43 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/17 13:05:52 utilities.go:60: Login successful
+INFO 2026/04/17 13:06:06 utilities.go:60: Logout successful
+INFO 2026/04/17 13:06:11 utilities.go:60: Login successful
+INFO 2026/04/17 13:06:19 utilities.go:60: Logout successful
+INFO 2026/04/17 13:06:25 utilities.go:60: Login successful
+INFO 2026/04/17 13:06:40 utilities.go:60: Logout successful
+INFO 2026/04/17 13:09:24 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/17 13:09:30 utilities.go:60: Login successful
+INFO 2026/04/17 13:37:28 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/17 13:37:36 utilities.go:60: Login successful
+INFO 2026/04/17 13:39:04 utilities.go:60: Logout successful
+INFO 2026/04/17 13:39:08 utilities.go:60: Login successful
+INFO 2026/04/17 13:40:24 utilities.go:60: Logout successful
+INFO 2026/04/17 13:40:29 utilities.go:60: Login successful
+INFO 2026/04/17 13:43:36 utilities.go:60: Logout successful
+INFO 2026/04/17 13:43:40 utilities.go:60: Login successful
+INFO 2026/04/17 13:48:11 utilities.go:60: Logout successful
+INFO 2026/04/17 13:48:17 utilities.go:60: Login successful
+INFO 2026/04/18 07:52:36 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 07:52:48 utilities.go:60: Login successful
+INFO 2026/04/18 07:59:50 utilities.go:60: Logout successful
+INFO 2026/04/18 07:59:55 utilities.go:60: Login successful
+INFO 2026/04/18 08:03:25 utilities.go:60: Logout successful
+INFO 2026/04/18 08:03:30 utilities.go:60: Login successful
+INFO 2026/04/18 08:19:19 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 08:19:33 utilities.go:60: Login successful
+INFO 2026/04/18 08:27:55 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 08:28:03 utilities.go:60: Login successful
+INFO 2026/04/18 08:30:34 utilities.go:60: Logout successful
+INFO 2026/04/18 08:30:39 utilities.go:60: Login successful
+INFO 2026/04/18 08:31:11 utilities.go:60: Logout successful
+INFO 2026/04/18 08:31:16 utilities.go:60: Login successful
+INFO 2026/04/18 08:31:27 utilities.go:60: Logout successful
+INFO 2026/04/18 08:31:31 utilities.go:60: Login successful
+INFO 2026/04/18 08:33:07 utilities.go:60: Logout successful
+INFO 2026/04/18 08:33:11 utilities.go:60: Login successful
+INFO 2026/04/18 08:33:22 utilities.go:60: Logout successful
+INFO 2026/04/18 08:33:26 utilities.go:60: Login successful
+INFO 2026/04/18 08:33:55 utilities.go:60: Logout successful
+INFO 2026/04/18 08:33:59 utilities.go:60: Login successful
+INFO 2026/04/18 08:36:20 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 08:36:29 utilities.go:60: Login successful
+INFO 2026/04/18 08:36:38 utilities.go:60: Logout successful
+INFO 2026/04/18 08:36:43 utilities.go:60: Login successful
+INFO 2026/04/18 08:37:10 utilities.go:60: Logout successful
+INFO 2026/04/18 08:37:14 utilities.go:60: Login successful
+INFO 2026/04/18 08:37:27 utilities.go:60: Logout successful
+INFO 2026/04/18 08:37:33 utilities.go:60: Login successful
+INFO 2026/04/18 08:38:21 utilities.go:60: Logout successful
+INFO 2026/04/18 08:38:25 utilities.go:60: Login successful
+INFO 2026/04/18 08:39:35 utilities.go:60: Logout successful
+INFO 2026/04/18 08:39:42 utilities.go:60: Login successful
+INFO 2026/04/18 08:43:42 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 08:43:50 utilities.go:60: Login successful
+INFO 2026/04/18 09:03:25 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 09:03:35 utilities.go:60: Login successful
+INFO 2026/04/18 09:07:39 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 09:07:48 utilities.go:60: Login successful
+INFO 2026/04/18 09:07:52 utilities.go:60: Logout successful
+INFO 2026/04/18 09:07:56 utilities.go:60: Login successful
+INFO 2026/04/18 09:08:58 utilities.go:60: Logout successful
+INFO 2026/04/18 09:09:03 utilities.go:60: Login successful
+INFO 2026/04/18 09:09:13 utilities.go:60: Logout successful
+INFO 2026/04/18 09:09:18 utilities.go:60: Login successful
+INFO 2026/04/18 09:09:33 utilities.go:60: Logout successful
+INFO 2026/04/18 09:09:39 utilities.go:60: Login successful
+INFO 2026/04/18 09:22:44 utilities.go:60: Logout successful
+INFO 2026/04/18 09:22:51 utilities.go:60: Login successful
+INFO 2026/04/18 09:27:11 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 09:27:27 utilities.go:60: Login successful
+INFO 2026/04/18 09:36:28 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/18 09:36:42 utilities.go:60: Login successful

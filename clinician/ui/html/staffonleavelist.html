@@ -2,15 +2,15 @@
 
 {{ define "extraStyles" }}
 <style>
-    #leaveTable {
-        width: 100%;
+    .staff-leave-grid .app-list-grid-header,
+    .staff-leave-grid .app-list-grid-row {
+        grid-template-columns: minmax(200px, 1.35fr) minmax(130px, 0.8fr) minmax(150px, 1fr) minmax(120px, 0.8fr) minmax(130px, 0.9fr) minmax(170px, 1.1fr);
     }
-    table.table th, table.table td {
-        padding: 0.5rem;
-    }
-    table.table {
-        font-size: 0.875rem;
-        width: 100%;
+
+    @media (max-width: 980px) {
+        .staff-leave-grid .app-list-grid-row {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
     }
 </style>
 {{ end }}
@@ -20,76 +20,65 @@
 {{ end }}
 
 {{ define "content" }}
-<form id="leaveTable" class="app-panel" method="post" action="/employees">
-
-    <div class="d-flex justify-content-between mb-3">
-        <div>
-            <!--<a href="/employee/new/" class="btn btn-primary">New Employee</a>-->
-            <a href="/employee/leave/form" class="btn btn-secondary">Leave Form</a>
-        </div>
-        <div>
-            <a href="/employee/list" class="btn btn-success">Refresh</a>
-            <a href="/reports/export" class="btn btn-warning">Export</a>
-            <!--<a href="/" class="btn btn-primary">Back</a>-->
+<div class="app-list-shell">
+    <div class="app-list-panel">
+        <div class="app-list-header">
+            <div>
+                <h3 class="mb-0">Staff on Leave</h3>
+                <p>Current leave roster for {{ .Ses.HFName }}, shown with the same list-table styling used in reports.</p>
+            </div>
+            <div class="app-list-actions">
+                <a href="/employee/leave/form" class="btn btn-secondary">Leave Form</a>
+                <a href="/employee/list" class="btn btn-outline-secondary">Back to Employees</a>
+            </div>
         </div>
     </div>
 
-    <!-- Employee Table -->
-    <table class="table table-hover table-bordered">
-        <thead class="thead-light">
-            <tr>
-                <th>SN</th>
-                <th>Staff Name</th>
-                <th>Title</th>
-                <!--<th>Specialization</th>-->
-                <th>Department</th>
-                <th>Leave Status</th>
-                <!--<th>Created By</th>-->
-                <!--<th>Created On</th>-->
-                <th>Returning</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ $index := 0 }} <!-- Initialize a counter -->
+    <div class="app-list-panel">
+        <div class="app-list-grid staff-leave-grid">
+            <div class="app-list-grid-header">
+                <div>Staff</div>
+                <div>Title</div>
+                <div>Department</div>
+                <div>Status</div>
+                <div>Returning</div>
+                <div>Actions</div>
+            </div>
             {{ if .Form }}
-                {{ range $key, $employee := .Form }}
-                    {{ $index = add $index 1 }} <!-- Increment the counter -->
-                        <tr>
-                            <td>{{ $index }}</td>
-                            <td>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</td>
-                            <td>{{ $employee.EmpTitle.String }}</td>
-                            <!--<td>{{ $employee.Specialisation.String }}</td>-->
-                            <td>{{ $employee.EmpDepartmentName.String }}</td>
-                            <td>{{ $employee.LeaveStatus.String }}</td>
-                            <td>{{ formatDate $employee.ReturnDate.Time "2 Jan 06" }}</td>
-
-                            <!--<td>{{ $employee.CreatedBy.Int64 }}</td>-->
-                            <!--<td>{{ formatDate $employee.CreatedOn.Time "2 Jan 06" }}</td>-->
-                            <td>
-                                <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-info btn-sm">Leave History</a>
-                                <!--<a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-info btn-sm">Update Record</a>-->
-                                <!-- Add other actions as needed -->
-                            </td>
-                        </tr>
+                {{ range $employee := .Form }}
+                <div class="app-list-grid-row">
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
+                        <span>Employee ID {{ $employee.EmpID }}</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.EmpTitle.String }}</strong>
+                        <span>Staff title</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.EmpDepartmentName.String }}</strong>
+                        <span>{{ .Ses.HFName }}</span>
+                    </div>
+                    <div>
+                        <span class="status-chip {{ if eq $employee.LeaveStatus.String "Valid" }}valid{{ else if eq $employee.LeaveStatus.String "Pending" }}pending{{ else }}completed{{ end }}">
+                            {{ $employee.LeaveStatus.String }}
+                        </span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ formatDate $employee.ReturnDate.Time "2 Jan 06" }}</strong>
+                        <span>Expected return</span>
+                    </div>
+                    <div class="app-row-actions">
+                        <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-primary">Leave History</a>
+                    </div>
+                </div>
                 {{ end }}
             {{ else }}
-                <tr>
-                    <td colspan="10" class="text-center">No employees found.</td>
-                </tr>
+            <div class="app-list-empty">No employees found.</div>
             {{ end }}
-        </tbody>
-    </table>
-
-    <!-- Refresh Button at the Bottom -->
-    <div class="form-group row">
-        <div class="col-sm-12 text-center">
-            <!--<a href="/" class="btn btn-secondary btn-sm">Back</a>-->
-            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>
-            <button type="button" class="btn btn-primary btn-sm" onclick="window.location.reload();">Refresh</button>
         </div>
     </div>
-</form>
+</div>
 {{ end }}
 
 {{ define "extraJS" }}

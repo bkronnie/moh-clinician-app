@@ -116,6 +116,20 @@ BEGIN
 END
 $$;
 
+CREATE TABLE IF NOT EXISTS clinician_app.employee_profile_changes (
+    id BIGSERIAL PRIMARY KEY,
+    employee_id BIGINT NOT NULL REFERENCES clinician_app.employees(id),
+    changed_by_user BIGINT REFERENCES clinician_app.users(id),
+    changed_by_employee BIGINT REFERENCES clinician_app.employees(id),
+    changed_on TIMESTAMP NOT NULL DEFAULT NOW(),
+    change_summary TEXT NOT NULL,
+    previous_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    new_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_profile_changes_employee_changed_on
+    ON clinician_app.employee_profile_changes(employee_id, changed_on DESC);
+
 CREATE TABLE IF NOT EXISTS clinician_app.indicators (
     id BIGSERIAL PRIMARY KEY,
     indicator TEXT NOT NULL,

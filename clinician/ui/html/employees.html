@@ -2,20 +2,16 @@
 
 {{ define "extraStyles" }}
 <style>
-    table.table th, table.table td {
-        padding: 0.5rem;
-    }
-    table.table {
-        font-size: 0.875rem;
-        width: 100%;
+    .employees-grid .app-list-grid-header,
+    .employees-grid .app-list-grid-row {
+        grid-template-columns: minmax(200px, 1.35fr) minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(150px, 1fr) minmax(220px, 1.2fr);
     }
 
-    #employeeTable {
-       display: flex;
-       flex-direction: column;
-       width: 100%;
-   }
-
+    @media (max-width: 980px) {
+        .employees-grid .app-list-grid-row {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
+    }
 </style>
 {{ end }}
 
@@ -24,73 +20,60 @@
 {{ end }}
 
 {{ define "content" }}
-<form id="employeeTable" class="app-panel" method="post" action="/employees">
-
-    <div class="d-flex justify-content-between mb-3">
-        <div>
-            <a href="/employee/new/" class="btn btn-primary">New Employee</a>
-            <a href="/employee/leave/staffonleave" class="btn btn-secondary">Staff Leave</a>
-        </div>
-        <div>
-            <a href="/employee/list" class="btn btn-success">Refresh</a>
-            <a href="/reports/export" class="btn btn-warning">Export</a>
-            <!--<a href="/" class="btn btn-primary">Back</a>-->
+<div class="app-list-shell">
+    <div class="app-list-panel">
+        <div class="app-list-header">
+            <div>
+                <h3 class="mb-0">Staff List</h3>
+                <p>All staff records for {{ .Ses.HFName }}, using the shared list-table styling from the reports workspace.</p>
+            </div>
+            <div class="app-list-actions">
+                <a href="/employee/new/" class="btn btn-primary">New Employee</a>
+                <a href="/employee/leave/staffonleave" class="btn btn-secondary">Staff Leave</a>
+            </div>
         </div>
     </div>
 
-    <!-- Employee Table -->
-    <table class="table table-hover table-bordered">
-        <thead class="thead-light">
-            <tr>
-                <th>SN</th>
-                <th>Staff Name</th>
-                <th>Title</th>
-                <th>Specialization</th>
-                <th>Department</th>
-                <!--<th>Facility</th>-->
-                <!--<th>Created By</th>-->
-                <!--<th>Created On</th>-->
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ $index := 0 }} <!-- Initialize a counter -->
+    <div class="app-list-panel">
+        <div class="app-list-grid employees-grid">
+            <div class="app-list-grid-header">
+                <div>Staff</div>
+                <div>Title</div>
+                <div>Specialization</div>
+                <div>Department</div>
+                <div>Actions</div>
+            </div>
             {{ if .Form }}
-                {{ range $key, $employee := .Form }}
-                    {{ $index = add $index 1 }} <!-- Increment the counter -->
-                        <tr>
-                            <td>{{ $index }}</td>
-                            <td>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</td>
-                            <td>{{ $employee.EmpTitle.String }}</td>
-                            <td>{{ $employee.Specialisation.String }}</td>
-                            <td>{{ $employee.EmpDepartmentName.String }}</td>
-                            <!--<td>{{ $employee.EmpFacilityName.String }}</td>-->
-                            <!--<td>{{ $employee.CreatedBy.Int64 }}</td>-->
-                            <!--<td>{{ formatDate $employee.CreatedOn.Time "2 Jan 06" }}</td>-->
-                            <td>
-                                <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-info btn-sm">Leave History</a>
-                                <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-info btn-sm">Update Record</a>
-                                <!-- Add other actions as needed -->
-                            </td>
-                        </tr>
+                {{ range $employee := .Form }}
+                <div class="app-list-grid-row">
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
+                        <span>Employee ID {{ $employee.EmpID }}</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.EmpTitle.String }}</strong>
+                        <span>Staff title</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.Specialisation.String }}</strong>
+                        <span>Specialization</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ $employee.EmpDepartmentName.String }}</strong>
+                        <span>{{ .Ses.HFName }}</span>
+                    </div>
+                    <div class="app-row-actions">
+                        <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-primary">Leave History</a>
+                        <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-secondary">Update Record</a>
+                    </div>
+                </div>
                 {{ end }}
             {{ else }}
-                <tr>
-                    <td colspan="10" class="text-center">No employees found.</td>
-                </tr>
+            <div class="app-list-empty">No employees found.</div>
             {{ end }}
-        </tbody>
-    </table>
-
-    <!-- Refresh Button at the Bottom -->
-    <div class="form-group row">
-        <div class="col-sm-12 text-center">
-            <a href="/" class="btn btn-secondary btn-sm">Back</a>
-            <!--<a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>-->
-            <button type="button" class="btn btn-primary btn-sm" onclick="window.location.reload();">Refresh</button>
         </div>
     </div>
-</form>
+</div>
 {{ end }}
 
 {{ define "extraJS" }}

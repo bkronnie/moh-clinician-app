@@ -1,154 +1,246 @@
-{{ define "title"}} Weekly Report Submission Listing {{ end }}
+{{ define "title"}} Report Submissions {{ end }}
 
 {{ define "extraStyles" }}
 <style>
-    body {
-        font-family: "Times New Roman", Times, serif;
-        font-size: 14px;
+    .submissions-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.65rem;
+        align-items: end;
     }
 
-    .form-inline .form-group {
-        margin-right: 5px;
+    .filter-field label {
+        display: block;
+        margin-bottom: 0.22rem;
+        font-size: 0.82rem;
+        color: #204650;
+        font-weight: 600;
     }
 
-    .form-control-sm {
-        width: auto;
-        font-size: 100%;
-        line-height: 1.2;
-        border-radius: 1px;
-        margin: 0;
-    }
-
-    .btn-sm {
-        padding: 3px 8px;
-        font-size: 12px;
-        line-height: 1.5;
-        border-radius: 3px;
-    }
-
-    .form-inline .form-group label {
-        margin-right: 5px;
-    }
-
-    #reportSummary {
-        display: flex;
-        flex-direction: column;
-        padding: 10px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
+    .filter-field select {
         width: 100%;
-        border: 2px solid #ccc;
+        border: 1px solid #c5dadd;
+        border-radius: 12px;
+        padding: 0.52rem 0.68rem;
+        background: #ffffff;
+        color: #12343b;
     }
 
-    .div1 {
-        width: 100%;
-        height: 400px;
-        overflow: scroll;
-        border: 2px solid #777777;
+    .report-submissions-grid .app-list-grid-header,
+    .report-submissions-grid .app-list-grid-row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1.3fr) minmax(110px, 0.9fr) minmax(110px, 0.9fr) minmax(140px, 0.95fr) minmax(85px, 0.7fr) minmax(105px, 0.8fr) minmax(135px, 1fr);
     }
 
-    .div1 table {
-        border-spacing: 0;
-    }
-
-    .div1 th {
-        border-left: none;
-        border-right: 1px solid #bbbbbb;
-        padding: 5px;
-        width: 20px;
-        min-width: 20px;
-        position: sticky;
-        top: 0;
-        background: #727272;
-        color: #e0e0e0;
-        font-weight: normal;
-    }
-
-    .div1 td {
-        border-left: none;
-        border-right: 1px solid #bbbbbb;
-        border-bottom: 1px solid #bbbbbb;
-        padding: 5px;
-        width: 20px;
-        min-width: 20px;
-    }
-
-    .div1 th:nth-child(1),
-    .div1 td:nth-child(1) {
-        position: sticky;
-        left: 0;
-        width: 50px;
-        min-width: 50px;
-    }
-
-    .div1 th:nth-child(2),
-    .div1 td:nth-child(2) {
-        position: sticky;
-        left: 50px; /* Adjusted position for 2nd column */
-        width: 150px;
-        min-width: 150px;
-    }
-
-    .div1 th:nth-child(3),
-    .div1 td:nth-child(3) {
-        position: sticky;
-        left: 200px; /* Increment position for 3rd column */
-        width: 100px;
-        min-width: 100px;
-    }
-
-    .div1 td:nth-child(1),
-    .div1 td:nth-child(2),
-    .div1 td:nth-child(3) {
-        background: #d7d7d6;
-    }
-
-    .div1 th:nth-child(1),
-    .div1 th:nth-child(2) {
-        z-index: 3;
-    }
-
-    .hidden {
-        display: none; /* Hide the Staff ID column */
-    }
-
-    .disabled {
-        background-color: #e9ecef;
-        color: #6c757d;
-        pointer-events: none;
+    @media (max-width: 980px) {
+        .report-submissions-grid .app-list-grid-row {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
     }
 </style>
 {{ end }}
 
-{{ define "header" }} 
-    <h4>{{ .Ses.HFName }} Hospital: Report Analysis</h4>
-{{ end }}
+{{ define "header" }}Report Submissions{{ end }}
 
-{{ define "footer" }} 
-{{ end }}
-
-{{ define "sidebar" }} 
-{{ end }}
-
-{{ define "sidebarContent" }} 
-{{ end }}
-
-{{ define "content"}}
-    {{ if .Form }}
-        {{ range $value := .Form }}
-            <div id="reportSummary">
-                <div>
-                    <iframe src="/reports/report-summaries?hfid={{ $value.FacilityID }}" style="height:500px;width:100%;" title="Summary Report"></iframe>		
-                </div>
+{{ define "content" }}
+<div class="app-list-shell">
+    <div class="app-list-panel">
+        <div class="app-list-toolbar app-toolbar-inline">
+            <div class="app-filter-bar">
+                <a href="{{ .Form.AllURL }}" class="btn {{ if eq .Form.SelectedStatus "all" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">All</a>
+                {{ if eq .Form.Role "user" }}
+                <a href="{{ .Form.SubmittedURL }}" class="btn {{ if eq .Form.SelectedStatus "submitted" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Submitted</a>
+                {{ else }}
+                <a href="{{ .Form.PendingURL }}" class="btn {{ if eq .Form.SelectedStatus "pending" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Pending</a>
+                {{ end }}
+                <a href="{{ .Form.ApprovedURL }}" class="btn {{ if eq .Form.SelectedStatus "approved" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Approved</a>
+                <a href="{{ .Form.DeclinedURL }}" class="btn {{ if eq .Form.SelectedStatus "declined" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Declined</a>
+                <a href="{{ .Form.DraftURL }}" class="btn {{ if eq .Form.SelectedStatus "draft" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Draft</a>
             </div>
-        {{ end }}
-    {{ else }}
-        <p>No reports available.</p>
-    {{ end }}
+            <div class="app-list-actions">
+                <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
+                <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
+            </div>
+        </div>
+        <p class="app-list-note">{{ .Form.ScopeSubtitle }}</p>
+        <form class="submissions-filters dashboard-auto-submit" method="GET" action="/reports/analysis">
+            {{ if ne .Form.SelectedStatus "all" }}
+            <input type="hidden" name="status" value="{{ .Form.SelectedStatus }}">
+            {{ end }}
+            {{ if ne .Form.Role "user" }}
+            <div class="filter-field">
+                <label for="submissionsFacility">Facility</label>
+                <select id="submissionsFacility" name="facility">
+                    {{ if eq .Form.Role "admin" }}
+                    <option value="0">All facilities</option>
+                    {{ end }}
+                    {{ range .Form.FacilityOptions }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="submissionsDepartment">Department</label>
+                <select id="submissionsDepartment" name="department">
+                    <option value="0">All departments</option>
+                    {{ range .Form.DepartmentOptions }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            {{ end }}
+            <div class="filter-field">
+                <label for="submissionsYear">Year</label>
+                <select id="submissionsYear" name="year">
+                    {{ range .Form.AvailableYears }}
+                    <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ if eq . 0 }}All{{ else }}{{ . }}{{ end }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="submissionsMonth">Month</label>
+                <select id="submissionsMonth" name="month">
+                    {{ range .Form.AvailableMonths }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="submissionsWeek">Week</label>
+                <select id="submissionsWeek" name="week">
+                    {{ range .Form.AvailableWeeks }}
+                    <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div class="filter-field">
+                <label>&nbsp;</label>
+                <a href="{{ .Form.ClearFiltersURL }}" class="btn btn-outline-secondary btn-block">Clear Filters</a>
+            </div>
+        </form>
+        <p class="app-list-note">{{ .Form.FilterSummary }}</p>
+    </div>
+
+    <div class="app-list-panel">
+        <div class="app-list-toolbar">
+            <p>{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.</p>
+            <div class="app-list-actions">
+                {{ if and .Form.CanApprove (gt .Form.PendingCount 0) }}
+                <form method="post" action="/reports/analysis/approve-all" onsubmit="return confirm('Approve all pending submitted reports for the current filter selection?');">
+                    <input type="hidden" name="department" value="{{ .Form.SelectedDepartment }}">
+                    <input type="hidden" name="year" value="{{ .Form.SelectedYear }}">
+                    <input type="hidden" name="month" value="{{ .Form.SelectedMonth }}">
+                    <input type="hidden" name="week" value="{{ .Form.SelectedWeek }}">
+                    <input type="hidden" name="return_to" value="{{ .Form.CurrentURL }}">
+                    <button class="btn btn-success" type="submit">Approve All</button>
+                </form>
+                {{ end }}
+            </div>
+        </div>
+        <div class="app-list-grid report-submissions-grid">
+            <div class="app-list-grid-header">
+                <div>Staff</div>
+                {{ if ne .Form.Role "user" }}<div>Facility</div>{{ else }}<div>Status</div>{{ end }}
+                <div>Department</div>
+                <div>Week</div>
+                <div>Status</div>
+                <div>Activity</div>
+                <div>Actions</div>
+            </div>
+
+            {{ if .Form.Rows }}
+                {{ range .Form.Rows }}
+                {{ $submitStatus := .SubmitStatus.String }}
+                {{ $reportStatus := .ReportStatus.String }}
+                <div class="app-list-grid-row">
+                    <div class="app-list-cell">
+                        <strong>{{ .EmployeeName }}</strong>
+                        <span>Report ID {{ .ReportID }}</span>
+                    </div>
+                    {{ if ne $.Form.Role "user" }}
+                    <div class="app-list-cell">
+                        <strong>{{ .FacilityName }}</strong>
+                        <span>Facility ID {{ .FacilityID }}</span>
+                    </div>
+                    {{ else }}
+                    <div>
+                        <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else if eq $submitStatus "Submitted" }}submitted{{ else }}draft{{ end }}">
+                            {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
+                        </span>
+                    </div>
+                    {{ end }}
+                    <div class="app-list-cell">
+                        <strong>{{ .DepartmentName }}</strong>
+                        <span>Entered {{ if .EnteredOn.Valid }}{{ humanDate .EnteredOn.Time }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>
+                            {{ if and .WeekStart.Valid .WeekStop.Valid }}
+                            {{ .WeekStart.Time.Format "02 Jan 2006" }} - {{ .WeekStop.Time.Format "02 Jan 2006" }}
+                            {{ else }}
+                            -
+                            {{ end }}
+                        </strong>
+                        <span>Submitted {{ if .SubmittedOn.Valid }}{{ humanDate .SubmittedOn.Time }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div>
+                        <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else if eq $submitStatus "Submitted" }}pending{{ else }}draft{{ end }}">
+                            {{ if eq $.Form.Role "user" }}
+                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
+                            {{ else }}
+                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Pending Review{{ else }}Draft{{ end }}
+                            {{ end }}
+                        </span>
+                    </div>
+                    <div class="app-list-cell">
+                        <strong>{{ .PatientsReviewed }} patients</strong>
+                        <span>Attendance {{ .Attendance }} | Procedures {{ .Procedures }}</span>
+                    </div>
+                    <div class="app-row-actions">
+                        {{ if eq $.Form.Role "user" }}
+                        {{ if .Actionable }}
+                        <a class="btn btn-sm btn-outline-primary" href="/reports/new/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">Edit</a>
+                        <form method="post" action="/reports/submit-self/{{ .ReportID }}" onsubmit="return confirm('Submit this report for review?');">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-success" type="submit">Submit</button>
+                        </form>
+                        <form method="post" action="/reports/delete-self/{{ .ReportID }}" onsubmit="return confirm('Delete this report?');">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                        </form>
+                        {{ else }}
+                        <span class="text-muted">No actions available</span>
+                        {{ end }}
+                        {{ else }}
+                        <a class="btn btn-sm btn-outline-primary" href="/reports/analysis/view/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">View</a>
+                        {{ if and $.Form.CanApprove .Actionable }}
+                        <form method="post" action="/reports/analysis/{{ .ReportID }}/approve">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
+                        </form>
+                        <form method="post" action="/reports/analysis/{{ .ReportID }}/decline" onsubmit="return confirm('Decline this submitted report?');">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Decline</button>
+                        </form>
+                        {{ end }}
+                        {{ end }}
+                    </div>
+                </div>
+                {{ end }}
+            {{ else }}
+            <div class="app-list-empty">No report submissions were found for the selected filters.</div>
+            {{ end }}
+        </div>
+    </div>
+</div>
 {{ end }}
-
-
 
 {{ define "extraJS" }}
+<script>
+    document.querySelectorAll('.dashboard-auto-submit').forEach((form) => {
+        form.querySelectorAll('select').forEach((select) => {
+            select.addEventListener('change', () => form.requestSubmit());
+        });
+    });
+</script>
 {{ end }}

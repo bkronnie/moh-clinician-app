@@ -32,29 +32,32 @@
                 <li class="nav-item">
                     <a class="nav-link active" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                 </li>
+                {{ if or $isClinician $isManager $isAdmin }}
+                <li class="nav-item">
+                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                </li>
+                {{ end }}
                 {{ if $isClinician }}
                 <li class="nav-item">
                     <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                 </li>
+                {{ end }}
+                {{ if $isManager }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/history"><span class="nav-link-icon">{{ navIcon "history" }}</span><span>Report History</span></a>
+                    <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                 </li>
+                {{ end }}
+                {{ if $isClinician }}
                 <li class="nav-item">
                     <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
                 </li>
                 {{ end }}
                 {{ if $isManager }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/review"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submitted Reports</span></a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
                 </li>
                 {{ end }}
                 {{ if or $isManager $isAdmin }}
-                <li class="nav-item">
-                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Analysis</span></a>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                 </li>
@@ -63,9 +66,60 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
                 </li>
-                {{ end }}
                 <li class="nav-item">
-                    <a class="btn btn-outline-danger logout-btn" href="/logout"><span class="btn-icon">{{ navIcon "logout" }}</span><span>Logout</span></a>
+                    <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>
+                </li>
+                {{ end }}
+                <li class="nav-item dropdown account-dropdown">
+                    <a
+                        class="nav-link dropdown-toggle account-dropdown-toggle"
+                        href="#"
+                        id="accountMenu"
+                        role="button"
+                        data-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false">
+                        <span class="nav-link-icon">{{ navIcon "account" }}</span>
+                        <span class="account-toggle-copy">
+                            <strong>{{ $ses.FName }} {{ $ses.LName }}</strong>
+                            <small>Account</small>
+                        </span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right account-menu" aria-labelledby="accountMenu">
+                        <div class="account-menu-header">
+                            <div class="account-menu-name">{{ $ses.FName }} {{ $ses.LName }}</div>
+                            {{ if $ses.Email }}<div class="account-menu-email">{{ $ses.Email }}</div>{{ end }}
+                        </div>
+                        <div class="account-menu-details">
+                            <div class="account-detail-row">
+                                <span class="account-detail-label">Role</span>
+                                <span class="account-detail-value">
+                                    {{ if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Medical Officer{{ else }}User{{ end }}
+                                </span>
+                            </div>
+                            {{ if gt $ses.EmpID 0 }}
+                            <div class="account-detail-row">
+                                <span class="account-detail-label">Employee ID</span>
+                                <span class="account-detail-value">{{ $ses.EmpID }}</span>
+                            </div>
+                            {{ end }}
+                            {{ if $ses.HFName }}
+                            <div class="account-detail-row">
+                                <span class="account-detail-label">Facility</span>
+                                <span class="account-detail-value">{{ $ses.HFName }}</span>
+                            </div>
+                            {{ end }}
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item account-menu-action" href="/account/edit">
+                            <span class="btn-icon">{{ navIcon "entry" }}</span>
+                            <span>Edit Account Details</span>
+                        </a>
+                        <a class="dropdown-item account-menu-action logout" href="/logout">
+                            <span class="btn-icon">{{ navIcon "logout" }}</span>
+                            <span>Logout</span>
+                        </a>
+                    </div>
                 </li>
             </ul>
         </div>
@@ -78,17 +132,22 @@
                 <div class="sidebar-label">Quick Access</div>
                 <div class="nav flex-wrap">
                     <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
+                    {{ if or $isClinician $isManager $isAdmin }}
+                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                    {{ end }}
                     {{ if $isClinician }}
                     <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
-                    <a class="nav-link" href="/reports/history"><span class="nav-link-icon">{{ navIcon "history" }}</span><span>Report History</span></a>
+                    {{ end }}
+                    {{ if $isManager }}
+                    <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
+                    {{ end }}
+                    {{ if $isClinician }}
                     <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
                     {{ end }}
                     {{ if $isManager }}
-                    <a class="nav-link" href="/reports/review"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submitted Reports</span></a>
                     <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
                     {{ end }}
                     {{ if or $isManager $isAdmin }}
-                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
                     <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                     {{ end }}
                     {{ if $isAdmin }}
@@ -105,36 +164,39 @@
                         <li class="nav-item">
                             <a class="nav-link active" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                         </li>
+                        {{ if or $isClinician $isManager $isAdmin }}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                        </li>
+                        {{ end }}
                         {{ if $isClinician }}
                         <li class="nav-item">
                             <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
                         </li>
+                        {{ end }}
+                        {{ if $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/history"><span class="nav-link-icon">{{ navIcon "history" }}</span><span>Report History</span></a>
+                            <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                         </li>
+                        {{ end }}
+                        {{ if $isClinician }}
                         <li class="nav-item">
                             <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
                         </li>
                         {{ end }}
                         {{ if $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/review"><span class="nav-link-icon">{{ navIcon "submissions" }}</span><span>Submitted Reports</span></a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
                         </li>
                         {{ end }}
                         {{ if or $isManager $isAdmin }}
-                        <li class="nav-item">
-                            <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
-                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
                         </li>
                         {{ end }}
                         {{ if $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Health Facilities</span></a>
+                            <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>

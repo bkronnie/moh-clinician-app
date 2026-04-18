@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +24,7 @@ type ClinicianEntryView struct {
 	DepartmentID   int64
 	DepartmentName string
 	FacilityName   string
+	PageTitle      string
 	StartDate      string
 	StopDate       string
 	ReportID       int
@@ -29,6 +32,7 @@ type ClinicianEntryView struct {
 	SubmitLabel    string
 	Values         map[string]string
 	IsEdit         bool
+	ReadOnly       bool
 	StatusLabel    string
 	ReturnURL      string
 }
@@ -66,6 +70,32 @@ type FacilityReportReviewView struct {
 	ExportPDFURL string
 }
 
+type BulkEntryDepartmentTab struct {
+	DepartmentID int
+	Label        string
+	Count        int
+	URL          string
+}
+
+type BulkEntryRow struct {
+	EmployeeID     int
+	EmployeeName   string
+	EmployeeTitle  string
+	DepartmentName string
+	Specialisation string
+	EntryURL       string
+}
+
+type BulkEntryView struct {
+	ScopeTitle         string
+	ScopeSubtitle      string
+	FilterSummary      string
+	SelectedDepartment int
+	Tabs               []BulkEntryDepartmentTab
+	Rows               []BulkEntryRow
+	CurrentURL         string
+}
+
 // Handler used for entering weekly report for a single user
 func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
@@ -83,7 +113,25 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		return
 	}
 
-	empID := sesDetails.EmpID // Retrieve EmpID from the session
+	empID := sesDetails.EmpID
+	entryTitle := "My Weekly Data Entry"
+
+	requestedEmployeeID := 0
+	if rawEmployeeID := strings.TrimSpace(c.Query("employee")); rawEmployeeID != "" {
+		parsedEmployeeID, err := strconv.Atoi(rawEmployeeID)
+		if err != nil || parsedEmployeeID <= 0 {
+			c.String(http.StatusBadRequest, "Invalid employee selection")
+			return
+		}
+		if !strings.EqualFold(sesDetails.Rights, "approver") {
+			c.String(http.StatusForbidden, "Only facility admins can open staff bulk entry forms.")
+			return
+		}
+		requestedEmployeeID = parsedEmployeeID
+		empID = int64(parsedEmployeeID)
+		entryTitle = "Bulk Staff Data Entry"
+	}
+
 	log.Printf("UserID: %+d", empID)
 
 	employee, err := models.EmployeeByID(c, db, int(empID))
@@ -91,11 +139,21 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to load employee details"})
 		return
 	}
+	if requestedEmployeeID > 0 && employee.EmpFacility != sesDetails.HFID {
+		c.String(http.StatusForbidden, "This employee is outside your facility.")
+		return
+	}
+
+	employeeName := formatEmployeeName(employee.Fname.String, employee.Lname.String, employee.Oname.String)
 
 	reportID, _ := strconv.Atoi(c.Param("i"))
 	returnURL := sanitizeHistoryReturnURL(c.Query("return_to"))
 
 	if reportID > 0 {
+		if requestedEmployeeID > 0 {
+			c.String(http.StatusForbidden, "Editing an existing report through bulk entry is not supported.")
+			return
+		}
 		report, err := models.ClinicianEditableReportByID(c.Request.Context(), db, reportID, sesDetails.EmpID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -123,10 +181,11 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 
 		sessionData.Form = ClinicianEntryView{
 			EmployeeID:     empID,
-			EmployeeName:   fmt.Sprintf("%s %s", employee.Fname.String, employee.Lname.String),
+			EmployeeName:   employeeName,
 			DepartmentID:   report.DepartmentID,
 			DepartmentName: reportDepartment.DepartmentName.String,
 			FacilityName:   facilityName,
+			PageTitle:      entryTitle,
 			StartDate:      formatNullDate(report.WeekStart),
 			StopDate:       formatNullDate(report.WeekStop),
 			ReportID:       report.ReportID,
@@ -162,10 +221,11 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 
 	sessionData.Form = ClinicianEntryView{
 		EmployeeID:     empID,
-		EmployeeName:   fmt.Sprintf("%s %s", employee.Fname.String, employee.Lname.String),
+		EmployeeName:   employeeName,
 		DepartmentID:   departmentID,
 		DepartmentName: department.DepartmentName.String,
 		FacilityName:   facilityName,
+		PageTitle:      entryTitle,
 		StartDate:      weekStart.Format("2006-01-02"),
 		StopDate:       weekEnd.Format("2006-01-02"),
 		ActionURL:      "/reports/zave",
@@ -228,11 +288,27 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 
 	// Assume you have a list of employee IDs to loop through
 	for empID := range c.PostFormMap("input") {
+		targetEmployeeID := empIDToInt(empID)
+		if strings.EqualFold(sesDetails.Rights, "approver") {
+			employee, err := models.EmployeeByID(c.Request.Context(), db, int(targetEmployeeID))
+			if err != nil {
+				c.String(http.StatusBadRequest, "Invalid employee selected for bulk entry")
+				return
+			}
+			if employee.EmpFacility != sesDetails.HFID {
+				c.String(http.StatusForbidden, "You can only enter data for staff within your facility.")
+				return
+			}
+		} else if targetEmployeeID != sesDetails.EmpID {
+			c.String(http.StatusForbidden, "You can only save reports for your own record.")
+			return
+		}
+
 		// Create a new WeeklyReportExtended instance for each employee
 		report := models.WeeklyReportExtended{
 			Start: sql.NullTime{Time: parseDate(start), Valid: true},
 			Stop:  sql.NullTime{Time: parseDate(stop), Valid: true},
-			Emp:   sql.NullInt64{Int64: empIDToInt(empID), Valid: true}, // Convert empID from string to int64
+			Emp:   sql.NullInt64{Int64: targetEmployeeID, Valid: true},
 			Qn01:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][attendance]")), Valid: true},
 			Qn02:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ward_rounds]")), Valid: true},
 			Qn03:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][patients_reviewed]")), Valid: true},
@@ -291,6 +367,11 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 	// Redirect clinicians to their own report history for the reporting period they just saved.
 	reportStart := parseDate(start)
 	reportYear, reportWeek := reportStart.ISOWeek()
+	returnURL := sanitizeHistoryReturnURL(c.PostForm("return_to"))
+	if returnURL != "/reports/analysis" {
+		c.Redirect(http.StatusFound, returnURL)
+		return
+	}
 	c.Redirect(http.StatusFound, buildReportHistoryPeriodFilterQuery("all", reportYear, reportWeek))
 
 	// Return a success response
@@ -317,20 +398,6 @@ func parseInt(val string) int64 {
 }
 
 func HandlerClinicianReportHistory(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
-	if !ok {
-		log.Println("Failed to retrieve session data as TemplateData")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
-		return
-	}
-
-	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
-	if !ok {
-		log.Println("Failed to retrieve session details from TemplateData")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
-		return
-	}
-
 	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "all")))
 	switch filterStatus {
 	case "all", "submitted", "approved", "declined", "draft":
@@ -340,53 +407,10 @@ func HandlerClinicianReportHistory(c *gin.Context, db *sql.DB, sessionManager *s
 
 	year, _ := strconv.Atoi(c.Query("year"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	if year <= 0 {
-		year = 0
-		week = 0
-	}
-	if week < 0 {
-		week = 0
-	}
-
-	rows, err := models.GetClinicianReportHistory(c.Request.Context(), db, sesDetails.EmpID, filterStatus, year, week)
-	if err != nil {
-		log.Printf("Error retrieving clinician report history: %v", err)
-		c.String(http.StatusInternalServerError, "Error retrieving report history")
-		return
-	}
-
-	sessionData.Form = ClinicianReportHistoryView{
-		Rows:         rows,
-		FilterStatus: filterStatus,
-		FilterTitle:  clinicianReportHistoryFilterTitle(filterStatus),
-		Year:         year,
-		Week:         week,
-		PeriodLabel:  clinicianReportHistoryPeriodLabel(year, week),
-		AllURL:       buildReportHistoryPeriodFilterQuery("all", year, week),
-		SubmittedURL: buildReportHistoryPeriodFilterQuery("submitted", year, week),
-		ApprovedURL:  buildReportHistoryPeriodFilterQuery("approved", year, week),
-		DeclinedURL:  buildReportHistoryPeriodFilterQuery("declined", year, week),
-		DraftURL:     buildReportHistoryPeriodFilterQuery("draft", year, week),
-		CurrentURL:   buildReportHistoryPeriodFilterQuery(filterStatus, year, week),
-		ExportCSVURL: buildReportHistoryExportURL("csv", filterStatus, year, week),
-		ExportPDFURL: buildReportHistoryExportURL("pdf", filterStatus, year, week),
-	}
-	utilities.GenerateHTML(c, sessionData, "base", "reporthistory")
+	c.Redirect(http.StatusFound, buildReportSubmissionsURL(0, 0, year, 0, week, filterStatus))
 }
 
 func HandlerClinicianReportHistoryExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
-		return
-	}
-
-	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
-		return
-	}
-
 	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
 	if format != "csv" && format != "pdf" {
 		c.String(http.StatusBadRequest, "Invalid export format")
@@ -402,64 +426,7 @@ func HandlerClinicianReportHistoryExport(c *gin.Context, db *sql.DB, sessionMana
 
 	year, _ := strconv.Atoi(c.Query("year"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	if year <= 0 {
-		year = 0
-		week = 0
-	}
-	if week < 0 {
-		week = 0
-	}
-
-	rows, err := models.GetClinicianReportHistory(c.Request.Context(), db, sesDetails.EmpID, filterStatus, year, week)
-	if err != nil {
-		log.Printf("Error exporting clinician report history: %v", err)
-		c.String(http.StatusInternalServerError, "Error exporting report history")
-		return
-	}
-
-	headers := []string{"Week", "Entered On", "Attendance", "Patients Reviewed", "Procedures", "Submission", "Approval", "Actionable"}
-	csvRows := [][]string{}
-	pdfLines := []string{
-		fmt.Sprintf("Filter: %s", clinicianReportHistoryFilterTitle(filterStatus)),
-		fmt.Sprintf("Period: %s", clinicianReportHistoryPeriodLabel(year, week)),
-		"",
-	}
-
-	for index, row := range rows {
-		weekLabel := exportWeekRange(row.WeekStart, row.WeekStop)
-		enteredOn := exportDateTime(row.EnteredOn)
-		submission := exportReportSubmissionStatus(row.SubmitStatus)
-		approval := exportReportApprovalStatus(row.ReportStatus)
-		actionable := "No"
-		if row.Actionable {
-			actionable = "Yes"
-		}
-
-		csvRows = append(csvRows, []string{
-			weekLabel,
-			enteredOn,
-			strconv.Itoa(row.Attendance),
-			strconv.Itoa(row.PatientsReviewed),
-			strconv.Itoa(row.Procedures),
-			submission,
-			approval,
-			actionable,
-		})
-
-		pdfLines = append(pdfLines,
-			fmt.Sprintf("%d. %s", index+1, weekLabel),
-			fmt.Sprintf("   Entered: %s | Submission: %s | Approval: %s", enteredOn, submission, approval),
-			fmt.Sprintf("   Attendance: %d | Patients Reviewed: %d | Procedures: %d | Actionable: %s", row.Attendance, row.PatientsReviewed, row.Procedures, actionable),
-			"",
-		)
-	}
-
-	filenameBase := buildReportHistoryExportFilename(filterStatus, year, week)
-	if format == "pdf" {
-		writeSimplePDFDownload(c, filenameBase+".pdf", "Clinician Report History", pdfLines)
-		return
-	}
-	writeCSVDownload(c, filenameBase+".csv", headers, csvRows)
+	c.Redirect(http.StatusFound, buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, filterStatus))
 }
 
 func HandlerClinicianReportEditForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -561,7 +528,7 @@ func HandlerClinicianReportDelete(c *gin.Context, db *sql.DB, sessionManager *sc
 	c.Redirect(http.StatusFound, sanitizeHistoryReturnURL(c.PostForm("return_to")))
 }
 
-func HandlerFacilityReportReview(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+func HandlerClinicianReportSubmit(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
 	if !ok {
 		log.Println("Failed to retrieve session data as TemplateData")
@@ -576,6 +543,27 @@ func HandlerFacilityReportReview(c *gin.Context, db *sql.DB, sessionManager *scs
 		return
 	}
 
+	reportID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid report ID")
+		return
+	}
+
+	submitted, err := models.SubmitClinicianReport(c.Request.Context(), db, reportID, sesDetails.EmpID)
+	if err != nil {
+		log.Printf("Error submitting clinician report: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to submit report")
+		return
+	}
+	if !submitted {
+		c.String(http.StatusForbidden, "Only draft or declined reports can be submitted")
+		return
+	}
+
+	c.Redirect(http.StatusFound, sanitizeHistoryReturnURL(c.PostForm("return_to")))
+}
+
+func HandlerFacilityReportReview(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "pending")))
 	switch filterStatus {
 	case "all", "pending", "approved", "declined":
@@ -585,53 +573,10 @@ func HandlerFacilityReportReview(c *gin.Context, db *sql.DB, sessionManager *scs
 
 	year, _ := strconv.Atoi(c.Query("year"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	if year <= 0 {
-		year = 0
-		week = 0
-	}
-	if week < 0 {
-		week = 0
-	}
-
-	rows, err := models.GetFacilityReportReview(c.Request.Context(), db, sesDetails.HFID, filterStatus, year, week)
-	if err != nil {
-		log.Printf("Error retrieving facility report review data: %v", err)
-		c.String(http.StatusInternalServerError, "Error retrieving submitted reports")
-		return
-	}
-
-	sessionData.Form = FacilityReportReviewView{
-		Rows:         rows,
-		FilterStatus: filterStatus,
-		FilterTitle:  facilityReportReviewFilterTitle(filterStatus),
-		Year:         year,
-		Week:         week,
-		PeriodLabel:  clinicianReportHistoryPeriodLabel(year, week),
-		AllURL:       buildFacilityReportReviewURL("all", year, week),
-		PendingURL:   buildFacilityReportReviewURL("pending", year, week),
-		ApprovedURL:  buildFacilityReportReviewURL("approved", year, week),
-		DeclinedURL:  buildFacilityReportReviewURL("declined", year, week),
-		CurrentURL:   buildFacilityReportReviewURL(filterStatus, year, week),
-		ExportCSVURL: buildFacilityReportReviewExportURL("csv", filterStatus, year, week),
-		ExportPDFURL: buildFacilityReportReviewExportURL("pdf", filterStatus, year, week),
-	}
-
-	utilities.GenerateHTML(c, sessionData, "base", "facility-report-review")
+	c.Redirect(http.StatusFound, buildReportSubmissionsURL(0, 0, year, 0, week, filterStatus))
 }
 
 func HandlerFacilityReportReviewExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
-		return
-	}
-
-	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
-		return
-	}
-
 	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
 	if format != "csv" && format != "pdf" {
 		c.String(http.StatusBadRequest, "Invalid export format")
@@ -647,62 +592,7 @@ func HandlerFacilityReportReviewExport(c *gin.Context, db *sql.DB, sessionManage
 
 	year, _ := strconv.Atoi(c.Query("year"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	if year <= 0 {
-		year = 0
-		week = 0
-	}
-	if week < 0 {
-		week = 0
-	}
-
-	rows, err := models.GetFacilityReportReview(c.Request.Context(), db, sesDetails.HFID, filterStatus, year, week)
-	if err != nil {
-		log.Printf("Error exporting facility report review: %v", err)
-		c.String(http.StatusInternalServerError, "Error exporting submitted reports")
-		return
-	}
-
-	headers := []string{"Employee", "Department", "Week", "Submitted On", "Patients Reviewed", "Procedures", "Status", "Actionable"}
-	csvRows := [][]string{}
-	pdfLines := []string{
-		fmt.Sprintf("Facility: %s", sesDetails.HFName),
-		fmt.Sprintf("Filter: %s", facilityReportReviewFilterTitle(filterStatus)),
-		fmt.Sprintf("Period: %s", clinicianReportHistoryPeriodLabel(year, week)),
-		"",
-	}
-
-	for index, row := range rows {
-		status := exportReportApprovalStatus(row.ReportStatus)
-		actionable := "No"
-		if row.Actionable {
-			actionable = "Yes"
-		}
-
-		csvRows = append(csvRows, []string{
-			row.EmployeeName,
-			row.DepartmentName,
-			exportWeekRange(row.WeekStart, row.WeekStop),
-			exportDateTime(row.SubmittedOn),
-			strconv.Itoa(row.PatientsReviewed),
-			strconv.Itoa(row.Procedures),
-			status,
-			actionable,
-		})
-
-		pdfLines = append(pdfLines,
-			fmt.Sprintf("%d. %s - %s", index+1, row.EmployeeName, row.DepartmentName),
-			fmt.Sprintf("   Week: %s | Submitted: %s | Status: %s", exportWeekRange(row.WeekStart, row.WeekStop), exportDateTime(row.SubmittedOn), status),
-			fmt.Sprintf("   Patients Reviewed: %d | Procedures: %d | Actionable: %s", row.PatientsReviewed, row.Procedures, actionable),
-			"",
-		)
-	}
-
-	filenameBase := buildFacilityReportReviewExportFilename(filterStatus, year, week)
-	if format == "pdf" {
-		writeSimplePDFDownload(c, filenameBase+".pdf", "Facility Submitted Reports Review", pdfLines)
-		return
-	}
-	writeCSVDownload(c, filenameBase+".csv", headers, csvRows)
+	c.Redirect(http.StatusFound, buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, filterStatus))
 }
 
 func HandlerFacilityReportApprove(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -901,77 +791,19 @@ func buildReportHistoryPeriodQuery(year, week int) string {
 }
 
 func buildReportHistoryPeriodFilterQuery(status string, year, week int) string {
-	params := []string{}
-	if status != "" && status != "all" {
-		params = append(params, fmt.Sprintf("status=%s", status))
-	}
-	if year > 0 {
-		params = append(params, fmt.Sprintf("year=%d", year))
-	}
-	if week > 0 {
-		params = append(params, fmt.Sprintf("week=%d", week))
-	}
-	if len(params) == 0 {
-		return "/reports/history"
-	}
-	return "/reports/history?" + strings.Join(params, "&")
+	return buildReportSubmissionsURL(0, 0, year, 0, week, status)
 }
 
 func buildFacilityReportReviewURL(status string, year, week int) string {
-	params := []string{}
-	if status != "" && status != "pending" {
-		params = append(params, fmt.Sprintf("status=%s", status))
-	}
-	if year > 0 {
-		params = append(params, fmt.Sprintf("year=%d", year))
-	}
-	if week > 0 {
-		params = append(params, fmt.Sprintf("week=%d", week))
-	}
-	if len(params) == 0 {
-		return "/reports/review"
-	}
-	return "/reports/review?" + strings.Join(params, "&")
+	return buildReportSubmissionsURL(0, 0, year, 0, week, status)
 }
 
 func buildReportHistoryExportURL(format, status string, year, week int) string {
-	params := []string{}
-	if format != "" {
-		params = append(params, fmt.Sprintf("format=%s", format))
-	}
-	if status != "" && status != "all" {
-		params = append(params, fmt.Sprintf("status=%s", status))
-	}
-	if year > 0 {
-		params = append(params, fmt.Sprintf("year=%d", year))
-	}
-	if week > 0 {
-		params = append(params, fmt.Sprintf("week=%d", week))
-	}
-	if len(params) == 0 {
-		return "/reports/history/export"
-	}
-	return "/reports/history/export?" + strings.Join(params, "&")
+	return buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, status)
 }
 
 func buildFacilityReportReviewExportURL(format, status string, year, week int) string {
-	params := []string{}
-	if format != "" {
-		params = append(params, fmt.Sprintf("format=%s", format))
-	}
-	if status != "" && status != "pending" {
-		params = append(params, fmt.Sprintf("status=%s", status))
-	}
-	if year > 0 {
-		params = append(params, fmt.Sprintf("year=%d", year))
-	}
-	if week > 0 {
-		params = append(params, fmt.Sprintf("week=%d", week))
-	}
-	if len(params) == 0 {
-		return "/reports/review/export"
-	}
-	return "/reports/review/export?" + strings.Join(params, "&")
+	return buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, status)
 }
 
 func buildReportHistoryExportFilename(filterStatus string, year, week int) string {
@@ -1054,22 +886,55 @@ func clinicianEntryStatusLabel(historyStatus string) string {
 
 func sanitizeHistoryReturnURL(value string) string {
 	if value == "" {
-		return "/reports/history"
+		return "/reports/analysis"
 	}
-	if strings.HasPrefix(value, "/reports/history") {
+	if strings.HasPrefix(value, "/reports/history") || strings.HasPrefix(value, "/reports/analysis") || strings.HasPrefix(value, "/reports/bulk") {
 		return value
 	}
-	return "/reports/history"
+	return "/reports/analysis"
+}
+
+func formatEmployeeName(firstName, lastName, otherName string) string {
+	parts := []string{}
+	for _, part := range []string{firstName, lastName, otherName} {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	if len(parts) == 0 {
+		return "Unknown staff member"
+	}
+	return strings.Join(parts, " ")
+}
+
+func buildBulkEntryURL(departmentID int) string {
+	params := url.Values{}
+	if departmentID > 0 {
+		params.Set("department", strconv.Itoa(departmentID))
+	}
+	encoded := params.Encode()
+	if encoded == "" {
+		return "/reports/bulk"
+	}
+	return "/reports/bulk?" + encoded
+}
+
+func buildBulkEntryFormURL(employeeID, departmentID int) string {
+	params := url.Values{}
+	params.Set("employee", strconv.Itoa(employeeID))
+	params.Set("return_to", buildBulkEntryURL(departmentID))
+	return "/reports/new/0?" + params.Encode()
 }
 
 func sanitizeFacilityReportReviewURL(value string) string {
 	if value == "" {
-		return "/reports/review"
+		return "/reports/analysis"
 	}
-	if strings.HasPrefix(value, "/reports/review") {
+	if strings.HasPrefix(value, "/reports/review") || strings.HasPrefix(value, "/reports/analysis") {
 		return value
 	}
-	return "/reports/review"
+	return "/reports/analysis"
 }
 
 func exportWeekRange(start, stop sql.NullTime) string {
@@ -1138,9 +1003,7 @@ func beginningOfWeek(now time.Time) time.Time {
 	return time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, weekStart.Location())
 }
 
-// Old handler fxn for bulk capture
 func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	// Get session-specific data (e.g., user ID and HFID)
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
 	if !ok {
 		log.Println("Failed to retrieve session data as TemplateData")
@@ -1148,7 +1011,6 @@ func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.Sess
 		return
 	}
 
-	// Now access the SessionDetails from the TemplateData
 	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
 	if !ok {
 		log.Println("Failed to retrieve session details from TemplateData")
@@ -1156,38 +1018,106 @@ func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.Sess
 		return
 	}
 
-	log.Printf("Session Data HandlerReportFacilities: %+v", sesDetails)
+	if !strings.EqualFold(sesDetails.Rights, "approver") {
+		c.String(http.StatusForbidden, "Bulk entry is only available to facility admins.")
+		return
+	}
 
-	// Retrieve reporting week parameters from the request
-	reportingWeekStart := c.Query("reporting_week_start")
-	reportingWeekEnd := c.Query("reporting_week_end")
-
-	hospitalID := sesDetails.HFID // Retrieve HFID from the session
-	log.Printf("Hospital ID value from session: %+d", hospitalID)
-
-	// Fetch distinct staff members using the new DistinctEmployeeListForCapture function
-	staffList, err := models.WeeklyBulkCapture(c.Request.Context(), db, hospitalID, 0, reportingWeekStart, reportingWeekEnd)
+	selectedDepartment, _ := strconv.Atoi(c.Query("department"))
+	staffList, err := models.WeeklyBulkCapture(c.Request.Context(), db, sesDetails.HFID, 0, "", "")
 	if err != nil {
-		staffList = nil
+		log.Printf("Error loading bulk entry staff list: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to load facility staff for bulk entry.")
+		return
 	}
 
-	// Variable to hold the staff data for the template
-	var zdata any
+	departmentCounts := map[int]int{}
+	departmentLabels := map[int]string{}
+	uniqueStaff := make([]*models.WeeklyReportExtended, 0, len(staffList))
+	seenEmployees := make(map[int]bool, len(staffList))
 
-	if err == nil {
-		zdata = staffList // Pass the staff data (staffList) to zdata
-	} else {
-		zdata = nil // In case of error, pass nil
+	for _, item := range staffList {
+		if item == nil || seenEmployees[item.EmpID] {
+			continue
+		}
+		seenEmployees[item.EmpID] = true
+		uniqueStaff = append(uniqueStaff, item)
+
+		departmentID := item.DeptID
+		departmentCounts[departmentID]++
+		label := strings.TrimSpace(item.DepartmentName.String)
+		if label == "" {
+			label = "Unassigned"
+		}
+		departmentLabels[departmentID] = label
 	}
 
-	// Get the session data and pass the staff data (zdata) to the template
-	data := Get_Session_Data(c, db, sessionManager, zdata)
+	tabs := []BulkEntryDepartmentTab{{
+		DepartmentID: 0,
+		Label:        "All Staff",
+		Count:        len(uniqueStaff),
+		URL:          buildBulkEntryURL(0),
+	}}
 
-	// Log the data being passed to the InsertLeave function
-	//log.Printf("staffList Data: %+v", data)
+	departmentIDs := make([]int, 0, len(departmentLabels))
+	for departmentID := range departmentLabels {
+		departmentIDs = append(departmentIDs, departmentID)
+	}
+	sort.Slice(departmentIDs, func(i, j int) bool {
+		return strings.ToLower(departmentLabels[departmentIDs[i]]) < strings.ToLower(departmentLabels[departmentIDs[j]])
+	})
+	for _, departmentID := range departmentIDs {
+		tabs = append(tabs, BulkEntryDepartmentTab{
+			DepartmentID: departmentID,
+			Label:        departmentLabels[departmentID],
+			Count:        departmentCounts[departmentID],
+			URL:          buildBulkEntryURL(departmentID),
+		})
+	}
 
-	// Render the template with the staff data
-	utilities.GenerateHTML(c, data, "base", "bulkcapturelist")
+	rows := make([]BulkEntryRow, 0, len(uniqueStaff))
+	for _, item := range uniqueStaff {
+		if selectedDepartment > 0 && item.DeptID != selectedDepartment {
+			continue
+		}
+		departmentName := strings.TrimSpace(item.DepartmentName.String)
+		if departmentName == "" {
+			departmentName = "Unassigned"
+		}
+		rows = append(rows, BulkEntryRow{
+			EmployeeID:     item.EmpID,
+			EmployeeName:   formatEmployeeName(item.Fname.String, item.Lname.String, item.Oname.String),
+			EmployeeTitle:  strings.TrimSpace(item.EmpTitle.String),
+			DepartmentName: departmentName,
+			Specialisation: strings.TrimSpace(item.Specialisation.String),
+			EntryURL:       buildBulkEntryFormURL(item.EmpID, selectedDepartment),
+		})
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].DepartmentName != rows[j].DepartmentName {
+			return rows[i].DepartmentName < rows[j].DepartmentName
+		}
+		return rows[i].EmployeeName < rows[j].EmployeeName
+	})
+
+	filterSummary := fmt.Sprintf("Showing all %d staff records in %s.", len(rows), sesDetails.HFName)
+	if selectedDepartment > 0 {
+		if label, ok := departmentLabels[selectedDepartment]; ok {
+			filterSummary = fmt.Sprintf("Showing %d staff records in %s for %s.", len(rows), label, sesDetails.HFName)
+		}
+	}
+
+	sessionData.Form = BulkEntryView{
+		ScopeTitle:         "Facility Bulk Entry",
+		ScopeSubtitle:      "Select a department tab, then open a staff record to enter weekly data for that clinician.",
+		FilterSummary:      filterSummary,
+		SelectedDepartment: selectedDepartment,
+		Tabs:               tabs,
+		Rows:               rows,
+		CurrentURL:         buildBulkEntryURL(selectedDepartment),
+	}
+	utilities.GenerateHTML(c, sessionData, "base", "bulk-entry")
 }
 
 // Handler to generate capture form to collect data
@@ -2237,7 +2167,7 @@ func HandlerReportView2(c *gin.Context, db *sql.DB, sessionManager *scs.SessionM
 }
 
 // Handler used for entering weekly report for a single user
-func HandlerReportsAnalysis(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+func LegacyHandlerReportsAnalysis(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 
 	// Get session-specific data (e.g., user ID and HFID)
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)

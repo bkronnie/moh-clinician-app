@@ -1,4 +1,4 @@
-{{ define "title"}} My Weekly Data Entry {{ end }}
+{{ define "title"}}{{ if .Form.ReadOnly }} Report Submission Review {{ else if .Form.PageTitle }} {{ .Form.PageTitle }} {{ else }} My Weekly Data Entry {{ end }}{{ end }}
 
 {{ define "extraStyles" }}
 <style>
@@ -78,7 +78,7 @@
 </style>
 {{ end }}
 
-{{ define "header" }}My Weekly Data Entry{{ end }}
+{{ define "header" }}{{ if .Form.ReadOnly }}Report Submission Review{{ else if .Form.PageTitle }}{{ .Form.PageTitle }}{{ else }}My Weekly Data Entry{{ end }}{{ end }}
 
 {{ define "content" }}
 <div class="entry-shell">
@@ -108,7 +108,11 @@
     </div>
 
     <form method="post" action="{{ .Form.ActionURL }}" class="entry-form-panel">
-        {{ if .Form.IsEdit }}
+        {{ if .Form.ReadOnly }}
+        <div class="alert alert-info" role="alert">
+            This submission is open in read-only mode for verification. The saved values below match the report as submitted.
+        </div>
+        {{ else if .Form.IsEdit }}
         <div class="alert alert-warning" role="alert">
             You can still update this report because it is not approved. Draft and declined reports remain editable.
         </div>
@@ -116,6 +120,7 @@
 
         <input type="hidden" name="return_to" value="{{ .Form.ReturnURL }}">
 
+        <fieldset {{ if .Form.ReadOnly }}disabled{{ end }}>
         <div class="entry-grid">
             <div class="entry-field">
                 <label for="start">Start Date</label>
@@ -296,10 +301,15 @@
             </div>
         </div>
         {{ end }}
+        </fieldset>
 
         <div class="entry-actions">
+            {{ if not .Form.ReadOnly }}
             <button class="btn btn-primary" type="submit">{{ .Form.SubmitLabel }}</button>
-            <a class="btn btn-outline-secondary" href="{{ .Form.ReturnURL }}">Report History</a>
+            <a class="btn btn-outline-secondary" href="{{ .Form.ReturnURL }}">Back to Reports</a>
+            {{ else }}
+            <a class="btn btn-outline-secondary" href="{{ .Form.ReturnURL }}">Back to Report Submissions</a>
+            {{ end }}
             <a class="btn btn-outline-secondary" href="/">Back to Dashboard</a>
         </div>
     </form>
