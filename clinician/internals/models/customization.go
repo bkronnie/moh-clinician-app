@@ -46,7 +46,9 @@ type CustomizationView struct {
 	Departments   []CustomizationDepartment
 	Roles         []CustomizationRole
 	ClinicalRoles []CustomizationClinicalRole
+	DataElements  []ReportDataElement
 	History       []CustomizationChange
+	ActiveTab     string
 	Success       string
 	Error         string
 }
@@ -116,6 +118,11 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int) (Customi
 		return CustomizationView{}, err
 	}
 
+	dataElements, err := ListReportDataElements(ctx, db)
+	if err != nil {
+		return CustomizationView{}, err
+	}
+
 	history, err := ListCustomizationHistory(ctx, db, historyLimit)
 	if err != nil {
 		return CustomizationView{}, err
@@ -126,6 +133,7 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int) (Customi
 		Departments:   departments,
 		Roles:         roles,
 		ClinicalRoles: clinicalRoles,
+		DataElements:  dataElements,
 		History:       history,
 	}, nil
 }

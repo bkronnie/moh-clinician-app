@@ -18,6 +18,11 @@
     grid-template-columns: minmax(170px, 1fr) minmax(150px, 0.95fr) minmax(100px, 0.8fr) minmax(220px, 1.5fr) minmax(150px, 1fr);
 }
 
+.customization-grid-elements .app-list-grid-header,
+.customization-grid-elements .app-list-grid-row {
+    grid-template-columns: minmax(80px, 0.45fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(240px, 1.5fr) minmax(130px, 0.7fr);
+}
+
 .customization-actions {
     justify-content: flex-start;
 }
@@ -49,6 +54,7 @@
 
 {{ define "content" }}
 {{ $view := .Form }}
+{{ $activeTab := $view.ActiveTab }}
 
 {{ if $view.Success }}
 <div class="alert alert-success" role="alert">{{ $view.Success }}</div>
@@ -67,24 +73,27 @@
 
         <ul class="nav section-tabs app-filter-bar mb-3" id="customizationTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <a class="nav-link active" id="facilities-tab" data-toggle="tab" href="#facilities-panel" role="tab" aria-controls="facilities-panel" aria-selected="true">Facilities</a>
+                <a class="nav-link {{ if or (eq $activeTab "") (eq $activeTab "facilities") }}active{{ end }}" id="facilities-tab" data-toggle="tab" href="#facilities-panel" role="tab" aria-controls="facilities-panel" aria-selected="{{ if or (eq $activeTab "") (eq $activeTab "facilities") }}true{{ else }}false{{ end }}">Facilities</a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link" id="departments-tab" data-toggle="tab" href="#departments-panel" role="tab" aria-controls="departments-panel" aria-selected="false">Departments</a>
+                <a class="nav-link {{ if eq $activeTab "departments" }}active{{ end }}" id="departments-tab" data-toggle="tab" href="#departments-panel" role="tab" aria-controls="departments-panel" aria-selected="{{ if eq $activeTab "departments" }}true{{ else }}false{{ end }}">Departments</a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link" id="roles-tab" data-toggle="tab" href="#roles-panel" role="tab" aria-controls="roles-panel" aria-selected="false">Access Roles</a>
+                <a class="nav-link {{ if eq $activeTab "roles" }}active{{ end }}" id="roles-tab" data-toggle="tab" href="#roles-panel" role="tab" aria-controls="roles-panel" aria-selected="{{ if eq $activeTab "roles" }}true{{ else }}false{{ end }}">Access Roles</a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link" id="clinical-roles-tab" data-toggle="tab" href="#clinical-roles-panel" role="tab" aria-controls="clinical-roles-panel" aria-selected="false">Clinical Roles</a>
+                <a class="nav-link {{ if eq $activeTab "clinical-roles" }}active{{ end }}" id="clinical-roles-tab" data-toggle="tab" href="#clinical-roles-panel" role="tab" aria-controls="clinical-roles-panel" aria-selected="{{ if eq $activeTab "clinical-roles" }}true{{ else }}false{{ end }}">Clinical Roles</a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link" id="history-tab" data-toggle="tab" href="#history-panel" role="tab" aria-controls="history-panel" aria-selected="false">History</a>
+                <a class="nav-link {{ if eq $activeTab "data-elements" }}active{{ end }}" id="data-elements-tab" data-toggle="tab" href="#data-elements-panel" role="tab" aria-controls="data-elements-panel" aria-selected="{{ if eq $activeTab "data-elements" }}true{{ else }}false{{ end }}">Data Elements</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {{ if eq $activeTab "history" }}active{{ end }}" id="history-tab" data-toggle="tab" href="#history-panel" role="tab" aria-controls="history-panel" aria-selected="{{ if eq $activeTab "history" }}true{{ else }}false{{ end }}">History</a>
             </li>
         </ul>
 
         <div class="tab-content">
-            <div class="tab-pane fade show active" id="facilities-panel" role="tabpanel" aria-labelledby="facilities-tab">
+            <div class="tab-pane fade {{ if or (eq $activeTab "") (eq $activeTab "facilities") }}show active{{ end }}" id="facilities-panel" role="tabpanel" aria-labelledby="facilities-tab">
                 <div class="app-list-actions mb-3">
                     <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addFacilityPanel" aria-expanded="false" aria-controls="addFacilityPanel" data-keep-text="true">+ Add Facility</button>
                 </div>
@@ -93,6 +102,7 @@
                     <div class="customization-add-panel">
                         <form method="post" action="/customization/facility/save" class="filter-form mb-3">
                             <input type="hidden" name="id" value="0">
+                            <input type="hidden" name="tab" value="facilities">
                             <div class="form-group">
                                 <label for="facilityName" class="sr-only">Facility Name</label>
                                 <input type="text" class="form-control form-control-sm" id="facilityName" name="name" placeholder="Facility Name" required>
@@ -116,6 +126,7 @@
                         {{ range $view.Facilities }}
                         <form method="post" action="/customization/facility/save" class="app-list-grid-row">
                             <input type="hidden" name="id" value="{{ .ID }}">
+                            <input type="hidden" name="tab" value="facilities">
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="name" value="{{ .Name }}" required>
                             </div>
@@ -134,7 +145,7 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="departments-panel" role="tabpanel" aria-labelledby="departments-tab">
+            <div class="tab-pane fade {{ if eq $activeTab "departments" }}show active{{ end }}" id="departments-panel" role="tabpanel" aria-labelledby="departments-tab">
                 <div class="app-list-actions mb-3">
                     <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addDepartmentPanel" aria-expanded="false" aria-controls="addDepartmentPanel" data-keep-text="true">+ Add Department</button>
                 </div>
@@ -143,6 +154,7 @@
                     <div class="customization-add-panel">
                         <form method="post" action="/customization/department/save" class="filter-form mb-3">
                             <input type="hidden" name="id" value="0">
+                            <input type="hidden" name="tab" value="departments">
                             <div class="form-group filter-form-search-group">
                                 <label for="departmentName" class="sr-only">Department Name</label>
                                 <input type="text" class="form-control form-control-sm" id="departmentName" name="name" placeholder="Department Name" required>
@@ -161,6 +173,7 @@
                         {{ range $view.Departments }}
                         <form method="post" action="/customization/department/save" class="app-list-grid-row">
                             <input type="hidden" name="id" value="{{ .ID }}">
+                            <input type="hidden" name="tab" value="departments">
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="name" value="{{ .Name }}" required>
                             </div>
@@ -176,7 +189,7 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="roles-panel" role="tabpanel" aria-labelledby="roles-tab">
+            <div class="tab-pane fade {{ if eq $activeTab "roles" }}show active{{ end }}" id="roles-panel" role="tabpanel" aria-labelledby="roles-tab">
                 <div class="app-list-actions mb-3">
                     <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addAccessRolePanel" aria-expanded="false" aria-controls="addAccessRolePanel" data-keep-text="true">+ Add Access Role</button>
                 </div>
@@ -185,6 +198,7 @@
                     <div class="customization-add-panel">
                         <form method="post" action="/customization/role/save" class="filter-form mb-3">
                             <input type="hidden" name="id" value="0">
+                            <input type="hidden" name="tab" value="roles">
                             <div class="form-group filter-form-search-group">
                                 <label for="roleName" class="sr-only">Access Role Name</label>
                                 <input type="text" class="form-control form-control-sm" id="roleName" name="name" placeholder="Access Role Name" required>
@@ -204,6 +218,7 @@
                         {{ range $view.Roles }}
                         <form method="post" action="/customization/role/save" class="app-list-grid-row">
                             <input type="hidden" name="id" value="{{ .ID }}">
+                            <input type="hidden" name="tab" value="roles">
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="name" value="{{ .Name }}" required>
                             </div>
@@ -219,7 +234,7 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="clinical-roles-panel" role="tabpanel" aria-labelledby="clinical-roles-tab">
+            <div class="tab-pane fade {{ if eq $activeTab "clinical-roles" }}show active{{ end }}" id="clinical-roles-panel" role="tabpanel" aria-labelledby="clinical-roles-tab">
                 <div class="app-list-actions mb-3">
                     <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addClinicalRolePanel" aria-expanded="false" aria-controls="addClinicalRolePanel" data-keep-text="true">+ Add Clinical Role</button>
                 </div>
@@ -228,6 +243,7 @@
                     <div class="customization-add-panel">
                         <form method="post" action="/customization/clinical-role/save" class="filter-form mb-3">
                             <input type="hidden" name="id" value="0">
+                            <input type="hidden" name="tab" value="clinical-roles">
                             <div class="form-group filter-form-search-group">
                                 <label for="clinicalRoleTitle" class="sr-only">Clinical Role Title</label>
                                 <input type="text" class="form-control form-control-sm" id="clinicalRoleTitle" name="title" placeholder="Clinical Role Title (e.g. Medical Officer)" required>
@@ -247,6 +263,7 @@
                         {{ range $view.ClinicalRoles }}
                         <form method="post" action="/customization/clinical-role/save" class="app-list-grid-row">
                             <input type="hidden" name="id" value="{{ .ID }}">
+                            <input type="hidden" name="tab" value="clinical-roles">
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="title" value="{{ .Title }}" required>
                             </div>
@@ -262,7 +279,70 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="history-panel" role="tabpanel" aria-labelledby="history-tab">
+            <div class="tab-pane fade {{ if eq $activeTab "data-elements" }}show active{{ end }}" id="data-elements-panel" role="tabpanel" aria-labelledby="data-elements-tab">
+                <div class="app-list-actions mb-3">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addDataElementPanel" aria-expanded="false" aria-controls="addDataElementPanel" data-keep-text="true">+ Add Data Element</button>
+                </div>
+
+                <div class="collapse" id="addDataElementPanel">
+                    <div class="customization-add-panel">
+                        <form method="post" action="/customization/data-element/save" class="filter-form mb-3">
+                            <input type="hidden" name="id" value="0">
+                            <input type="hidden" name="tab" value="data-elements">
+                            <div class="form-group">
+                                <label for="newElementKey" class="sr-only">Element Key</label>
+                                <input type="text" class="form-control form-control-sm" id="newElementKey" name="element_key" placeholder="element_key (snake_case)" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newElementColumn" class="sr-only">Column Name</label>
+                                <input type="text" class="form-control form-control-sm" id="newElementColumn" name="column_name" placeholder="column_name (snake_case)" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newElementDisplay" class="sr-only">Display Name</label>
+                                <input type="text" class="form-control form-control-sm" id="newElementDisplay" name="display_name" placeholder="Display Name" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-keep-text="true">Create</button>
+                        </form>
+                    </div>
+                </div>
+                <small class="form-text text-muted mb-3">Core data elements are protected from key/column edits and deletion. Updating display names applies to the data entry UI labels.</small>
+
+                <div class="app-list-grid customization-grid-elements">
+                    <div class="app-list-grid-header">
+                        <div>#</div>
+                        <div>Element Key</div>
+                        <div>Column Name</div>
+                        <div>Display Name</div>
+                        <div>Actions</div>
+                    </div>
+                    {{ if $view.DataElements }}
+                        {{ range $view.DataElements }}
+                        <form method="post" action="/customization/data-element/save" class="app-list-grid-row">
+                            <input type="hidden" name="id" value="{{ .ID }}">
+                            <input type="hidden" name="tab" value="data-elements">
+                            <div class="app-list-cell">{{ .Position }}</div>
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="element_key" value="{{ .ElementKey }}" {{ if .IsCore }}readonly{{ end }} required>
+                            </div>
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="column_name" value="{{ .ColumnName }}" {{ if .IsCore }}readonly{{ end }} required>
+                            </div>
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="display_name" value="{{ .DisplayName }}" required>
+                            </div>
+                            <div class="app-row-actions customization-actions">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/data-element/delete/{{ .ID }}" onclick="return confirm('Delete this data element and drop its column from weekly reports?');" {{ if .IsCore }}disabled{{ end }}>Delete</button>
+                            </div>
+                        </form>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No data elements configured.</div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="tab-pane fade {{ if eq $activeTab "history" }}show active{{ end }}" id="history-panel" role="tabpanel" aria-labelledby="history-tab">
                 <div class="app-list-grid customization-grid-history">
                     <div class="app-list-grid-header">
                         <div>When</div>

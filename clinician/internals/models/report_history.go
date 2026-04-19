@@ -123,9 +123,9 @@ func GetClinicianReportHistory(ctx context.Context, db *sql.DB, employeeID int64
 				MAX(w.created_on) AS entered_on,
 				MAX(COALESCE(w.submit_status, '')) AS submit_status_text,
 				MAX(COALESCE(w.report_status, '')) AS report_status_text,
-				COALESCE(SUM(w.qn_01), 0) AS attendance,
-				COALESCE(SUM(w.qn_03), 0) AS patients_reviewed,
-				COALESCE(SUM(w.qn_05), 0) + COALESCE(SUM(w.qn_06), 0) AS procedures
+				COALESCE(SUM(w.attendance), 0) AS attendance,
+				COALESCE(SUM(w.patients_reviewed), 0) AS patients_reviewed,
+				COALESCE(SUM(w.elective), 0) + COALESCE(SUM(w.emergency), 0) AS procedures
 			FROM clinician_app.weeklyreport w
 			` + whereClause + `
 			GROUP BY w.start
@@ -280,10 +280,10 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 			w.created_on,
 			COALESCE(w.submit_status, ''),
 			COALESCE(w.report_status, ''),
-			w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
-			w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20,
-			w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27, w.qn_28, w.qn_29, w.qn_30,
-			w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38,
+			w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+			w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests,
+			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
+			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
 			w.submitted_on
 		FROM clinician_app.weeklyreport w
@@ -347,10 +347,10 @@ func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 		UPDATE clinician_app.weeklyreport SET
 			start = $1,
 			stop = $2,
-			qn_01 = $3, qn_02 = $4, qn_03 = $5, qn_04 = $6, qn_05 = $7, qn_06 = $8, qn_07 = $9, qn_08 = $10, qn_09 = $11, qn_10 = $12,
-			qn_11 = $13, qn_12 = $14, qn_13 = $15, qn_14 = $16, qn_15 = $17, qn_16 = $18, qn_17 = $19, qn_18 = $20, qn_19 = $21, qn_20 = $22,
-			qn_21 = $23, qn_22 = $24, qn_23 = $25, qn_24 = $26, qn_25 = $27, qn_26 = $28, qn_27 = $29, qn_28 = $30, qn_29 = $31, qn_30 = $32,
-			qn_31 = $33, qn_32 = $34, qn_33 = $35, qn_34 = $36, qn_35 = $37, qn_36 = $38, qn_37 = $39, qn_38 = $40,
+			attendance = $3, ward_rounds = $4, patients_reviewed = $5, theatre_days = $6, elective = $7, emergency = $8, postmortems = $9, opd_clinics = $10, opd_patients = $11, anc_patients = $12,
+			teaching_rounds = $13, students_taught = $14, mortality_reviews = $15, maternal = $16, perinatal = $17, surgical = $18, medical = $19, paed = $20, labs_requests = $21, imaging_requests = $22,
+			lab_investigations = $23, bs = $24, hiv = $25, malaria = $26, tb = $27, cbc = $28, chemistry = $29, hematology = $30, urinalysis = $31, gram_stain = $32,
+			culture = $33, microbiology = $34, sensitivity_tests = $35, diagnostics = $36, xrays = $37, ct_scans = $38, obstetrics_scans = $39, abdominal_scans = $40,
 			days_worked = $41,
 			last_updated_on = $42
 		WHERE id = $43
@@ -452,8 +452,8 @@ func GetFacilityReportReview(ctx context.Context, db *sql.DB, facilityID int64, 
 			w.created_on,
 			COALESCE(w.submit_status, ''),
 			COALESCE(w.report_status, ''),
-			COALESCE(w.qn_03, 0) AS patients_reviewed,
-			COALESCE(w.qn_05, 0) + COALESCE(w.qn_06, 0) AS procedures
+			COALESCE(w.patients_reviewed, 0) AS patients_reviewed,
+			COALESCE(w.elective, 0) + COALESCE(w.emergency, 0) AS procedures
 		FROM clinician_app.weeklyreport w
 		JOIN clinician_app.employees e ON e.id = w.employee
 		LEFT JOIN clinician_app.departments d ON d.id = w.department

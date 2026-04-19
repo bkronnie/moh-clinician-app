@@ -28,15 +28,18 @@ func HandlerCustomization(c *gin.Context, db *sql.DB, sessionManager *scs.Sessio
 
 	view.Success = strings.TrimSpace(c.Query("ok"))
 	view.Error = strings.TrimSpace(c.Query("err"))
+	view.ActiveTab = sanitizeCustomizationTab(c.Query("tab"))
 	sessionData.Form = view
 
 	utilities.GenerateHTML(c, sessionData, "base", "customization")
 }
 
 func HandlerCustomizationFacilitySave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
@@ -45,37 +48,41 @@ func HandlerCustomizationFacilitySave(c *gin.Context, db *sql.DB, sessionManager
 	level := strings.TrimSpace(c.PostForm("level"))
 
 	if err := models.SaveCustomizationFacility(c.Request.Context(), db, actor.UserID, actor.EmpID, id, name, level); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
 	if id > 0 {
-		redirectCustomizationOK(c, "Facility updated")
+		redirectCustomizationOK(c, tab, "Facility updated")
 		return
 	}
-	redirectCustomizationOK(c, "Facility created")
+	redirectCustomizationOK(c, tab, "Facility created")
 }
 
 func HandlerCustomizationFacilityDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
 	id := parsePositiveInt64(c.Param("id"))
 	if err := models.DeleteCustomizationFacility(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
-	redirectCustomizationOK(c, "Facility deleted")
+	redirectCustomizationOK(c, tab, "Facility deleted")
 }
 
 func HandlerCustomizationDepartmentSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
@@ -83,37 +90,41 @@ func HandlerCustomizationDepartmentSave(c *gin.Context, db *sql.DB, sessionManag
 	name := strings.TrimSpace(c.PostForm("name"))
 
 	if err := models.SaveCustomizationDepartment(c.Request.Context(), db, actor.UserID, actor.EmpID, id, name); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
 	if id > 0 {
-		redirectCustomizationOK(c, "Department updated")
+		redirectCustomizationOK(c, tab, "Department updated")
 		return
 	}
-	redirectCustomizationOK(c, "Department created")
+	redirectCustomizationOK(c, tab, "Department created")
 }
 
 func HandlerCustomizationDepartmentDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
 	id := parsePositiveInt64(c.Param("id"))
 	if err := models.DeleteCustomizationDepartment(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
-	redirectCustomizationOK(c, "Department deleted")
+	redirectCustomizationOK(c, tab, "Department deleted")
 }
 
 func HandlerCustomizationRoleSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
@@ -121,37 +132,41 @@ func HandlerCustomizationRoleSave(c *gin.Context, db *sql.DB, sessionManager *sc
 	name := strings.TrimSpace(c.PostForm("name"))
 
 	if err := models.SaveCustomizationRole(c.Request.Context(), db, actor.UserID, actor.EmpID, id, name); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
 	if id > 0 {
-		redirectCustomizationOK(c, "Role updated")
+		redirectCustomizationOK(c, tab, "Role updated")
 		return
 	}
-	redirectCustomizationOK(c, "Role created")
+	redirectCustomizationOK(c, tab, "Role created")
 }
 
 func HandlerCustomizationRoleDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
 	id := parsePositiveInt64(c.Param("id"))
 	if err := models.DeleteCustomizationRole(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
-	redirectCustomizationOK(c, "Role deleted")
+	redirectCustomizationOK(c, tab, "Role deleted")
 }
 
 func HandlerCustomizationClinicalRoleSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
@@ -159,31 +174,77 @@ func HandlerCustomizationClinicalRoleSave(c *gin.Context, db *sql.DB, sessionMan
 	title := strings.TrimSpace(c.PostForm("title"))
 
 	if err := models.SaveCustomizationClinicalRole(c.Request.Context(), db, actor.UserID, actor.EmpID, id, title); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
 	if id > 0 {
-		redirectCustomizationOK(c, "Clinical role updated")
+		redirectCustomizationOK(c, tab, "Clinical role updated")
 		return
 	}
-	redirectCustomizationOK(c, "Clinical role created")
+	redirectCustomizationOK(c, tab, "Clinical role created")
 }
 
 func HandlerCustomizationClinicalRoleDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
 	actor, err := SES_SET(c, db, sessionManager)
 	if err != nil {
-		redirectCustomizationError(c, "Unable to resolve user session")
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
 		return
 	}
 
 	id := parsePositiveInt64(c.Param("id"))
 	if err := models.DeleteCustomizationClinicalRole(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
-		redirectCustomizationError(c, err.Error())
+		redirectCustomizationError(c, tab, err.Error())
 		return
 	}
 
-	redirectCustomizationOK(c, "Clinical role deleted")
+	redirectCustomizationOK(c, tab, "Clinical role deleted")
+}
+
+func HandlerCustomizationDataElementSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
+	actor, err := SES_SET(c, db, sessionManager)
+	if err != nil {
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
+		return
+	}
+
+	id := parsePositiveInt64(c.PostForm("id"))
+	elementKey := strings.TrimSpace(c.PostForm("element_key"))
+	columnName := strings.TrimSpace(c.PostForm("column_name"))
+	displayName := strings.TrimSpace(c.PostForm("display_name"))
+
+	if err := models.SaveReportDataElement(c.Request.Context(), db, actor.UserID, actor.EmpID, id, elementKey, columnName, displayName); err != nil {
+		redirectCustomizationError(c, tab, err.Error())
+		return
+	}
+
+	if id > 0 {
+		redirectCustomizationOK(c, tab, "Data element updated")
+		return
+	}
+	redirectCustomizationOK(c, tab, "Data element created")
+}
+
+func HandlerCustomizationDataElementDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
+	actor, err := SES_SET(c, db, sessionManager)
+	if err != nil {
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
+		return
+	}
+
+	id := parsePositiveInt64(c.Param("id"))
+	if err := models.DeleteReportDataElement(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
+		redirectCustomizationError(c, tab, err.Error())
+		return
+	}
+
+	redirectCustomizationOK(c, tab, "Data element deleted")
 }
 
 func parsePositiveInt64(raw string) int64 {
@@ -194,10 +255,26 @@ func parsePositiveInt64(raw string) int64 {
 	return v
 }
 
-func redirectCustomizationOK(c *gin.Context, msg string) {
-	c.Redirect(http.StatusFound, "/customization?ok="+url.QueryEscape(msg))
+func redirectCustomizationOK(c *gin.Context, tab string, msg string) {
+	q := url.Values{}
+	q.Set("ok", msg)
+	q.Set("tab", sanitizeCustomizationTab(tab))
+	c.Redirect(http.StatusFound, "/customization?"+q.Encode())
 }
 
-func redirectCustomizationError(c *gin.Context, msg string) {
-	c.Redirect(http.StatusFound, "/customization?err="+url.QueryEscape(msg))
+func redirectCustomizationError(c *gin.Context, tab string, msg string) {
+	q := url.Values{}
+	q.Set("err", msg)
+	q.Set("tab", sanitizeCustomizationTab(tab))
+	c.Redirect(http.StatusFound, "/customization?"+q.Encode())
+}
+
+func sanitizeCustomizationTab(raw string) string {
+	tab := strings.ToLower(strings.TrimSpace(raw))
+	switch tab {
+	case "facilities", "departments", "roles", "clinical-roles", "data-elements", "history":
+		return tab
+	default:
+		return "facilities"
+	}
 }

@@ -138,6 +138,8 @@ func RouteCustomization(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Sess
 		v.POST("/role/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationRoleDelete(c, db, sessionManager) })
 		v.POST("/clinical-role/save", func(c *gin.Context) { handlers.HandlerCustomizationClinicalRoleSave(c, db, sessionManager) })
 		v.POST("/clinical-role/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationClinicalRoleDelete(c, db, sessionManager) })
+		v.POST("/data-element/save", func(c *gin.Context) { handlers.HandlerCustomizationDataElementSave(c, db, sessionManager) })
+		v.POST("/data-element/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationDataElementDelete(c, db, sessionManager) })
 	}
 }
 

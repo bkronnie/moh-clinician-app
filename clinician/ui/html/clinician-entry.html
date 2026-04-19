@@ -81,43 +81,43 @@
                     <small class="form-text text-muted">Click to expand and tick all days the clinician worked.</small>
                 </div>
                 <div class="entry-field">
-                    <label>Attendance Days (Auto)</label>
+                    <label>{{ index .Form.Labels "attendance" }}</label>
                     <input id="attendance-days" type="number" min="0" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control" value="{{ index .Form.Values "attendance" }}" readonly>
                 </div>
                 <div class="entry-field">
-                    <label>Ward Rounds</label>
+                    <label>{{ index .Form.Labels "ward_rounds" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][ward_rounds]" class="form-control" value="{{ index .Form.Values "ward_rounds" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Patients Reviewed</label>
+                    <label>{{ index .Form.Labels "patients_reviewed" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][patients_reviewed]" class="form-control" value="{{ index .Form.Values "patients_reviewed" }}">
                 </div>
                 <div class="entry-field">
-                    <label>OPD Clinics</label>
+                    <label>{{ index .Form.Labels "OPD_clinics" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][OPD_clinics]" class="form-control" value="{{ index .Form.Values "OPD_clinics" }}">
                 </div>
                 <div class="entry-field">
-                    <label>OPD Patients</label>
+                    <label>{{ index .Form.Labels "OPD_patients" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][OPD_patients]" class="form-control" value="{{ index .Form.Values "OPD_patients" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Teaching Rounds</label>
+                    <label>{{ index .Form.Labels "teaching_rounds" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][teaching_rounds]" class="form-control" value="{{ index .Form.Values "teaching_rounds" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Students Taught</label>
+                    <label>{{ index .Form.Labels "students_taught" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][students_taught]" class="form-control" value="{{ index .Form.Values "students_taught" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Mortality Reviews</label>
+                    <label>{{ index .Form.Labels "mortality_reviews" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][mortality_reviews]" class="form-control" value="{{ index .Form.Values "mortality_reviews" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Lab Requests</label>
+                    <label>{{ index .Form.Labels "labs_requests" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][labs_requests]" class="form-control" value="{{ index .Form.Values "labs_requests" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Imaging Requests</label>
+                    <label>{{ index .Form.Labels "imaging_requests" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][imaging_requests]" class="form-control" value="{{ index .Form.Values "imaging_requests" }}">
                 </div>
             </div>
@@ -128,27 +128,27 @@
             <h3>Surgery Metrics</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Theatre Days</label>
+                    <label>{{ index .Form.Labels "theatre_days" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][theatre_days]" class="form-control" value="{{ index .Form.Values "theatre_days" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Elective Surgeries</label>
+                    <label>{{ index .Form.Labels "elective" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][elective]" class="form-control" value="{{ index .Form.Values "elective" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Emergency Surgeries</label>
+                    <label>{{ index .Form.Labels "emergency" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][emergency]" class="form-control" value="{{ index .Form.Values "emergency" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Postmortems</label>
+                    <label>{{ index .Form.Labels "postmortems" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][postmortems]" class="form-control" value="{{ index .Form.Values "postmortems" }}">
                 </div>
                 <div class="entry-field">
-                    <label>X-Rays</label>
+                    <label>{{ index .Form.Labels "xrays" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][xrays]" class="form-control" value="{{ index .Form.Values "xrays" }}">
                 </div>
                 <div class="entry-field">
-                    <label>CT Scans</label>
+                    <label>{{ index .Form.Labels "ct_scans" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][ct_scans]" class="form-control" value="{{ index .Form.Values "ct_scans" }}">
                 </div>
             </div>
@@ -160,23 +160,23 @@
             <h3>Internal Medicine Metrics</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Medical Reviews</label>
+                    <label>{{ index .Form.Labels "medical" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][medical]" class="form-control" value="{{ index .Form.Values "medical" }}">
                 </div>
                 <div class="entry-field">
-                    <label>CBC Tests</label>
+                    <label>{{ index .Form.Labels "CBC" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][CBC]" class="form-control" value="{{ index .Form.Values "CBC" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Chemistry Tests</label>
+                    <label>{{ index .Form.Labels "chemistry" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][chemistry]" class="form-control" value="{{ index .Form.Values "chemistry" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Hematology Tests</label>
+                    <label>{{ index .Form.Labels "hematology" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][hematology]" class="form-control" value="{{ index .Form.Values "hematology" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Urinalysis</label>
+                    <label>{{ index .Form.Labels "urinalysis" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][urinalysis]" class="form-control" value="{{ index .Form.Values "urinalysis" }}">
                 </div>
             </div>
@@ -188,19 +188,19 @@
             <h3>Paediatrics Metrics</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Paediatric Reviews</label>
+                    <label>{{ index .Form.Labels "paed" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][paed]" class="form-control" value="{{ index .Form.Values "paed" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Malaria Cases Reviewed</label>
+                    <label>{{ index .Form.Labels "malaria" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][malaria]" class="form-control" value="{{ index .Form.Values "malaria" }}">
                 </div>
                 <div class="entry-field">
-                    <label>TB Cases Reviewed</label>
+                    <label>{{ index .Form.Labels "TB" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][TB]" class="form-control" value="{{ index .Form.Values "TB" }}">
                 </div>
                 <div class="entry-field">
-                    <label>CBC Tests</label>
+                    <label>{{ index .Form.Labels "CBC" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][CBC]" class="form-control" value="{{ index .Form.Values "CBC" }}">
                 </div>
             </div>
@@ -212,35 +212,35 @@
             <h3>Obstetrics and Gynaecology Metrics</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Theatre Days</label>
+                    <label>{{ index .Form.Labels "theatre_days" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][theatre_days]" class="form-control" value="{{ index .Form.Values "theatre_days" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Elective Procedures</label>
+                    <label>{{ index .Form.Labels "elective" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][elective]" class="form-control" value="{{ index .Form.Values "elective" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Emergency Procedures</label>
+                    <label>{{ index .Form.Labels "emergency" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][emergency]" class="form-control" value="{{ index .Form.Values "emergency" }}">
                 </div>
                 <div class="entry-field">
-                    <label>ANC Patients</label>
+                    <label>{{ index .Form.Labels "anc_patients" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][anc_patients]" class="form-control" value="{{ index .Form.Values "anc_patients" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Maternal Reviews</label>
+                    <label>{{ index .Form.Labels "maternal" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][maternal]" class="form-control" value="{{ index .Form.Values "maternal" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Perinatal Reviews</label>
+                    <label>{{ index .Form.Labels "perinatal" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][perinatal]" class="form-control" value="{{ index .Form.Values "perinatal" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Obstetrics Scans</label>
+                    <label>{{ index .Form.Labels "obstetrics_scans" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][obstetrics_scans]" class="form-control" value="{{ index .Form.Values "obstetrics_scans" }}">
                 </div>
                 <div class="entry-field">
-                    <label>Abdominal Scans</label>
+                    <label>{{ index .Form.Labels "abdominal_scans" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][abdominal_scans]" class="form-control" value="{{ index .Form.Values "abdominal_scans" }}">
                 </div>
             </div>

@@ -28,11 +28,11 @@ func GetWeeklyReportSummary(ctx context.Context, db *sql.DB, hfid int) ([]Specia
 
 	query := `
 		SELECT e.id, CONCAT(e.fname,' ', e.lname) as staff_name, f.f_name, st.title,
-		       SUM(w.qn_01) AS days_worked, 
-		       SUM(w.qn_02) AS ward_rounds, 
-		       SUM(w.qn_05 + w.qn_06) AS surgeries, 
-		       SUM(w.qn_08) AS specialized_clinics, 
-		       SUM(w.qn_11) AS student_teaching
+		       SUM(w.attendance) AS days_worked, 
+		       SUM(w.ward_rounds) AS ward_rounds, 
+		       SUM(w.elective + w.emergency) AS surgeries, 
+		       SUM(w.opd_clinics) AS specialized_clinics, 
+		       SUM(w.teaching_rounds) AS student_teaching
 		FROM clinician_app.weeklyreport w
 		JOIN clinician_app.employees e ON w.employee = e.id
 		JOIN clinician_app.specialist_titles st ON st.id = e.title

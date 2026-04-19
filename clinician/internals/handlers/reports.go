@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -32,6 +33,7 @@ type ClinicianEntryView struct {
 	DepartmentID   int64
 	DepartmentName string
 	FacilityName   string
+	Labels         map[string]string
 	PageTitle      string
 	StartDate      string
 	StopDate       string
@@ -155,6 +157,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	}
 
 	employeeName := formatEmployeeName(employee.Fname.String, employee.Lname.String, employee.Oname.String)
+	labels := resolveClinicianEntryLabels(c.Request.Context(), db)
 
 	reportID, _ := strconv.Atoi(c.Param("i"))
 	returnURL := sanitizeHistoryReturnURL(c.Query("return_to"))
@@ -200,6 +203,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			DepartmentID:   report.DepartmentID,
 			DepartmentName: reportDepartment.DepartmentName.String,
 			FacilityName:   facilityName,
+			Labels:         labels,
 			PageTitle:      entryTitle,
 			StartDate:      formatNullDate(report.WeekStart),
 			StopDate:       formatNullDate(report.WeekStop),
@@ -270,6 +274,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		DepartmentID:   departmentID,
 		DepartmentName: department.DepartmentName.String,
 		FacilityName:   facilityName,
+		Labels:         labels,
 		PageTitle:      entryTitle,
 		StartDate:      weekStart.Format("2006-01-02"),
 		StopDate:       weekEnd.Format("2006-01-02"),
@@ -290,18 +295,6 @@ func SingleEntryList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 }*/
 
 func HandlerReportSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	/*
-		start := c.PostForm("start")
-		stop := c.PostForm("stop")
-		qn_01 := c.PostForm("qn_01")
-		qn_02 := c.PostForm("qn_02")
-		qn_03 := c.PostForm("qn_03")
-		qn_04 := c.PostForm("qn_04")
-		qn_05 := c.PostForm("qn_05")
-		qn_06 := c.PostForm("qn_06")
-		qn_07 := c.PostForm("qn_07")
-		comments := c.PostForm("comments")
-	*/
 }
 
 // Handler to save BulkCapture
@@ -807,6 +800,66 @@ func defaultClinicianEntryValues() map[string]string {
 		"obstetrics_scans":   "0",
 		"abdominal_scans":    "0",
 	}
+}
+
+func defaultClinicianEntryLabels() map[string]string {
+	return map[string]string{
+		"attendance":         "Attendance Days (Auto)",
+		"ward_rounds":        "Ward Rounds",
+		"patients_reviewed":  "Patients Reviewed",
+		"theatre_days":       "Theatre Days",
+		"elective":           "Elective Procedures",
+		"emergency":          "Emergency Procedures",
+		"postmortems":        "Postmortems",
+		"OPD_clinics":        "OPD Clinics",
+		"OPD_patients":       "OPD Patients",
+		"anc_patients":       "ANC Patients",
+		"teaching_rounds":    "Teaching Rounds",
+		"students_taught":    "Students Taught",
+		"mortality_reviews":  "Mortality Reviews",
+		"maternal":           "Maternal Reviews",
+		"perinatal":          "Perinatal Reviews",
+		"surgical":           "Surgical Reviews",
+		"medical":            "Medical Reviews",
+		"paed":               "Paediatric Reviews",
+		"labs_requests":      "Lab Requests",
+		"imaging_requests":   "Imaging Requests",
+		"lab_investigations": "Lab Investigations",
+		"BS":                 "BS Tests",
+		"HIV":                "HIV Tests",
+		"malaria":            "Malaria Cases Reviewed",
+		"TB":                 "TB Cases Reviewed",
+		"CBC":                "CBC Tests",
+		"chemistry":          "Chemistry Tests",
+		"hematology":         "Hematology Tests",
+		"urinalysis":         "Urinalysis",
+		"gram_stain":         "Gram Stain",
+		"culture":            "Culture",
+		"microbiology":       "Microbiology",
+		"sensitivity_tests":  "Sensitivity Tests",
+		"diagnostics":        "Diagnostics",
+		"xrays":              "X-Rays",
+		"ct_scans":           "CT Scans",
+		"obstetrics_scans":   "Obstetrics Scans",
+		"abdominal_scans":    "Abdominal Scans",
+	}
+}
+
+func resolveClinicianEntryLabels(ctx context.Context, db *sql.DB) map[string]string {
+	labels := defaultClinicianEntryLabels()
+	custom, err := models.GetReportDataElementDisplayMap(ctx, db)
+	if err != nil {
+		return labels
+	}
+	for key, name := range custom {
+		key = strings.TrimSpace(key)
+		name = strings.TrimSpace(name)
+		if key == "" || name == "" {
+			continue
+		}
+		labels[key] = name
+	}
+	return labels
 }
 
 func clinicianEntryValuesFromReport(report *models.ClinicianReportHistoryRow) map[string]string {
@@ -2225,140 +2278,51 @@ func HandlerReportData2(c *gin.Context, db *sql.DB, sessionManager *scs.SessionM
 
 	//log.Printf("Staff: %v \nData points: %v", staffData, dataPoints)
 
-	// Define the reverse mapping for qn_* fields
-	qnMapping := map[string]string{
-		"firstname":     "staffname",
-		"employeetitle": "title",
-		"start":         "start",
-		"qn_01":         "attendance",
-		"qn_02":         "ward_rounds",
-		"qn_03":         "patients_reviewed",
-		"qn_04":         "theatre_days",
-		"qn_05":         "elective",
-		"qn_06":         "emergency",
-		"qn_07":         "postmortems",
-		"qn_08":         "OPD_clinics",
-		"qn_09":         "OPD_patients",
-		"qn_10":         "anc_patients",
-		"qn_11":         "teaching_rounds",
-		"qn_12":         "students_taught",
-		"qn_13":         "mortality_reviews",
-		"qn_14":         "maternal",
-		"qn_15":         "perinatal",
-		"qn_16":         "surgical",
-		"qn_17":         "medical",
-		"qn_18":         "pead",
-		"qn_19":         "labs_requests",
-		"qn_20":         "imaging_requests",
-		"qn_21":         "investigations",
-		"qn_22":         "BS",
-		"qn_23":         "HIV",
-		"qn_24":         "malaria",
-		"qn_25":         "TB",
-		"qn_26":         "CBC",
-		"qn_27":         "chemistry",
-		"qn_28":         "hematology",
-		"qn_29":         "urinalysis",
-		"qn_30":         "gram_stain",
-		"qn_31":         "culture",
-		"qn_32":         "microbiology",
-		"qn_33":         "sensitivity_tests",
-		"qn_34":         "diagnostics",
-		"qn_35":         "xrays",
-		"qn_36":         "ct_scans",
-		"qn_37":         "obstetrics_scans",
-		"qn_38":         "abdominal_scans",
-	}
-
-	// Transform the data points using the mapping
+	// Transform the data points into their named data-element keys.
 	transformedData := make([]map[string]interface{}, len(staffData))
 	for i, staff := range staffData {
 		transformedEntry := make(map[string]interface{})
 		transformedEntry["staffname"] = staff.Fname
 		transformedEntry["title"] = staff.EmpTitle
 		transformedEntry["start"] = staff.Start
-
-		// Apply the mapping to the struct fields explicitly
-		for key, value := range qnMapping {
-			switch key {
-			case "qn_01":
-				transformedEntry[value] = staff.Qn01.Int64
-			case "qn_02":
-				transformedEntry[value] = staff.Qn02.Int64
-			case "qn_03":
-				transformedEntry[value] = staff.Qn03.Int64
-			case "qn_04":
-				transformedEntry[value] = staff.Qn04.Int64
-			case "qn_05":
-				transformedEntry[value] = staff.Qn05.Int64
-			case "qn_06":
-				transformedEntry[value] = staff.Qn06.Int64
-			case "qn_07":
-				transformedEntry[value] = staff.Qn07.Int64
-			case "qn_08":
-				transformedEntry[value] = staff.Qn08.Int64
-			case "qn_09":
-				transformedEntry[value] = staff.Qn09.Int64
-			case "qn_10":
-				transformedEntry[value] = staff.Qn10.Int64
-			case "qn_11":
-				transformedEntry[value] = staff.Qn11.Int64
-			case "qn_12":
-				transformedEntry[value] = staff.Qn12.Int64
-			case "qn_13":
-				transformedEntry[value] = staff.Qn13.Int64
-			case "qn_14":
-				transformedEntry[value] = staff.Qn14.Int64
-			case "qn_15":
-				transformedEntry[value] = staff.Qn15.Int64
-			case "qn_16":
-				transformedEntry[value] = staff.Qn16.Int64
-			case "qn_17":
-				transformedEntry[value] = staff.Qn17.Int64
-			case "qn_18":
-				transformedEntry[value] = staff.Qn18.Int64
-			case "qn_19":
-				transformedEntry[value] = staff.Qn19.Int64
-			case "qn_20":
-				transformedEntry[value] = staff.Qn20.Int64
-			case "qn_21":
-				transformedEntry[value] = staff.Qn21.Int64
-			case "qn_22":
-				transformedEntry[value] = staff.Qn22.Int64
-			case "qn_23":
-				transformedEntry[value] = staff.Qn23.Int64
-			case "qn_24":
-				transformedEntry[value] = staff.Qn24.Int64
-			case "qn_25":
-				transformedEntry[value] = staff.Qn25.Int64
-			case "qn_26":
-				transformedEntry[value] = staff.Qn26.Int64
-			case "qn_27":
-				transformedEntry[value] = staff.Qn27.Int64
-			case "qn_28":
-				transformedEntry[value] = staff.Qn28.Int64
-			case "qn_29":
-				transformedEntry[value] = staff.Qn29.Int64
-			case "qn_30":
-				transformedEntry[value] = staff.Qn30.Int64
-			case "qn_31":
-				transformedEntry[value] = staff.Qn31.Int64
-			case "qn_32":
-				transformedEntry[value] = staff.Qn32.Int64
-			case "qn_33":
-				transformedEntry[value] = staff.Qn33.Int64
-			case "qn_34":
-				transformedEntry[value] = staff.Qn34.Int64
-			case "qn_35":
-				transformedEntry[value] = staff.Qn35.Int64
-			case "qn_36":
-				transformedEntry[value] = staff.Qn36.Int64
-			case "qn_37":
-				transformedEntry[value] = staff.Qn37.Int64
-			case "qn_38":
-				transformedEntry[value] = staff.Qn38.Int64
-			}
-		}
+		transformedEntry["attendance"] = staff.Qn01.Int64
+		transformedEntry["ward_rounds"] = staff.Qn02.Int64
+		transformedEntry["patients_reviewed"] = staff.Qn03.Int64
+		transformedEntry["theatre_days"] = staff.Qn04.Int64
+		transformedEntry["elective"] = staff.Qn05.Int64
+		transformedEntry["emergency"] = staff.Qn06.Int64
+		transformedEntry["postmortems"] = staff.Qn07.Int64
+		transformedEntry["OPD_clinics"] = staff.Qn08.Int64
+		transformedEntry["OPD_patients"] = staff.Qn09.Int64
+		transformedEntry["anc_patients"] = staff.Qn10.Int64
+		transformedEntry["teaching_rounds"] = staff.Qn11.Int64
+		transformedEntry["students_taught"] = staff.Qn12.Int64
+		transformedEntry["mortality_reviews"] = staff.Qn13.Int64
+		transformedEntry["maternal"] = staff.Qn14.Int64
+		transformedEntry["perinatal"] = staff.Qn15.Int64
+		transformedEntry["surgical"] = staff.Qn16.Int64
+		transformedEntry["medical"] = staff.Qn17.Int64
+		transformedEntry["pead"] = staff.Qn18.Int64
+		transformedEntry["labs_requests"] = staff.Qn19.Int64
+		transformedEntry["imaging_requests"] = staff.Qn20.Int64
+		transformedEntry["investigations"] = staff.Qn21.Int64
+		transformedEntry["BS"] = staff.Qn22.Int64
+		transformedEntry["HIV"] = staff.Qn23.Int64
+		transformedEntry["malaria"] = staff.Qn24.Int64
+		transformedEntry["TB"] = staff.Qn25.Int64
+		transformedEntry["CBC"] = staff.Qn26.Int64
+		transformedEntry["chemistry"] = staff.Qn27.Int64
+		transformedEntry["hematology"] = staff.Qn28.Int64
+		transformedEntry["urinalysis"] = staff.Qn29.Int64
+		transformedEntry["gram_stain"] = staff.Qn30.Int64
+		transformedEntry["culture"] = staff.Qn31.Int64
+		transformedEntry["microbiology"] = staff.Qn32.Int64
+		transformedEntry["sensitivity_tests"] = staff.Qn33.Int64
+		transformedEntry["diagnostics"] = staff.Qn34.Int64
+		transformedEntry["xrays"] = staff.Qn35.Int64
+		transformedEntry["ct_scans"] = staff.Qn36.Int64
+		transformedEntry["obstetrics_scans"] = staff.Qn37.Int64
+		transformedEntry["abdominal_scans"] = staff.Qn38.Int64
 
 		// Add additional fields from staff to transformedEntry if needed
 		transformedEntry["EmpID"] = staff.EmpID

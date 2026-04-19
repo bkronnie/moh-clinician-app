@@ -37,10 +37,10 @@ WHERE NOT EXISTS (
 
 INSERT INTO clinician_app.weeklyreport (
     id, hospital, department, employee, start, stop,
-    qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_08, qn_09,
-    qn_10, qn_11, qn_12, qn_13, qn_14, qn_15,
-    qn_19, qn_20, qn_21, qn_22, qn_23, qn_24, qn_25, qn_26, qn_27, qn_28, qn_29,
-    qn_35, qn_36, qn_37, qn_38,
+    attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, opd_clinics, opd_patients,
+    anc_patients, teaching_rounds, students_taught, mortality_reviews, maternal, perinatal,
+    labs_requests, imaging_requests, lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis,
+    xrays, ct_scans, obstetrics_scans, abdominal_scans,
     created_on, entered_by, report_status, last_updated_on, submitted_by, approved_by, submit_status
 ) VALUES
 (1, 1, 1, 1002, DATE '2026-01-05', DATE '2026-01-11', 4, 4, 23, 2, 5, 3, 2, 25, 1, 2, 9, 1, 1, 1, 10, 6, 7, 0, 0, 0, 0, 4, 5, 2, 3, 11, 4, 0, 0, NOW(), 1002, 'Approved', NOW(), 1002, 1001, 'Submitted'),

@@ -345,8 +345,8 @@ func GetNationalDashboardSnapshotByRange(ctx context.Context, db *sql.DB, period
 				w.submit_status,
 				w.report_status,
 				w.created_on,
-				COALESCE(w.qn_03, 0) AS patients_reviewed,
-				COALESCE(w.qn_05, 0) + COALESCE(w.qn_06, 0) AS procedures
+				COALESCE(w.patients_reviewed, 0) AS patients_reviewed,
+				COALESCE(w.elective, 0) + COALESCE(w.emergency, 0) AS procedures
 			FROM clinician_app.weeklyreport w
 			JOIN employee_scope es ON es.id = w.employee
 			WHERE w.start BETWEEN $1 AND $2
@@ -780,10 +780,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 			SELECT
 				COUNT(DISTINCT start) AS weeks_entered,
 				COUNT(DISTINCT CASE WHEN submit_status = 'Submitted' THEN start END) AS weeks_submitted,
-				COALESCE(SUM(qn_01), 0) AS days_worked,
-				COALESCE(SUM(qn_02), 0) AS ward_rounds,
-				COALESCE(SUM(qn_03), 0) AS patients_reviewed,
-				COALESCE(SUM(qn_05), 0) + COALESCE(SUM(qn_06), 0) AS procedures
+				COALESCE(SUM(attendance), 0) AS days_worked,
+				COALESCE(SUM(ward_rounds), 0) AS ward_rounds,
+				COALESCE(SUM(patients_reviewed), 0) AS patients_reviewed,
+				COALESCE(SUM(elective), 0) + COALESCE(SUM(emergency), 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1
 		`
@@ -793,10 +793,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 			SELECT
 				COUNT(DISTINCT start) AS weeks_entered,
 				COUNT(DISTINCT CASE WHEN submit_status = 'Submitted' THEN start END) AS weeks_submitted,
-				COALESCE(SUM(qn_01), 0) AS days_worked,
-				COALESCE(SUM(qn_02), 0) AS ward_rounds,
-				COALESCE(SUM(qn_03), 0) AS patients_reviewed,
-				COALESCE(SUM(qn_05), 0) + COALESCE(SUM(qn_06), 0) AS procedures
+				COALESCE(SUM(attendance), 0) AS days_worked,
+				COALESCE(SUM(ward_rounds), 0) AS ward_rounds,
+				COALESCE(SUM(patients_reviewed), 0) AS patients_reviewed,
+				COALESCE(SUM(elective), 0) + COALESCE(SUM(emergency), 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1 AND EXTRACT(ISOYEAR FROM start) = $2
 		`
@@ -806,10 +806,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 			SELECT
 				COUNT(DISTINCT start) AS weeks_entered,
 				COUNT(DISTINCT CASE WHEN submit_status = 'Submitted' THEN start END) AS weeks_submitted,
-				COALESCE(SUM(qn_01), 0) AS days_worked,
-				COALESCE(SUM(qn_02), 0) AS ward_rounds,
-				COALESCE(SUM(qn_03), 0) AS patients_reviewed,
-				COALESCE(SUM(qn_05), 0) + COALESCE(SUM(qn_06), 0) AS procedures
+				COALESCE(SUM(attendance), 0) AS days_worked,
+				COALESCE(SUM(ward_rounds), 0) AS ward_rounds,
+				COALESCE(SUM(patients_reviewed), 0) AS patients_reviewed,
+				COALESCE(SUM(elective), 0) + COALESCE(SUM(emergency), 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1 AND EXTRACT(ISOYEAR FROM start) = $2 AND EXTRACT(MONTH FROM start) = $3
 		`
@@ -819,10 +819,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 			SELECT
 				COUNT(DISTINCT start) AS weeks_entered,
 				COUNT(DISTINCT CASE WHEN submit_status = 'Submitted' THEN start END) AS weeks_submitted,
-				COALESCE(SUM(qn_01), 0) AS days_worked,
-				COALESCE(SUM(qn_02), 0) AS ward_rounds,
-				COALESCE(SUM(qn_03), 0) AS patients_reviewed,
-				COALESCE(SUM(qn_05), 0) + COALESCE(SUM(qn_06), 0) AS procedures
+				COALESCE(SUM(attendance), 0) AS days_worked,
+				COALESCE(SUM(ward_rounds), 0) AS ward_rounds,
+				COALESCE(SUM(patients_reviewed), 0) AS patients_reviewed,
+				COALESCE(SUM(elective), 0) + COALESCE(SUM(emergency), 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1 AND start = $2::date
 		`
@@ -873,10 +873,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 		trendQuery = `
 			SELECT
 				start,
-				COALESCE(qn_01, 0) AS days_worked,
-				COALESCE(qn_02, 0) AS ward_rounds,
-				COALESCE(qn_03, 0) AS patients_reviewed,
-				COALESCE(qn_05, 0) + COALESCE(qn_06, 0) AS procedures
+				COALESCE(attendance, 0) AS days_worked,
+				COALESCE(ward_rounds, 0) AS ward_rounds,
+				COALESCE(patients_reviewed, 0) AS patients_reviewed,
+				COALESCE(elective, 0) + COALESCE(emergency, 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1
 			ORDER BY start
@@ -886,10 +886,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 		trendQuery = `
 			SELECT
 				start,
-				COALESCE(qn_01, 0) AS days_worked,
-				COALESCE(qn_02, 0) AS ward_rounds,
-				COALESCE(qn_03, 0) AS patients_reviewed,
-				COALESCE(qn_05, 0) + COALESCE(qn_06, 0) AS procedures
+				COALESCE(attendance, 0) AS days_worked,
+				COALESCE(ward_rounds, 0) AS ward_rounds,
+				COALESCE(patients_reviewed, 0) AS patients_reviewed,
+				COALESCE(elective, 0) + COALESCE(emergency, 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1 AND EXTRACT(ISOYEAR FROM start) = $2
 			ORDER BY start
@@ -899,10 +899,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 		trendQuery = `
 			SELECT
 				start,
-				COALESCE(qn_01, 0) AS days_worked,
-				COALESCE(qn_02, 0) AS ward_rounds,
-				COALESCE(qn_03, 0) AS patients_reviewed,
-				COALESCE(qn_05, 0) + COALESCE(qn_06, 0) AS procedures
+				COALESCE(attendance, 0) AS days_worked,
+				COALESCE(ward_rounds, 0) AS ward_rounds,
+				COALESCE(patients_reviewed, 0) AS patients_reviewed,
+				COALESCE(elective, 0) + COALESCE(emergency, 0) AS procedures
 			FROM clinician_app.weeklyreport
 			WHERE employee = $1 AND EXTRACT(ISOYEAR FROM start) = $2 AND EXTRACT(MONTH FROM start) = $3
 			ORDER BY start
@@ -1021,8 +1021,8 @@ func GetFacilityDepartmentAnalysis(ctx context.Context, db *sql.DB, facilityID i
 				w.department AS department_id,
 				COUNT(DISTINCT w.employee) AS reports_entered,
 				COUNT(DISTINCT CASE WHEN COALESCE(w.submit_status, '') = 'Submitted' THEN w.employee END) AS reports_submitted,
-				COALESCE(SUM(COALESCE(w.qn_03, 0)), 0) AS patients_reviewed,
-				COALESCE(SUM(COALESCE(w.qn_05, 0)), 0) + COALESCE(SUM(COALESCE(w.qn_06, 0)), 0) AS procedures
+				COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+				COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
 			FROM clinician_app.weeklyreport w
 			JOIN week_window ww ON w.start = ww.week_start
 			WHERE w.hospital = $1
@@ -1126,8 +1126,8 @@ func GetFacilityDepartmentAnalysisByRange(ctx context.Context, db *sql.DB, facil
 				w.department AS department_id,
 				COUNT(DISTINCT w.employee) AS reports_entered,
 				COUNT(DISTINCT CASE WHEN COALESCE(w.submit_status, '') = 'Submitted' THEN w.employee END) AS reports_submitted,
-				COALESCE(SUM(COALESCE(w.qn_03, 0)), 0) AS patients_reviewed,
-				COALESCE(SUM(COALESCE(w.qn_05, 0)), 0) + COALESCE(SUM(COALESCE(w.qn_06, 0)), 0) AS procedures
+				COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+				COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
 			FROM clinician_app.weeklyreport w
 			JOIN employee_scope es ON es.id = w.employee
 			WHERE w.hospital = $1
@@ -1222,8 +1222,8 @@ func GetFacilityClinicianAnalysis(ctx context.Context, db *sql.DB, facilityID in
 				COUNT(*) FILTER (WHERE COALESCE(w.submit_status, '') = 'Submitted') AS reports_submitted,
 				MAX(COALESCE(w.submit_status, '')) AS submit_status,
 				MAX(COALESCE(w.report_status, '')) AS report_status,
-				COALESCE(SUM(COALESCE(w.qn_03, 0)), 0) AS patients_reviewed,
-				COALESCE(SUM(COALESCE(w.qn_05, 0)), 0) + COALESCE(SUM(COALESCE(w.qn_06, 0)), 0) AS procedures
+				COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+				COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
 			FROM clinician_app.weeklyreport w
 			JOIN week_window ww ON w.start = ww.week_start
 			WHERE w.hospital = $1
@@ -1344,8 +1344,8 @@ func GetFacilityClinicianAnalysisByRange(ctx context.Context, db *sql.DB, facili
 				COUNT(*) FILTER (WHERE COALESCE(w.submit_status, '') = 'Submitted') AS reports_submitted,
 				MAX(COALESCE(w.submit_status, '')) AS submit_status,
 				MAX(COALESCE(w.report_status, '')) AS report_status,
-				COALESCE(SUM(COALESCE(w.qn_03, 0)), 0) AS patients_reviewed,
-				COALESCE(SUM(COALESCE(w.qn_05, 0)), 0) + COALESCE(SUM(COALESCE(w.qn_06, 0)), 0) AS procedures
+				COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+				COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
 			FROM clinician_app.weeklyreport w
 			JOIN employee_scope es ON es.id = w.employee
 			WHERE w.hospital = $1
@@ -1470,8 +1470,8 @@ func GetScopeTrendPoints(ctx context.Context, db *sql.DB, scopeFacilityID int, f
 					AND COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
 				THEN w.employee
 			END) AS pending_count,
-			COALESCE(SUM(COALESCE(w.qn_03, 0)), 0) AS patients_reviewed,
-			COALESCE(SUM(COALESCE(w.qn_05, 0)), 0) + COALESCE(SUM(COALESCE(w.qn_06, 0)), 0) AS procedures
+			COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+			COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
 		FROM clinician_app.weeklyreport w
 		JOIN employee_scope es ON es.id = w.employee
 		WHERE ($5 = 0 OR EXTRACT(ISOYEAR FROM w.start) = $5)

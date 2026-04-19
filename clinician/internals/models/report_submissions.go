@@ -150,9 +150,9 @@ func GetReportSubmissions(ctx context.Context, db *sql.DB, scopeFacilityID int64
 			` + submittedOnExpr + ` AS submitted_on,
 			` + submitStatusExpr + `,
 			` + reportStatusExpr + `,
-			COALESCE(w.qn_01, 0) AS attendance,
-			COALESCE(w.qn_03, 0) AS patients_reviewed,
-			COALESCE(w.qn_05, 0) + COALESCE(w.qn_06, 0) AS procedures,
+			COALESCE(w.attendance, 0) AS attendance,
+			COALESCE(w.patients_reviewed, 0) AS patients_reviewed,
+			COALESCE(w.elective, 0) + COALESCE(w.emergency, 0) AS procedures,
 			EXISTS (
 				SELECT 1
 				FROM clinician_app.staffleave sl
@@ -298,10 +298,10 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 			w.created_on,
 			` + submitStatusExpr + `,
 			` + reportStatusExpr + `,
-			w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
-			w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20,
-			w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27, w.qn_28, w.qn_29, w.qn_30,
-			w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38,
+			w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+			w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests,
+			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
+			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
 			` + submittedOnExpr + `
 		FROM clinician_app.weeklyreport w
@@ -556,10 +556,10 @@ func EnsureOnLeaveZeroReports(ctx context.Context, db *sql.DB, facilityID int64,
 	query := `
 		INSERT INTO clinician_app.weeklyreport (
 			hospital, employee, department, start, stop,
-			qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10,
-			qn_11, qn_12, qn_13, qn_14, qn_15, qn_16, qn_17, qn_18, qn_19, qn_20,
-			qn_21, qn_22, qn_23, qn_24, qn_25, qn_26, qn_27, qn_28, qn_29, qn_30,
-			qn_31, qn_32, qn_33, qn_34, qn_35, qn_36, qn_37, qn_38,
+			attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients,
+			teaching_rounds, students_taught, mortality_reviews, maternal, perinatal, surgical, medical, paed, labs_requests, imaging_requests,
+			lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain,
+			culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans,
 			submit_status, report_status, submitted_by, submitted_on, created_on, last_updated_on, days_worked
 		)
 		SELECT

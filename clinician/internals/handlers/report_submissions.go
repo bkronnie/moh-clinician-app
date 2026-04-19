@@ -336,6 +336,7 @@ func HandlerReportSubmissionView(c *gin.Context, db *sql.DB, sessionManager *scs
 		DepartmentID:   report.DepartmentID,
 		DepartmentName: department.DepartmentName.String,
 		FacilityName:   facility.FacilityName,
+		Labels:         resolveClinicianEntryLabels(c.Request.Context(), db),
 		StartDate:      formatNullDate(report.WeekStart),
 		StopDate:       formatNullDate(report.WeekStop),
 		ReportID:       report.ReportID,

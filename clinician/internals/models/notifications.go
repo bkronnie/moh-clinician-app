@@ -31,7 +31,11 @@ func EnsureWeeklyReportSchema(ctx context.Context, db *sql.DB) error {
 		ADD COLUMN IF NOT EXISTS national_reviewed_by BIGINT,
 		ADD COLUMN IF NOT EXISTS national_reviewed_on TIMESTAMP
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return EnsureReportDataElementSchema(ctx, db)
 }
 
 // EnsurePerformanceIndexes adds non-destructive indexes for the query patterns used

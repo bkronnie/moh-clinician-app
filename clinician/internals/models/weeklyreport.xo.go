@@ -16,21 +16,21 @@ import (
 
 // Weeklyreport represents a row from 'clinician_app.weeklyreport'.
 type Weeklyreport struct {
-	ID             int           `json:"reportid"`        // id
-	ReportID       sql.NullInt64 `json:"dummyreportid"`   // id
-	Hospital       sql.NullInt64 `json:"hospital"`        // hospital
-	Dept           sql.NullInt64 `json:"department"`      // department
-	Emp            sql.NullInt64 `json:"employee"`        // employee
-	Start          sql.NullTime  `json:"start"`           // start
-	Stop           sql.NullTime  `json:"stop"`            // stop
-	Qn01           sql.NullInt64 `json:"qn_01"`           // qn_01
-	Qn02           sql.NullInt64 `json:"qn_02"`           // qn_02
-	Qn03           sql.NullInt64 `json:"qn_03"`           // qn_03
-	Qn04           sql.NullInt64 `json:"qn_04"`           // qn_04
-	Qn05           sql.NullInt64 `json:"qn_05"`           // qn_05
-	Qn06           sql.NullInt64 `json:"qn_06"`           // qn_06
-	Qn07           sql.NullInt64 `json:"qn_07"`           // qn_07
-	EntryCreatedOn sql.NullTime  `json:"created_on_date"` // created_on
+	ID             int           `json:"reportid"`          // id
+	ReportID       sql.NullInt64 `json:"dummyreportid"`     // id
+	Hospital       sql.NullInt64 `json:"hospital"`          // hospital
+	Dept           sql.NullInt64 `json:"department"`        // department
+	Emp            sql.NullInt64 `json:"employee"`          // employee
+	Start          sql.NullTime  `json:"start"`             // start
+	Stop           sql.NullTime  `json:"stop"`              // stop
+	Qn01           sql.NullInt64 `json:"attendance"`        // attendance
+	Qn02           sql.NullInt64 `json:"ward_rounds"`       // ward_rounds
+	Qn03           sql.NullInt64 `json:"patients_reviewed"` // patients_reviewed
+	Qn04           sql.NullInt64 `json:"theatre_days"`      // theatre_days
+	Qn05           sql.NullInt64 `json:"elective"`          // elective
+	Qn06           sql.NullInt64 `json:"emergency"`         // emergency
+	Qn07           sql.NullInt64 `json:"postmortems"`       // postmortems
+	EntryCreatedOn sql.NullTime  `json:"created_on_date"`   // created_on
 	// xo fields
 	_exists, _deleted bool
 }
@@ -50,53 +50,53 @@ type WeeklyReportExtended struct {
 // WeeklyReportExtended struct with explicit fields from Weeklyreport, Department, Facility, and Employee
 type WeeklyReportExtended struct {
 	// Fields from 'clinician_app.weeklyreport'
-	ID       int           `json:"reportid"`   // id
-	ReportID sql.NullInt64 `json:"reportid"`   // id
-	Hospital sql.NullInt64 `json:"hospital"`   // hospital
-	Dept     sql.NullInt64 `json:"department"` // department
-	Emp      sql.NullInt64 `json:"employee"`   // employee
-	Start    sql.NullTime  `json:"start"`      // start
-	Stop     sql.NullTime  `json:"stop"`       // stop
-	Qn01     sql.NullInt64 `json:"qn_01"`      // qn_01
-	Qn02     sql.NullInt64 `json:"qn_02"`      // qn_02
-	Qn03     sql.NullInt64 `json:"qn_03"`      // qn_03
-	Qn04     sql.NullInt64 `json:"qn_04"`      // qn_04
-	Qn05     sql.NullInt64 `json:"qn_05"`      // qn_05
-	Qn06     sql.NullInt64 `json:"qn_06"`      // qn_06
-	Qn07     sql.NullInt64 `json:"qn_07"`      // qn_07
-	Qn08     sql.NullInt64 `json:"qn_08"`      // qn_08
-	Qn09     sql.NullInt64 `json:"qn_09"`      // qn_09
-	Qn10     sql.NullInt64 `json:"qn_10"`      // qn_10
-	Qn11     sql.NullInt64 `json:"qn_11"`      // qn_11
-	Qn12     sql.NullInt64 `json:"qn_12"`      // qn_12
-	Qn13     sql.NullInt64 `json:"qn_13"`      // qn_13
-	Qn14     sql.NullInt64 `json:"qn_14"`      // qn_14
-	Qn15     sql.NullInt64 `json:"qn_15"`      // qn_15
-	Qn16     sql.NullInt64 `json:"qn_16"`      // qn_16
-	Qn17     sql.NullInt64 `json:"qn_17"`      // qn_17
-	Qn18     sql.NullInt64 `json:"qn_18"`      // qn_18
-	Qn19     sql.NullInt64 `json:"qn_19"`      // qn_19
-	Qn20     sql.NullInt64 `json:"qn_20"`      // qn_20
-	Qn21     sql.NullInt64 `json:"qn_21"`      // qn_21
-	Qn22     sql.NullInt64 `json:"qn_22"`      // qn_22
-	Qn23     sql.NullInt64 `json:"qn_23"`      // qn_23
-	Qn24     sql.NullInt64 `json:"qn_24"`      // qn_24
-	Qn25     sql.NullInt64 `json:"qn_25"`      // qn_25
-	Qn26     sql.NullInt64 `json:"qn_26"`      // qn_26
-	Qn27     sql.NullInt64 `json:"qn_27"`      // qn_27
-	Qn28     sql.NullInt64 `json:"qn_28"`      // qn_28
-	Qn29     sql.NullInt64 `json:"qn_29"`      // qn_29
-	Qn30     sql.NullInt64 `json:"qn_30"`      // qn_30
-	Qn31     sql.NullInt64 `json:"qn_31"`      // qn_31
-	Qn32     sql.NullInt64 `json:"qn_32"`      // qn_32
-	Qn33     sql.NullInt64 `json:"qn_33"`      // qn_33
-	Qn34     sql.NullInt64 `json:"qn_34"`      // qn_34
-	Qn35     sql.NullInt64 `json:"qn_35"`      // qn_35
-	Qn36     sql.NullInt64 `json:"qn_36"`      // qn_36
-	Qn37     sql.NullInt64 `json:"qn_37"`      // qn_37
-	Qn38     sql.NullInt64 `json:"qn_38"`      // qn_38
-	Qn39     sql.NullInt64 `json:"qn_39"`      // qn_39
-	Qn40     sql.NullInt64 `json:"qn_40"`      // qn_40
+	ID       int           `json:"reportid"`           // id
+	ReportID sql.NullInt64 `json:"reportid"`           // id
+	Hospital sql.NullInt64 `json:"hospital"`           // hospital
+	Dept     sql.NullInt64 `json:"department"`         // department
+	Emp      sql.NullInt64 `json:"employee"`           // employee
+	Start    sql.NullTime  `json:"start"`              // start
+	Stop     sql.NullTime  `json:"stop"`               // stop
+	Qn01     sql.NullInt64 `json:"attendance"`         // attendance
+	Qn02     sql.NullInt64 `json:"ward_rounds"`        // ward_rounds
+	Qn03     sql.NullInt64 `json:"patients_reviewed"`  // patients_reviewed
+	Qn04     sql.NullInt64 `json:"theatre_days"`       // theatre_days
+	Qn05     sql.NullInt64 `json:"elective"`           // elective
+	Qn06     sql.NullInt64 `json:"emergency"`          // emergency
+	Qn07     sql.NullInt64 `json:"postmortems"`        // postmortems
+	Qn08     sql.NullInt64 `json:"opd_clinics"`        // opd_clinics
+	Qn09     sql.NullInt64 `json:"opd_patients"`       // opd_patients
+	Qn10     sql.NullInt64 `json:"anc_patients"`       // anc_patients
+	Qn11     sql.NullInt64 `json:"teaching_rounds"`    // teaching_rounds
+	Qn12     sql.NullInt64 `json:"students_taught"`    // students_taught
+	Qn13     sql.NullInt64 `json:"mortality_reviews"`  // mortality_reviews
+	Qn14     sql.NullInt64 `json:"maternal"`           // maternal
+	Qn15     sql.NullInt64 `json:"perinatal"`          // perinatal
+	Qn16     sql.NullInt64 `json:"surgical"`           // surgical
+	Qn17     sql.NullInt64 `json:"medical"`            // medical
+	Qn18     sql.NullInt64 `json:"paed"`               // paed
+	Qn19     sql.NullInt64 `json:"labs_requests"`      // labs_requests
+	Qn20     sql.NullInt64 `json:"imaging_requests"`   // imaging_requests
+	Qn21     sql.NullInt64 `json:"lab_investigations"` // lab_investigations
+	Qn22     sql.NullInt64 `json:"bs"`                 // bs
+	Qn23     sql.NullInt64 `json:"hiv"`                // hiv
+	Qn24     sql.NullInt64 `json:"malaria"`            // malaria
+	Qn25     sql.NullInt64 `json:"tb"`                 // tb
+	Qn26     sql.NullInt64 `json:"cbc"`                // cbc
+	Qn27     sql.NullInt64 `json:"chemistry"`          // chemistry
+	Qn28     sql.NullInt64 `json:"hematology"`         // hematology
+	Qn29     sql.NullInt64 `json:"urinalysis"`         // urinalysis
+	Qn30     sql.NullInt64 `json:"gram_stain"`         // gram_stain
+	Qn31     sql.NullInt64 `json:"culture"`            // culture
+	Qn32     sql.NullInt64 `json:"microbiology"`       // microbiology
+	Qn33     sql.NullInt64 `json:"sensitivity_tests"`  // sensitivity_tests
+	Qn34     sql.NullInt64 `json:"diagnostics"`        // diagnostics
+	Qn35     sql.NullInt64 `json:"xrays"`              // xrays
+	Qn36     sql.NullInt64 `json:"ct_scans"`           // ct_scans
+	Qn37     sql.NullInt64 `json:"obstetrics_scans"`   // obstetrics_scans
+	Qn38     sql.NullInt64 `json:"abdominal_scans"`    // abdominal_scans
+	Qn39     sql.NullInt64 `json:"custom_metric_39"`   // custom_metric_39
+	Qn40     sql.NullInt64 `json:"custom_metric_40"`   // custom_metric_40
 
 	EnteredByID    sql.NullInt64  `json:"entered_by"`    //entered_by
 	EntryCreatedOn sql.NullTime   `json:"created_on"`    // created_on
@@ -198,7 +198,7 @@ func (w *Weeklyreport) Insert(ctx context.Context, db DB) error {
 
 	// Insert the Weeklyreport record
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
-		`hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on` +
+		`hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16` +
 		`) RETURNING id`
@@ -243,9 +243,9 @@ func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error
 
 	// Insert the WeeklyReportExtended record
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
-		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, qn_11, qn_12, qn_13, qn_14, ` +
-		`qn_15, qn_16, qn_17, qn_18, qn_19, qn_20, qn_21, qn_22, qn_23, qn_24, qn_25, qn_26, qn_27, qn_28, qn_29, qn_30, ` +
-		`qn_31, qn_32, qn_33, qn_34, qn_35, qn_36, qn_37, qn_38, entered_by, created_on, days_worked ` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, teaching_rounds, students_taught, mortality_reviews, maternal, ` +
+		`perinatal, surgical, medical, paed, labs_requests, imaging_requests, lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain, ` +
+		`culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans, entered_by, created_on, days_worked ` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ` +
 		`$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, ` +
@@ -279,7 +279,7 @@ func (w *Weeklyreport) Update(ctx context.Context, db DB) error {
 	}
 	// update with composite primary key
 	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
-		`hospital = $1, department = $2, employee = $3, start = $5, stop = $6, qn_01 = $7, qn_02 = $8, qn_03 = $9, qn_04 = $10, qn_05 = $11, qn_06 = $12, qn_07 = $13, created_on = $17 ` +
+		`hospital = $1, department = $2, employee = $3, start = $5, stop = $6, attendance = $7, ward_rounds = $8, patients_reviewed = $9, theatre_days = $10, elective = $11, emergency = $12, postmortems = $13, created_on = $17 ` +
 		`WHERE id = $18`
 	// run
 	logf(sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn, w.ID)
@@ -300,9 +300,9 @@ func (w *WeeklyReportExtended) Updatez(ctx context.Context, db DB) error {
 
 	// Update the WeeklyReportExtended record
 	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
-		`qn_01 = $1, qn_02 = $2, qn_03 = $3, qn_04 =$4, qn_05 = $5, qn_06 = $6, qn_07 = $7, qn_08 = $8, qn_09 = $9, qn_10 = $10, qn_11 = $11, qn_12 = $12, qn_13 = $13, qn_14 = $14, ` +
-		`qn_15 = $15, qn_16 = $16, qn_17 = $17, qn_18 = $18, qn_19 = $19, qn_20 = $20, qn_21 = $21, qn_22 = $22, qn_23 = $23, qn_24 = $24, qn_25 = $25, qn_26 = $26, qn_27 = $27, qn_28 = $28, qn_29 = $29, qn_30 = $30, ` +
-		`qn_31 = $31, qn_32 = $32, qn_33 = $33, qn_34 = $34, qn_35 = $35, qn_36 = $36, qn_37 = $37, qn_38 = $38,` +
+		`attendance = $1, ward_rounds = $2, patients_reviewed = $3, theatre_days =$4, elective = $5, emergency = $6, postmortems = $7, opd_clinics = $8, opd_patients = $9, anc_patients = $10, teaching_rounds = $11, students_taught = $12, mortality_reviews = $13, maternal = $14, ` +
+		`perinatal = $15, surgical = $16, medical = $17, paed = $18, labs_requests = $19, imaging_requests = $20, lab_investigations = $21, bs = $22, hiv = $23, malaria = $24, tb = $25, cbc = $26, chemistry = $27, hematology = $28, urinalysis = $29, gram_stain = $30, ` +
+		`culture = $31, microbiology = $32, sensitivity_tests = $33, diagnostics = $34, xrays = $35, ct_scans = $36, obstetrics_scans = $37, abdominal_scans = $38,` +
 		`days_worked = $39, last_updated_on = $40 ` +
 		`WHERE id = $41 `
 
@@ -344,13 +344,13 @@ func (w *Weeklyreport) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
-		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`hospital = EXCLUDED.hospital, department = EXCLUDED.department, employee = EXCLUDED.employee, start = EXCLUDED.start, stop = EXCLUDED.stop, qn_01 = EXCLUDED.qn_01, qn_02 = EXCLUDED.qn_02, qn_03 = EXCLUDED.qn_03, qn_04 = EXCLUDED.qn_04, qn_05 = EXCLUDED.qn_05, qn_06 = EXCLUDED.qn_06, qn_07 = EXCLUDED.qn_07, qn_08 = EXCLUDED.qn_08, qn_09 = EXCLUDED.qn_09, qn_10 = EXCLUDED.qn_10, created_on = EXCLUDED.created_on `
+		`hospital = EXCLUDED.hospital, department = EXCLUDED.department, employee = EXCLUDED.employee, start = EXCLUDED.start, stop = EXCLUDED.stop, attendance = EXCLUDED.attendance, ward_rounds = EXCLUDED.ward_rounds, patients_reviewed = EXCLUDED.patients_reviewed, theatre_days = EXCLUDED.theatre_days, elective = EXCLUDED.elective, emergency = EXCLUDED.emergency, postmortems = EXCLUDED.postmortems, opd_clinics = EXCLUDED.opd_clinics, opd_patients = EXCLUDED.opd_patients, anc_patients = EXCLUDED.anc_patients, created_on = EXCLUDED.created_on `
 	// run
 	logf(sqlstr, w.ID, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn)
 	if _, err := db.ExecContext(ctx, sqlstr, w.ID, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn); err != nil {
@@ -388,10 +388,10 @@ func (w *Weeklyreport) Delete(ctx context.Context, db DB) error {
 func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended, error) {
 
 	log.Printf("Record ID: %d", id)
-	// Expanded query to select all fields up to qn_38, along with entered_by and created_on
-	const sqlstr = `SELECT w.id, w.hospital, w.department, w.employee, st.title, w.start, w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
-        w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20, w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27,
-        w.qn_28, w.qn_29, w.qn_30, w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38, w.entered_by, w.created_on
+	// Expanded query to select all fields up to abdominal_scans, along with entered_by and created_on
+	const sqlstr = `SELECT w.id, w.hospital, w.department, w.employee, st.title, w.start, w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+        w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests, w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry,
+        w.hematology, w.urinalysis, w.gram_stain, w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans, w.entered_by, w.created_on
         FROM clinician_app.weeklyreport w
 		LEFT JOIN employees e ON e.id = w.employee 
 		LEFT JOIN specialist_titles st on st.id = e.title 
@@ -421,7 +421,7 @@ func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended
 /*func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on ` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on ` +
 		`FROM clinician_app.weeklyreport ` +
 		`WHERE id = $1`
 	// run
@@ -449,7 +449,7 @@ func Weeklyreports(ctx context.Context, db DB, flt string, start int, cnt int) (
 	}
 
 	sqlstr = `SELECT ` +
-		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, created_on ` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on ` +
 		`FROM clinician_app.weeklyreport ` + whereString + lmt
 
 	rows, err := db.QueryContext(ctx, sqlstr)
@@ -539,8 +539,8 @@ func WeeklyreportList(ctx context.Context, db DB, facilityID, departmentID strin
 	// SQL query with JOINs
 	sqlstr = `SELECT f.f_name, f.id, e.id, e.fname, e.lname, e.oname, st.title, d.d_name, 
               w.id, w.hospital, w.department, w.employee, w.start, 
-              w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, 
-              w.qn_06, w.qn_07, w.created_on, w.submit_status
+              w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, 
+              w.emergency, w.postmortems, w.created_on, w.submit_status
               FROM clinician_app.weeklyreport w
               INNER JOIN clinician_app.employees e ON w.employee = e.id
 			  LEFT JOIN clinician_app.specialist_titles st ON st.id = e.title
@@ -1552,9 +1552,9 @@ func GetReportAndDataPointsByDepartment(db *sql.DB, start string, facilityID, de
 
 	// Query to fetch staff for the department
 
-	staffQuery := `SELECT w.id, w.hospital, w.department, w.employee, CONCAT(e.fname, ' ', e.lname) AS staffname, st.title, w.start, w.stop, w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
-        w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20, w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27,
-        w.qn_28, w.qn_29, w.qn_30, w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38, w.entered_by, w.created_on
+	staffQuery := `SELECT w.id, w.hospital, w.department, w.employee, CONCAT(e.fname, ' ', e.lname) AS staffname, st.title, w.start, w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+        w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests, w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry,
+        w.hematology, w.urinalysis, w.gram_stain, w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans, w.entered_by, w.created_on
         FROM clinician_app.weeklyreport w
 		LEFT JOIN employees e ON e.id = w.employee 
 		LEFT JOIN specialist_titles st on st.id = e.title 
