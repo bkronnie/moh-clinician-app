@@ -456,11 +456,76 @@ a:hover {
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius-lg);
     box-shadow: var(--app-shadow-sm);
-    padding: 0.85rem 0.7rem;
-    margin-right: 0.8rem;
+    padding: 0.65rem 0.4rem;
+    margin-right: 0.6rem;
     height: fit-content;
     position: sticky;
     top: 0.85rem;
+    transition: width 0.22s ease, min-width 0.22s ease, padding 0.22s ease;
+    overflow: visible;
+    z-index: 20;
+}
+
+/* Collapsed: icons only, no labels */
+.sidebar.sidebar-collapsed {
+    width: 3.4rem;
+    min-width: 3.4rem;
+    padding: 0.65rem 0.3rem;
+    flex: 0 0 3.4rem;
+    max-width: 3.4rem;
+}
+
+.sidebar.sidebar-collapsed .sidebar-label,
+.sidebar.sidebar-collapsed .nav-link > span:not(.nav-link-icon):not(.nav-badge) {
+    display: none;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .sidebar-label,
+html.sidebar-pre-collapsed #app-sidebar .nav-link > span:not(.nav-link-icon):not(.nav-badge) {
+    display: none;
+}
+
+.sidebar.sidebar-collapsed .nav-link {
+    justify-content: center;
+    padding: 0.5rem 0.3rem;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .nav-link {
+    justify-content: center;
+    padding: 0.5rem 0.3rem;
+}
+
+.sidebar.sidebar-collapsed .nav-badge {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.1rem;
+    min-width: 1rem;
+    height: 1rem;
+    font-size: 0.6rem;
+    padding: 0 0.2rem;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .nav-badge {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.1rem;
+    min-width: 1rem;
+    height: 1rem;
+    font-size: 0.6rem;
+    padding: 0 0.2rem;
+}
+
+.sidebar.sidebar-collapsed .nav-item {
+    position: relative;
+}
+
+/* Toggle button */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding: 0 0.35rem;
 }
 
 .sidebar-label {
@@ -469,15 +534,148 @@ a:hover {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin: 0 0 0.75rem 0.75rem;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+    color: var(--app-text-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+    background: var(--app-primary-soft);
+    color: var(--app-primary-strong);
+    border-color: var(--app-primary);
+}
+
+.sidebar-toggle svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    display: block;
+    transition: transform 0.22s ease;
+}
+
+/* Rotate arrow when collapsed */
+.sidebar.sidebar-collapsed .sidebar-toggle svg {
+    transform: rotate(180deg);
+}
+
+/* In collapsed state the header stacks vertically */
+.sidebar.sidebar-collapsed .sidebar-header {
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .sidebar-header {
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0;
+}
+
+/* Collapsed-state tooltips */
+.sidebar.sidebar-collapsed .nav-item {
+    position: relative;
+}
+
+.sidebar.sidebar-collapsed .nav-link[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 0.6rem);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--app-heading);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(13, 43, 51, 0.18);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1090;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .nav-link[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 0.6rem);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--app-heading);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(13, 43, 51, 0.18);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1090;
+}
+
+/* Small arrow pointing left */
+.sidebar.sidebar-collapsed .nav-link[data-tooltip]::before {
+    content: '';
+    position: absolute;
+    left: calc(100% + 0.3rem);
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: var(--app-heading);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1090;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .nav-link[data-tooltip]::before {
+    content: '';
+    position: absolute;
+    left: calc(100% + 0.3rem);
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: var(--app-heading);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1090;
+}
+
+.sidebar.sidebar-collapsed .nav-link[data-tooltip]:hover::after,
+.sidebar.sidebar-collapsed .nav-link[data-tooltip]:hover::before {
+    opacity: 1;
+}
+
+html.sidebar-pre-collapsed #app-sidebar .nav-link[data-tooltip]:hover::after,
+html.sidebar-pre-collapsed #app-sidebar .nav-link[data-tooltip]:hover::before {
+    opacity: 1;
 }
 
 .sidebar .nav-link {
     border-radius: 14px;
     color: var(--app-text) !important;
     font-weight: 600;
-    margin-bottom: 0.25rem;
-    padding: 0.62rem 0.72rem;
+    margin-bottom: 0.2rem;
+    padding: 0.5rem 0.5rem;
+    font-size: 0.88rem;
     transition: background-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
 }
 
@@ -1931,6 +2129,38 @@ table.table,
 
 .entry-field input {
     width: 100%;
+}
+
+.days-worked-dropdown {
+    position: relative;
+}
+
+.days-worked-menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    width: 100%;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-sm);
+    box-shadow: var(--app-shadow-sm);
+    padding: 0.55rem 0.65rem;
+    z-index: 1100;
+}
+
+.days-worked-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    color: var(--app-text);
+    cursor: pointer;
+}
+
+.days-worked-item input {
+    margin: 0;
 }
 
 .entry-actions {

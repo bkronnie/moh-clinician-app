@@ -329,7 +329,7 @@ func Get_Session_Data(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 		}
 
 		// Load notification counts by role
-		switch ses.Rights {
+		switch strings.ToLower(strings.TrimSpace(ses.Rights)) {
 		case "approver":
 			data.NotifPendingLeave, _ = models.GetPendingLeaveCount(ctx, db, ses.HFID)
 			data.NotifPendingReports, _ = models.GetPendingReportCount(ctx, db, ses.HFID)
@@ -679,7 +679,7 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 		AvailableMonths:   snapshot.AvailableMonths,
 		AvailableWeeks:    snapshot.AvailableWeeks,
 		DataEntryURL:      "/reports/new/0",
-		ReportHistoryURL:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedWeek),
+		ReportHistoryURL:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		ActiveTab:         activeTab,
 	}
 
@@ -689,28 +689,28 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 			Value: snapshot.TotalReports,
 			Unit:  "reports",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-			Link:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedWeek),
+			Link:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
 			Title: "Submitted",
 			Value: snapshot.SubmittedReports,
 			Unit:  "reports",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-			Link:  buildReportHistoryPeriodFilterQuery("submitted", snapshot.SelectedYear, snapshot.SelectedWeek),
+			Link:  buildReportHistoryPeriodFilterQuery("submitted", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
 			Title: "Approved",
 			Value: snapshot.ApprovedReports,
 			Unit:  "reports",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-			Link:  buildReportHistoryPeriodFilterQuery("approved", snapshot.SelectedYear, snapshot.SelectedWeek),
+			Link:  buildReportHistoryPeriodFilterQuery("approved", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
 			Title: "Declined",
 			Value: snapshot.DeclinedReports,
 			Unit:  "reports",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-			Link:  buildReportHistoryPeriodFilterQuery("declined", snapshot.SelectedYear, snapshot.SelectedWeek),
+			Link:  buildReportHistoryPeriodFilterQuery("declined", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
 			Title: "Days Worked",

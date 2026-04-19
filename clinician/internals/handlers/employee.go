@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,11 @@ type FacilityLeaveReviewView struct {
 
 type EmployeePageView struct {
 	ActiveTab          string
+	DashboardURL       string
+	ListURL            string
+	OnDutyURL          string
+	OnLeaveURL         string
+	ClearURL           string
 	Dashboard          models.DashboardData
 	TopEmployees       []*models.Employee
 	Employees          []*models.Employee
@@ -53,6 +59,30 @@ type EmployeePageView struct {
 	SelectedDepartment int64
 	SearchTerm         string
 	ShowFacilityFilter bool
+}
+
+func normalizeEmployeeTab(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "dashboard", "list", "on_duty", "on_leave":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "dashboard"
+	}
+}
+
+func buildEmployeeTabURL(tab string, facilityID, departmentID int64, searchTerm string, includeFacility bool) string {
+	params := []string{"tab=" + tab}
+	if includeFacility && facilityID > 0 {
+		params = append(params, fmt.Sprintf("facility=%d", facilityID))
+	}
+	if departmentID > 0 {
+		params = append(params, fmt.Sprintf("department=%d", departmentID))
+	}
+	trimmedSearch := strings.TrimSpace(searchTerm)
+	if trimmedSearch != "" {
+		params = append(params, "search="+url.QueryEscape(trimmedSearch))
+	}
+	return "/employee/list?" + strings.Join(params, "&")
 }
 
 // HandlerEmployeeForm renders the HTML form for adding a new employee with session data
@@ -210,7 +240,7 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		return
 	}
 
-	activeTab := strings.TrimSpace(c.DefaultQuery("tab", "dashboard"))
+	activeTab := normalizeEmployeeTab(c.DefaultQuery("tab", "dashboard"))
 	selectedFacilityInt, _ := parseOptionalIntQuery(c, "facility")
 	selectedDepartmentInt, _ := parseOptionalIntQuery(c, "department")
 	selectedFacility := int64(selectedFacilityInt)
@@ -270,6 +300,11 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 
 	view := EmployeePageView{
 		ActiveTab:          activeTab,
+		DashboardURL:       buildEmployeeTabURL("dashboard", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
+		ListURL:            buildEmployeeTabURL("list", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
+		OnDutyURL:          buildEmployeeTabURL("on_duty", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
+		OnLeaveURL:         buildEmployeeTabURL("on_leave", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
+		ClearURL:           buildEmployeeTabURL(activeTab, 0, 0, "", showFacilityFilter),
 		Dashboard:          dashboard,
 		TopEmployees:       topEmployees,
 		Employees:          employees,

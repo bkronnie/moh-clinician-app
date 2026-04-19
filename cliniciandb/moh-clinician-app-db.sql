@@ -130,6 +130,25 @@ CREATE TABLE IF NOT EXISTS clinician_app.employee_profile_changes (
 CREATE INDEX IF NOT EXISTS idx_employee_profile_changes_employee_changed_on
     ON clinician_app.employee_profile_changes(employee_id, changed_on DESC);
 
+CREATE TABLE IF NOT EXISTS clinician_app.customization_change_log (
+    id BIGSERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id BIGINT,
+    action TEXT NOT NULL,
+    change_summary TEXT NOT NULL,
+    previous_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    new_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    changed_by_user BIGINT REFERENCES clinician_app.users(id),
+    changed_by_employee BIGINT REFERENCES clinician_app.employees(id),
+    changed_on TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customization_change_log_on_changed_on
+    ON clinician_app.customization_change_log(changed_on DESC);
+
+CREATE INDEX IF NOT EXISTS idx_customization_change_log_entity
+    ON clinician_app.customization_change_log(entity_type, entity_id, changed_on DESC);
+
 CREATE TABLE IF NOT EXISTS clinician_app.indicators (
     id BIGSERIAL PRIMARY KEY,
     indicator TEXT NOT NULL,
@@ -165,6 +184,9 @@ CREATE TABLE IF NOT EXISTS clinician_app.staffleave (
     leave_type_id BIGINT REFERENCES clinician_app.leavetypes(leave_type_id),
     return_date DATE
 );
+
+ALTER TABLE clinician_app.staffleave
+    ADD COLUMN IF NOT EXISTS reviewed_on TIMESTAMP;
 
 CREATE OR REPLACE VIEW clinician_app.staffleave_view AS
 SELECT
@@ -240,8 +262,31 @@ CREATE TABLE IF NOT EXISTS clinician_app.weeklyreport (
     last_updated_on TIMESTAMP,
     submitted_by BIGINT,
     approved_by BIGINT,
+    facility_review_status TEXT,
+    facility_reviewed_by BIGINT,
+    facility_reviewed_on TIMESTAMP,
+    national_submission_status TEXT,
+    national_submitted_by BIGINT,
+    national_submitted_on TIMESTAMP,
+    national_review_status TEXT,
+    national_reviewed_by BIGINT,
+    national_reviewed_on TIMESTAMP,
     submit_status TEXT
 );
+
+    -- Track which days staff worked during the reporting week and when reports were submitted.
+    ALTER TABLE clinician_app.weeklyreport
+        ADD COLUMN IF NOT EXISTS days_worked TEXT,
+        ADD COLUMN IF NOT EXISTS submitted_on TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS facility_review_status TEXT,
+        ADD COLUMN IF NOT EXISTS facility_reviewed_by BIGINT,
+        ADD COLUMN IF NOT EXISTS facility_reviewed_on TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS national_submission_status TEXT,
+        ADD COLUMN IF NOT EXISTS national_submitted_by BIGINT,
+        ADD COLUMN IF NOT EXISTS national_submitted_on TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS national_review_status TEXT,
+        ADD COLUMN IF NOT EXISTS national_reviewed_by BIGINT,
+        ADD COLUMN IF NOT EXISTS national_reviewed_on TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS clinician_app.attendance_records (
     id BIGSERIAL PRIMARY KEY,
@@ -284,11 +329,18 @@ CREATE TABLE IF NOT EXISTS clinician_app.investigations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON clinician_app.users(username);
+CREATE INDEX IF NOT EXISTS idx_users_employees ON clinician_app.users(employees);
 CREATE INDEX IF NOT EXISTS idx_employees_facility ON clinician_app.employees(facility);
 CREATE INDEX IF NOT EXISTS idx_employees_department ON clinician_app.employees(department);
 CREATE INDEX IF NOT EXISTS idx_staffleave_employee_id ON clinician_app.staffleave(employee_id);
+CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON clinician_app.staffleave(employee_id, leave_status, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON clinician_app.staffleave(leave_status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start ON clinician_app.weeklyreport(employee, start);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_dept_start ON clinician_app.weeklyreport(hospital, department, start);
+CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON clinician_app.weeklyreport(hospital, start, submit_status, report_status);
+CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON clinician_app.weeklyreport(employee, start, submit_status, report_status);
+CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_week_review_flow ON clinician_app.weeklyreport(hospital, start, facility_review_status, national_submission_status, national_review_status);
+CREATE INDEX IF NOT EXISTS idx_department_roles_dept_role ON clinician_app.department_roles(dept_id, role_name);
 
 INSERT INTO clinician_app.specialist_titles (id, title) VALUES
     (1, 'Medical Officer(SG)'),

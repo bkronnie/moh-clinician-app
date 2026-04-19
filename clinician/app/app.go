@@ -97,6 +97,21 @@ func Run() error {
 		// Non-fatal: the column may already exist or the table may be differently structured
 	}
 
+	if err := models.EnsureWeeklyReportSchema(context.Background(), db); err != nil {
+		utilities.Danger("weeklyreport schema migration:", err)
+		// Non-fatal: the column may already exist or the table may be differently structured
+	}
+
+	if err := models.EnsurePerformanceIndexes(context.Background(), db); err != nil {
+		utilities.Danger("performance index migration:", err)
+		// Non-fatal: indexes may already exist or the database may be managed separately
+	}
+
+	if err := models.EnsureCustomizationSchema(context.Background(), db); err != nil {
+		utilities.Danger("customization schema migration:", err)
+		// Non-fatal: audit table may already exist or be managed separately
+	}
+
 	router.Use(middleware.RequestLogger())
 	routes.SetupRoutes(router, db, sessionManager)
 

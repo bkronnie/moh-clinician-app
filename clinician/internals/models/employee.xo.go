@@ -330,11 +330,11 @@ func Employees(ctx context.Context, db *sql.DB, facilityID int64, leave string, 
 	if leave != "" {
 		switch leave {
 		case "Valid", "on_leave":
-			whereClauses = append(whereClauses, fmt.Sprintf("s.leave_status IN ('Valid', 'Approved')"))
+			whereClauses = append(whereClauses, "sl.leave_status IS NOT NULL")
 		case "on_duty":
-			whereClauses = append(whereClauses, fmt.Sprintf("(s.leave_status IS NULL OR s.leave_status NOT IN ('Valid', 'Approved'))"))
+			whereClauses = append(whereClauses, "sl.leave_status IS NULL")
 		default:
-			whereClauses = append(whereClauses, fmt.Sprintf("s.leave_status = '%s'", leave))
+			whereClauses = append(whereClauses, fmt.Sprintf("sl.leave_status = '%s'", leave))
 		}
 	}
 
@@ -344,12 +344,35 @@ func Employees(ctx context.Context, db *sql.DB, facilityID int64, leave string, 
 	}
 
 	sqlstr = `SELECT
-			e.id, e.fname, e.lname, e.oname, st.title, e.specialisation, d.d_name, f.f_name, e.created_by, e.created_on, s.leave_status, s.return_date
+			e.id,
+			e.fname,
+			e.lname,
+			e.oname,
+			st.title,
+			e.specialisation,
+			d.d_name,
+			f.f_name,
+			e.created_by,
+			e.created_on,
+			CASE WHEN sl.leave_status IS NOT NULL THEN 'On Leave' ELSE NULL END AS leave_status,
+			COALESCE(sl.return_date, sl.end_date) AS return_date
                 FROM clinician_app.employees e
                 LEFT JOIN clinician_app.facilities f ON e.facility = f.id
 			LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id
-			LEFT JOIN clinician_app.staffleave_view s ON e.id = s.employee_id
-                LEFT JOIN clinician_app.departments d ON e.department = d.id` +
+                LEFT JOIN clinician_app.departments d ON e.department = d.id
+			LEFT JOIN LATERAL (
+				SELECT
+					sl.leave_status,
+					sl.return_date,
+					sl.end_date
+				FROM clinician_app.staffleave sl
+				WHERE sl.employee_id = e.id
+					AND COALESCE(sl.leave_status, '') IN ('Valid', 'Approved')
+					AND sl.start_date::date <= CURRENT_DATE
+					AND sl.end_date::date >= CURRENT_DATE
+				ORDER BY sl.end_date DESC, sl.leave_id DESC
+				LIMIT 1
+			) sl ON TRUE` +
 		whereString +
 		` ORDER BY e.id`
 

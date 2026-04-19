@@ -9,6 +9,8 @@
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/css/app-theme.css" rel="stylesheet">
     {{ block "extraStyles" . }}{{ end }}
+    <script>(function(){try{if(localStorage.getItem('sidebar-collapsed')!=='0'){document.documentElement.classList.add('sidebar-pre-collapsed');}}catch(e){}}());</script>
+    <style>html.sidebar-pre-collapsed #app-sidebar{width:3.4rem;min-width:3.4rem;max-width:3.4rem;flex:0 0 3.4rem;}</style>
 </head>
 <body>
     {{ $ses := session . }}
@@ -64,10 +66,7 @@
                 {{ end }}
                 {{ if $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>
+                    <a class="nav-link" href="/customization"><span class="nav-link-icon">{{ navIcon "customization" }}</span><span>Customization</span></a>
                 </li>
                 {{ end }}
                 <li class="nav-item dropdown account-dropdown">
@@ -151,55 +150,56 @@
                     <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                     {{ end }}
                     {{ if $isAdmin }}
-                    <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
-                    <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>
+                    <a class="nav-link" href="/customization"><span class="nav-link-icon">{{ navIcon "customization" }}</span><span>Customization</span></a>
                     {{ end }}
                 </div>
             </div>
 
-            <nav class="col-lg-3 col-xl-2 sidebar">
-                <div class="sidebar-label">Navigation</div>
+            <nav class="col-lg-2 sidebar" id="app-sidebar">
+                <div class="sidebar-header">
+                    <span class="sidebar-label">Navigation</span>
+                    <button class="sidebar-toggle" id="sidebar-toggle-btn" title="Collapse navigation" aria-label="Toggle navigation">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                    </button>
+                </div>
                 <div class="sidebar-sticky">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
+                            <a class="nav-link" href="/" data-tooltip="Dashboard"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                         </li>
                         {{ if or $isClinician $isManager $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
+                            <a class="nav-link" href="/reports/analysis" data-tooltip="Reports"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if $isClinician }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
+                            <a class="nav-link" href="/reports/new/0" data-tooltip="My Data Entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
+                            <a class="nav-link" href="/reports/bulk" data-tooltip="Bulk Entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                         </li>
                         {{ end }}
                         {{ if $isClinician }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span>{{ if gt .NotifMyLeave 0 }}<span class="nav-badge">{{ .NotifMyLeave }}</span>{{ end }}</a>
+                            <a class="nav-link" href="/leave/form" data-tooltip="Office Leave"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span>{{ if gt .NotifMyLeave 0 }}<span class="nav-badge">{{ .NotifMyLeave }}</span>{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span>{{ if gt .NotifPendingLeave 0 }}<span class="nav-badge">{{ .NotifPendingLeave }}</span>{{ end }}</a>
+                            <a class="nav-link" href="/leave/review" data-tooltip="Leave Requests"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span>{{ if gt .NotifPendingLeave 0 }}<span class="nav-badge">{{ .NotifPendingLeave }}</span>{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if or $isManager $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
+                            <a class="nav-link" href="/employee/list" data-tooltip="Staff"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                         </li>
                         {{ end }}
                         {{ if $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/department/list"><span class="nav-link-icon">{{ navIcon "departments" }}</span><span>Departments</span></a>
+                            <a class="nav-link" href="/customization" data-tooltip="Customization"><span class="nav-link-icon">{{ navIcon "customization" }}</span><span>Customization</span></a>
                         </li>
                         {{ end }}
                     </ul>
@@ -239,6 +239,46 @@
     </footer>
     </div>
 
+    <script>
+    (() => {
+        const sidebar = document.getElementById('app-sidebar');
+        const btn = document.getElementById('sidebar-toggle-btn');
+        const STORAGE_KEY = 'sidebar-collapsed';
+
+        if (!sidebar) {
+            document.documentElement.classList.remove('sidebar-pre-collapsed');
+            return;
+        }
+
+        const setCollapsed = (collapsed) => {
+            if (collapsed) {
+                sidebar.classList.add('sidebar-collapsed');
+                if (btn) {
+                    btn.title = 'Expand navigation';
+                }
+            } else {
+                sidebar.classList.remove('sidebar-collapsed');
+                if (btn) {
+                    btn.title = 'Collapse navigation';
+                }
+            }
+            try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch(e) {}
+        };
+
+        // Restore state
+        // Restore state — default to collapsed
+        let saved = '1';
+        try { saved = localStorage.getItem(STORAGE_KEY) ?? '1'; } catch(e) {}
+        setCollapsed(saved !== '0');
+        document.documentElement.classList.remove('sidebar-pre-collapsed');
+
+        if (btn) {
+            btn.addEventListener('click', () => {
+                setCollapsed(!sidebar.classList.contains('sidebar-collapsed'));
+            });
+        }
+    })();
+    </script>
     <script src="/static/js/jquery-3.5.1.slim.min.js"></script>
     <script src="/static/js/popper.min.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
@@ -291,6 +331,7 @@
         const iconSVG = {
             view: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
             open: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3h7v7"></path><path d="M10 14L21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>',
+            history: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg>',
             edit: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>',
             approve: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg>',
             decline: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
@@ -303,6 +344,7 @@
 
         const resolveAction = (label) => {
             const text = label.toLowerCase();
+            if (text.includes("history")) return "history";
             if (text.includes("approve")) return "approve";
             if (text.includes("decline") || text.includes("reject")) return "decline";
             if (text.includes("delete") || text.includes("remove")) return "delete";

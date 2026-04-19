@@ -22,6 +22,8 @@ type ClinicianReportHistoryRow struct {
 	Attendance       int
 	PatientsReviewed int
 	Procedures       int
+	DaysWorked       sql.NullString
+	SubmittedOn      sql.NullTime
 	Qn01             sql.NullInt64
 	Qn02             sql.NullInt64
 	Qn03             sql.NullInt64
@@ -205,7 +207,7 @@ func GetClinicianReportHistory(ctx context.Context, db *sql.DB, employeeID int64
 	return history, rows.Err()
 }
 
-func GetClinicianReportHistorySummary(ctx context.Context, db *sql.DB, employeeID int64, year int, week int) (ClinicianReportHistorySummary, error) {
+func GetClinicianReportHistorySummary(ctx context.Context, db *sql.DB, employeeID int64, year int, month int, week int) (ClinicianReportHistorySummary, error) {
 	var summary ClinicianReportHistorySummary
 
 	whereClause := `WHERE w.employee = $1`
@@ -215,6 +217,12 @@ func GetClinicianReportHistorySummary(ctx context.Context, db *sql.DB, employeeI
 	if year > 0 {
 		whereClause += fmt.Sprintf(" AND EXTRACT(ISOYEAR FROM w.start) = $%d", argPos)
 		args = append(args, year)
+		argPos++
+	}
+
+	if month > 0 {
+		whereClause += fmt.Sprintf(" AND EXTRACT(MONTH FROM w.start) = $%d", argPos)
+		args = append(args, month)
 		argPos++
 	}
 
@@ -275,7 +283,9 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 			w.qn_01, w.qn_02, w.qn_03, w.qn_04, w.qn_05, w.qn_06, w.qn_07, w.qn_08, w.qn_09, w.qn_10,
 			w.qn_11, w.qn_12, w.qn_13, w.qn_14, w.qn_15, w.qn_16, w.qn_17, w.qn_18, w.qn_19, w.qn_20,
 			w.qn_21, w.qn_22, w.qn_23, w.qn_24, w.qn_25, w.qn_26, w.qn_27, w.qn_28, w.qn_29, w.qn_30,
-			w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38
+			w.qn_31, w.qn_32, w.qn_33, w.qn_34, w.qn_35, w.qn_36, w.qn_37, w.qn_38,
+			COALESCE(w.days_worked, ''),
+			w.submitted_on
 		FROM clinician_app.weeklyreport w
 		WHERE w.id = $1
 			AND w.employee = $2
@@ -289,6 +299,7 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	row := &ClinicianReportHistoryRow{}
 	var submitStatusText string
 	var reportStatusText string
+	var daysWorkedText string
 	err := db.QueryRowContext(ctx, sqlstr, reportID, employeeID).Scan(
 		&row.ReportID,
 		&row.EmployeeID,
@@ -303,6 +314,8 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 		&row.Qn11, &row.Qn12, &row.Qn13, &row.Qn14, &row.Qn15, &row.Qn16, &row.Qn17, &row.Qn18, &row.Qn19, &row.Qn20,
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
+		&daysWorkedText,
+		&row.SubmittedOn,
 	)
 	if err != nil {
 		return nil, err
@@ -313,6 +326,9 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	}
 	if reportStatusText != "" {
 		row.ReportStatus = sql.NullString{String: reportStatusText, Valid: true}
+	}
+	if daysWorkedText != "" {
+		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
 	}
 	if row.ReportStatus.Valid && (row.ReportStatus.String == "Rejected" || row.ReportStatus.String == "Declined") {
 		row.HistoryStatus = "declined"
@@ -326,7 +342,7 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	return row, nil
 }
 
-func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employeeID int64, start, stop time.Time, values map[string]int64) (bool, error) {
+func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employeeID int64, start, stop time.Time, values map[string]int64, daysWorked string) (bool, error) {
 	const sqlstr = `
 		UPDATE clinician_app.weeklyreport SET
 			start = $1,
@@ -335,9 +351,10 @@ func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 			qn_11 = $13, qn_12 = $14, qn_13 = $15, qn_14 = $16, qn_15 = $17, qn_16 = $18, qn_17 = $19, qn_18 = $20, qn_19 = $21, qn_20 = $22,
 			qn_21 = $23, qn_22 = $24, qn_23 = $25, qn_24 = $26, qn_25 = $27, qn_26 = $28, qn_27 = $29, qn_28 = $30, qn_29 = $31, qn_30 = $32,
 			qn_31 = $33, qn_32 = $34, qn_33 = $35, qn_34 = $36, qn_35 = $37, qn_36 = $38, qn_37 = $39, qn_38 = $40,
-			last_updated_on = $41
-		WHERE id = $42
-			AND employee = $43
+			days_worked = $41,
+			last_updated_on = $42
+		WHERE id = $43
+			AND employee = $44
 			AND (
 				COALESCE(submit_status, '') <> 'Submitted'
 				OR COALESCE(report_status, '') IN ('Rejected', 'Declined')
@@ -354,6 +371,7 @@ func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 		values["teaching_rounds"], values["students_taught"], values["mortality_reviews"], values["maternal"], values["perinatal"], values["surgical"], values["medical"], values["paed"], values["labs_requests"], values["imaging_requests"],
 		values["lab_investigations"], values["BS"], values["HIV"], values["malaria"], values["TB"], values["CBC"], values["chemistry"], values["hematology"], values["urinalysis"], values["gram_stain"],
 		values["culture"], values["microbiology"], values["sensitivity_tests"], values["diagnostics"], values["xrays"], values["ct_scans"], values["obstetrics_scans"], values["abdominal_scans"],
+		daysWorked,
 		time.Now(),
 		reportID,
 		employeeID,
@@ -482,7 +500,13 @@ func GetFacilityReportReview(ctx context.Context, db *sql.DB, facilityID int64, 
 func ApproveFacilityReport(ctx context.Context, db *sql.DB, reportID int, facilityID int64, approverID int64) (bool, error) {
 	const sqlstr = `
 		UPDATE clinician_app.weeklyreport
-		SET report_status = 'Approved', approved_by = $3
+		SET
+			report_status = 'Approved',
+			facility_review_status = 'Approved',
+			facility_reviewed_by = $3,
+			facility_reviewed_on = NOW(),
+			approved_by = $3,
+			last_updated_on = NOW()
 		WHERE id = $1
 			AND hospital = $2
 			AND COALESCE(submit_status, '') = 'Submitted'
@@ -505,7 +529,13 @@ func ApproveFacilityReport(ctx context.Context, db *sql.DB, reportID int, facili
 func DeclineFacilityReport(ctx context.Context, db *sql.DB, reportID int, facilityID int64, approverID int64) (bool, error) {
 	const sqlstr = `
 		UPDATE clinician_app.weeklyreport
-		SET report_status = 'Declined', approved_by = $3
+		SET
+			report_status = 'Declined',
+			facility_review_status = 'Declined',
+			facility_reviewed_by = $3,
+			facility_reviewed_on = NOW(),
+			approved_by = $3,
+			last_updated_on = NOW()
 		WHERE id = $1
 			AND hospital = $2
 			AND COALESCE(submit_status, '') = 'Submitted'

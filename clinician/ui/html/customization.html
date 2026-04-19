@@ -1,0 +1,292 @@
+{{ define "title" }}Customization{{ end }}
+{{ define "header" }}Customization{{ end }}
+
+{{ define "extraStyles" }}
+<style>
+.customization-grid-3 .app-list-grid-header,
+.customization-grid-3 .app-list-grid-row {
+    grid-template-columns: minmax(260px, 1.35fr) minmax(200px, 1fr) minmax(120px, 0.65fr);
+}
+
+.customization-grid-2 .app-list-grid-header,
+.customization-grid-2 .app-list-grid-row {
+    grid-template-columns: minmax(320px, 1.5fr) minmax(120px, 0.55fr);
+}
+
+.customization-grid-history .app-list-grid-header,
+.customization-grid-history .app-list-grid-row {
+    grid-template-columns: minmax(170px, 1fr) minmax(150px, 0.95fr) minmax(100px, 0.8fr) minmax(220px, 1.5fr) minmax(150px, 1fr);
+}
+
+.customization-actions {
+    justify-content: flex-start;
+}
+
+.customization-actions .btn {
+    margin-right: 0;
+}
+
+.customization-add-panel {
+    padding: 0.85rem 0.85rem 0.2rem;
+    border: 1px solid #d9e8ec;
+    border-radius: 12px;
+    background: #f8fbfc;
+    margin-bottom: 0.9rem;
+}
+
+@media (max-width: 992px) {
+    .customization-grid-3 .app-list-grid-header,
+    .customization-grid-3 .app-list-grid-row,
+    .customization-grid-2 .app-list-grid-header,
+    .customization-grid-2 .app-list-grid-row,
+    .customization-grid-history .app-list-grid-header,
+    .customization-grid-history .app-list-grid-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{{ end }}
+
+{{ define "content" }}
+{{ $view := .Form }}
+
+{{ if $view.Success }}
+<div class="alert alert-success" role="alert">{{ $view.Success }}</div>
+{{ end }}
+{{ if $view.Error }}
+<div class="alert alert-danger" role="alert">{{ $view.Error }}</div>
+{{ end }}
+
+<div class="app-list-shell">
+    <div class="app-list-panel">
+        <div class="app-list-header">
+            <div>
+                <p>National-level customization for facilities, departments, access roles, and clinical roles.</p>
+            </div>
+        </div>
+
+        <ul class="nav section-tabs app-filter-bar mb-3" id="customizationTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link active" id="facilities-tab" data-toggle="tab" href="#facilities-panel" role="tab" aria-controls="facilities-panel" aria-selected="true">Facilities</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="departments-tab" data-toggle="tab" href="#departments-panel" role="tab" aria-controls="departments-panel" aria-selected="false">Departments</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="roles-tab" data-toggle="tab" href="#roles-panel" role="tab" aria-controls="roles-panel" aria-selected="false">Access Roles</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="clinical-roles-tab" data-toggle="tab" href="#clinical-roles-panel" role="tab" aria-controls="clinical-roles-panel" aria-selected="false">Clinical Roles</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="history-tab" data-toggle="tab" href="#history-panel" role="tab" aria-controls="history-panel" aria-selected="false">History</a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="facilities-panel" role="tabpanel" aria-labelledby="facilities-tab">
+                <div class="app-list-actions mb-3">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addFacilityPanel" aria-expanded="false" aria-controls="addFacilityPanel" data-keep-text="true">+ Add Facility</button>
+                </div>
+
+                <div class="collapse" id="addFacilityPanel">
+                    <div class="customization-add-panel">
+                        <form method="post" action="/customization/facility/save" class="filter-form mb-3">
+                            <input type="hidden" name="id" value="0">
+                            <div class="form-group">
+                                <label for="facilityName" class="sr-only">Facility Name</label>
+                                <input type="text" class="form-control form-control-sm" id="facilityName" name="name" placeholder="Facility Name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="facilityLevel" class="sr-only">Facility Level</label>
+                                <input type="text" class="form-control form-control-sm" id="facilityLevel" name="level" placeholder="Facility Level" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-keep-text="true">Create</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="app-list-grid customization-grid-3">
+                    <div class="app-list-grid-header">
+                        <div>Facility</div>
+                        <div>Level</div>
+                        <div>Actions</div>
+                    </div>
+                    {{ if $view.Facilities }}
+                        {{ range $view.Facilities }}
+                        <form method="post" action="/customization/facility/save" class="app-list-grid-row">
+                            <input type="hidden" name="id" value="{{ .ID }}">
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="name" value="{{ .Name }}" required>
+                            </div>
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="level" value="{{ .Level }}" required>
+                            </div>
+                            <div class="app-row-actions customization-actions">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/facility/delete/{{ .ID }}" onclick="return confirm('Delete this facility? This only works when no records reference it.');">Delete</button>
+                            </div>
+                        </form>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No facilities available.</div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="departments-panel" role="tabpanel" aria-labelledby="departments-tab">
+                <div class="app-list-actions mb-3">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addDepartmentPanel" aria-expanded="false" aria-controls="addDepartmentPanel" data-keep-text="true">+ Add Department</button>
+                </div>
+
+                <div class="collapse" id="addDepartmentPanel">
+                    <div class="customization-add-panel">
+                        <form method="post" action="/customization/department/save" class="filter-form mb-3">
+                            <input type="hidden" name="id" value="0">
+                            <div class="form-group filter-form-search-group">
+                                <label for="departmentName" class="sr-only">Department Name</label>
+                                <input type="text" class="form-control form-control-sm" id="departmentName" name="name" placeholder="Department Name" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-keep-text="true">Create</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="app-list-grid customization-grid-2">
+                    <div class="app-list-grid-header">
+                        <div>Department</div>
+                        <div>Actions</div>
+                    </div>
+                    {{ if $view.Departments }}
+                        {{ range $view.Departments }}
+                        <form method="post" action="/customization/department/save" class="app-list-grid-row">
+                            <input type="hidden" name="id" value="{{ .ID }}">
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="name" value="{{ .Name }}" required>
+                            </div>
+                            <div class="app-row-actions customization-actions">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/department/delete/{{ .ID }}" onclick="return confirm('Delete this department? This only works when no records reference it.');">Delete</button>
+                            </div>
+                        </form>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No departments available.</div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="roles-panel" role="tabpanel" aria-labelledby="roles-tab">
+                <div class="app-list-actions mb-3">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addAccessRolePanel" aria-expanded="false" aria-controls="addAccessRolePanel" data-keep-text="true">+ Add Access Role</button>
+                </div>
+
+                <div class="collapse" id="addAccessRolePanel">
+                    <div class="customization-add-panel">
+                        <form method="post" action="/customization/role/save" class="filter-form mb-3">
+                            <input type="hidden" name="id" value="0">
+                            <div class="form-group filter-form-search-group">
+                                <label for="roleName" class="sr-only">Access Role Name</label>
+                                <input type="text" class="form-control form-control-sm" id="roleName" name="name" placeholder="Access Role Name" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-keep-text="true">Create</button>
+                        </form>
+                    </div>
+                </div>
+                <small class="form-text text-muted mb-3">Core access roles (admin, approver, user) cannot be renamed or deleted.</small>
+
+                <div class="app-list-grid customization-grid-2">
+                    <div class="app-list-grid-header">
+                        <div>Access Role</div>
+                        <div>Actions</div>
+                    </div>
+                    {{ if $view.Roles }}
+                        {{ range $view.Roles }}
+                        <form method="post" action="/customization/role/save" class="app-list-grid-row">
+                            <input type="hidden" name="id" value="{{ .ID }}">
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="name" value="{{ .Name }}" required>
+                            </div>
+                            <div class="app-row-actions customization-actions">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/role/delete/{{ .ID }}" onclick="return confirm('Delete this role? Core roles are protected.');">Delete</button>
+                            </div>
+                        </form>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No access roles available.</div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="clinical-roles-panel" role="tabpanel" aria-labelledby="clinical-roles-tab">
+                <div class="app-list-actions mb-3">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addClinicalRolePanel" aria-expanded="false" aria-controls="addClinicalRolePanel" data-keep-text="true">+ Add Clinical Role</button>
+                </div>
+
+                <div class="collapse" id="addClinicalRolePanel">
+                    <div class="customization-add-panel">
+                        <form method="post" action="/customization/clinical-role/save" class="filter-form mb-3">
+                            <input type="hidden" name="id" value="0">
+                            <div class="form-group filter-form-search-group">
+                                <label for="clinicalRoleTitle" class="sr-only">Clinical Role Title</label>
+                                <input type="text" class="form-control form-control-sm" id="clinicalRoleTitle" name="title" placeholder="Clinical Role Title (e.g. Medical Officer)" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-keep-text="true">Create</button>
+                        </form>
+                    </div>
+                </div>
+                <small class="form-text text-muted mb-3">Clinical roles are specialist titles used in registration, profiles, and staff records.</small>
+
+                <div class="app-list-grid customization-grid-2">
+                    <div class="app-list-grid-header">
+                        <div>Clinical Role</div>
+                        <div>Actions</div>
+                    </div>
+                    {{ if $view.ClinicalRoles }}
+                        {{ range $view.ClinicalRoles }}
+                        <form method="post" action="/customization/clinical-role/save" class="app-list-grid-row">
+                            <input type="hidden" name="id" value="{{ .ID }}">
+                            <div class="app-list-cell">
+                                <input type="text" class="form-control form-control-sm" name="title" value="{{ .Title }}" required>
+                            </div>
+                            <div class="app-row-actions customization-actions">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/clinical-role/delete/{{ .ID }}" onclick="return confirm('Delete this clinical role? This only works when no employees use it.');">Delete</button>
+                            </div>
+                        </form>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No clinical roles available.</div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="history-panel" role="tabpanel" aria-labelledby="history-tab">
+                <div class="app-list-grid customization-grid-history">
+                    <div class="app-list-grid-header">
+                        <div>When</div>
+                        <div>Entity</div>
+                        <div>Action</div>
+                        <div>Summary</div>
+                        <div>By</div>
+                    </div>
+                    {{ if $view.History }}
+                        {{ range $view.History }}
+                        <div class="app-list-grid-row">
+                            <div class="app-list-cell">{{ humanDate .ChangedOn }}</div>
+                            <div class="app-list-cell">{{ .Entity }} #{{ .EntityID }}</div>
+                            <div class="app-list-cell">{{ .Action }}</div>
+                            <div class="app-list-cell">{{ .Summary }}</div>
+                            <div class="app-list-cell">{{ .ChangedBy }}</div>
+                        </div>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No customization changes have been recorded yet.</div>
+                    {{ end }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}

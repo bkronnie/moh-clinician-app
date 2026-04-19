@@ -102,6 +102,8 @@ type WeeklyReportExtended struct {
 	EntryCreatedOn sql.NullTime   `json:"created_on"`    // created_on
 	LastUpdateOn   sql.NullTime   `json:"update_on"`     // created_on
 	RecordStatus   sql.NullString `json:"record_status"` //record_status
+	DaysWorked     sql.NullString `json:"days_worked"`   // days_worked
+	SubmittedOn    sql.NullTime   `json:"submitted_on"`  // submitted_on
 
 	// Fields from 'clinician_app.employees'
 	EmpID          int            `json:"employeeid"`     // id
@@ -243,20 +245,20 @@ func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`id, hospital, department, employee, start, stop, qn_01, qn_02, qn_03, qn_04, qn_05, qn_06, qn_07, qn_08, qn_09, qn_10, qn_11, qn_12, qn_13, qn_14, ` +
 		`qn_15, qn_16, qn_17, qn_18, qn_19, qn_20, qn_21, qn_22, qn_23, qn_24, qn_25, qn_26, qn_27, qn_28, qn_29, qn_30, ` +
-		`qn_31, qn_32, qn_33, qn_34, qn_35, qn_36, qn_37, qn_38, entered_by, created_on ` +
+		`qn_31, qn_32, qn_33, qn_34, qn_35, qn_36, qn_37, qn_38, entered_by, created_on, days_worked ` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ` +
 		`$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, ` +
-		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46 ` +
+		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47 ` +
 		`)`
 
 	logf(sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn)
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
 
 	_, err := db.ExecContext(ctx, sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08,
 		w.Qn09, w.Qn10, w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26,
-		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn)
+		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
 	if err != nil {
 		return logerror(err)
 	}
@@ -301,16 +303,16 @@ func (w *WeeklyReportExtended) Updatez(ctx context.Context, db DB) error {
 		`qn_01 = $1, qn_02 = $2, qn_03 = $3, qn_04 =$4, qn_05 = $5, qn_06 = $6, qn_07 = $7, qn_08 = $8, qn_09 = $9, qn_10 = $10, qn_11 = $11, qn_12 = $12, qn_13 = $13, qn_14 = $14, ` +
 		`qn_15 = $15, qn_16 = $16, qn_17 = $17, qn_18 = $18, qn_19 = $19, qn_20 = $20, qn_21 = $21, qn_22 = $22, qn_23 = $23, qn_24 = $24, qn_25 = $25, qn_26 = $26, qn_27 = $27, qn_28 = $28, qn_29 = $29, qn_30 = $30, ` +
 		`qn_31 = $31, qn_32 = $32, qn_33 = $33, qn_34 = $34, qn_35 = $35, qn_36 = $36, qn_37 = $37, qn_38 = $38,` +
-		`last_updated_on = $39 ` +
-		`WHERE id = $40 `
+		`days_worked = $39, last_updated_on = $40 ` +
+		`WHERE id = $41 `
 
 	logf(sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.LastUpdateOn, w.ID)
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
 
 	_, err := db.ExecContext(ctx, sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.LastUpdateOn, w.ID)
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
 	if err != nil {
 		return logerror(err)
 	}

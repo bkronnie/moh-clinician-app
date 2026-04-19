@@ -40,6 +40,11 @@
             You can still update this report because it is not approved. Draft and declined reports remain editable.
         </div>
         {{ end }}
+        {{ if .Form.OnLeave }}
+        <div class="alert alert-secondary" role="alert">
+            This staff member is on approved leave for the selected week. Attendance and all data points will be submitted as 0.
+        </div>
+        {{ end }}
 
         <input type="hidden" name="return_to" value="{{ .Form.ReturnURL }}">
 
@@ -59,8 +64,25 @@
             <h3>Core Activity</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Attendance Days</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control" value="{{ index .Form.Values "attendance" }}">
+                    <label>Days Worked This Week</label>
+                    <div class="dropdown days-worked-dropdown">
+                        <button id="days-worked-toggle" class="btn btn-outline-secondary btn-block text-left" type="button" aria-expanded="false" {{ if .Form.OnLeave }}disabled{{ end }}>
+                            Select worked days
+                        </button>
+                        <div id="days-worked-menu" class="days-worked-menu" hidden>
+                            {{ range .Form.WeekDays }}
+                            <label class="days-worked-item mb-1">
+                                <input type="checkbox" class="days-worked-checkbox" name="input[{{ $.Form.EmployeeID }}][days_worked][]" value="{{ .Date }}" {{ if .Checked }}checked{{ end }} {{ if $.Form.OnLeave }}disabled{{ end }}>
+                                <span>{{ .Name }}</span>
+                            </label>
+                            {{ end }}
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">Click to expand and tick all days the clinician worked.</small>
+                </div>
+                <div class="entry-field">
+                    <label>Attendance Days (Auto)</label>
+                    <input id="attendance-days" type="number" min="0" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control" value="{{ index .Form.Values "attendance" }}" readonly>
                 </div>
                 <div class="entry-field">
                     <label>Ward Rounds</label>
@@ -237,4 +259,45 @@
         </div>
     </form>
 </div>
+<script>
+    (function () {
+        var attendanceInput = document.getElementById('attendance-days');
+        if (!attendanceInput) {
+            return;
+        }
+
+        var toggle = document.getElementById('days-worked-toggle');
+        var menu = document.getElementById('days-worked-menu');
+        var boxes = Array.prototype.slice.call(document.querySelectorAll('.days-worked-checkbox'));
+
+        var syncAttendance = function () {
+            var selected = boxes.filter(function (box) { return box.checked; }).length;
+            attendanceInput.value = String(selected);
+            if (toggle) {
+                toggle.textContent = selected > 0 ? (selected + ' day' + (selected === 1 ? '' : 's') + ' selected') : 'Select worked days';
+            }
+        };
+
+        if (toggle && menu) {
+            toggle.addEventListener('click', function (event) {
+                event.preventDefault();
+                menu.hidden = !menu.hidden;
+                toggle.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!menu.hidden && !menu.contains(event.target) && event.target !== toggle) {
+                    menu.hidden = true;
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        boxes.forEach(function (box) {
+            box.addEventListener('change', syncAttendance);
+        });
+
+        syncAttendance();
+    })();
+</script>
 {{ end }}

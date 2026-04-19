@@ -9,13 +9,13 @@ import (
 )
 
 func HandlerUserRightForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-
+	c.Redirect(http.StatusFound, "/customization")
 }
 
 func HandlerUserRightSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	c.Redirect(http.StatusFound, "/foo")
+	c.Redirect(http.StatusFound, "/customization")
 }
 
 func HandlerUserRightList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-
+	c.Redirect(http.StatusFound, "/customization")
 }

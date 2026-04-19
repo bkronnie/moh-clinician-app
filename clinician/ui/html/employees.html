@@ -16,18 +16,18 @@ Staff Management
     </div>
 
     <div class="app-list-panel">
-        <ul class="nav section-tabs mb-3">
+        <ul class="nav section-tabs app-filter-bar mb-3">
             <li class="nav-item">
-                <a class="nav-link {{ if eq .Form.ActiveTab "dashboard" }}active{{ end }}" href="/employee/list?tab=dashboard">Dashboard</a>
+                <a class="nav-link {{ if eq .Form.ActiveTab "dashboard" }}active{{ end }}" href="/employee/list?tab=dashboard{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Dashboard</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {{ if eq .Form.ActiveTab "list" }}active{{ end }}" href="/employee/list?tab=list">Employee List</a>
+                <a class="nav-link {{ if eq .Form.ActiveTab "list" }}active{{ end }}" href="/employee/list?tab=list{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Employee List</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {{ if eq .Form.ActiveTab "on_duty" }}active{{ end }}" href="/employee/list?tab=on_duty">On Duty</a>
+                <a class="nav-link {{ if eq .Form.ActiveTab "on_duty" }}active{{ end }}" href="/employee/list?tab=on_duty{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">On Duty</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {{ if eq .Form.ActiveTab "on_leave" }}active{{ end }}" href="/employee/list?tab=on_leave">Active Leave</a>
+                <a class="nav-link {{ if eq .Form.ActiveTab "on_leave" }}active{{ end }}" href="/employee/list?tab=on_leave{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Active Leave</a>
             </li>
         </ul>
 
@@ -150,8 +150,8 @@ Staff Management
             <div class="app-list-cell">{{ $employee.EmpTitle.String }}</div>
             <div class="app-list-cell">{{ $employee.EmpDepartmentName.String }}</div>
             <div class="app-list-cell">
-                <span class="status-chip">{{ if $employee.LeaveStatus.Valid }}{{ $employee.LeaveStatus.String }}{{ else }}On Duty{{ end }}</span>
-                {{ if and $employee.ReturnDate.Valid (ne $employee.LeaveStatus.String "") }}<div>Return {{ $employee.ReturnDate.Time.Format "2006-01-02" }}</div>{{ end }}
+                <span class="status-chip">{{ if $employee.LeaveStatus.Valid }}On Leave{{ else }}On Duty{{ end }}</span>
+                {{ if $employee.ReturnDate.Valid }}<div>Return {{ $employee.ReturnDate.Time.Format "2006-01-02" }}</div>{{ end }}
             </div>
             <div class="app-row-actions">
                 <a href="/employee/edit/{{ $employee.EmpID }}" class="btn btn-sm btn-outline-primary">Edit</a>

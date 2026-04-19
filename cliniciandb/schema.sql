@@ -114,6 +114,25 @@ CREATE TABLE IF NOT EXISTS public.employee_profile_changes (
 CREATE INDEX IF NOT EXISTS idx_employee_profile_changes_employee_changed_on
     ON public.employee_profile_changes(employee_id, changed_on DESC);
 
+CREATE TABLE IF NOT EXISTS public.customization_change_log (
+    id BIGSERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id BIGINT,
+    action TEXT NOT NULL,
+    change_summary TEXT NOT NULL,
+    previous_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    new_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    changed_by_user BIGINT REFERENCES public.users(id),
+    changed_by_employee BIGINT REFERENCES public.employees(id),
+    changed_on TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customization_change_log_on_changed_on
+    ON public.customization_change_log(changed_on DESC);
+
+CREATE INDEX IF NOT EXISTS idx_customization_change_log_entity
+    ON public.customization_change_log(entity_type, entity_id, changed_on DESC);
+
 CREATE TABLE IF NOT EXISTS public.indicators (
     id BIGSERIAL PRIMARY KEY,
     indicator TEXT NOT NULL,
@@ -149,6 +168,9 @@ CREATE TABLE IF NOT EXISTS public.staffleave (
     leave_type_id BIGINT REFERENCES public.leavetypes(leave_type_id),
     return_date DATE
 );
+
+ALTER TABLE public.staffleave
+    ADD COLUMN IF NOT EXISTS reviewed_on TIMESTAMP;
 
 CREATE OR REPLACE VIEW public.staffleave_view AS
 SELECT
@@ -224,8 +246,30 @@ CREATE TABLE IF NOT EXISTS public.weeklyreport (
     last_updated_on TIMESTAMP,
     submitted_by BIGINT,
     approved_by BIGINT,
+    facility_review_status TEXT,
+    facility_reviewed_by BIGINT,
+    facility_reviewed_on TIMESTAMP,
+    national_submission_status TEXT,
+    national_submitted_by BIGINT,
+    national_submitted_on TIMESTAMP,
+    national_review_status TEXT,
+    national_reviewed_by BIGINT,
+    national_reviewed_on TIMESTAMP,
     submit_status TEXT
 );
+
+ALTER TABLE public.weeklyreport
+    ADD COLUMN IF NOT EXISTS days_worked TEXT,
+    ADD COLUMN IF NOT EXISTS submitted_on TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS facility_review_status TEXT,
+    ADD COLUMN IF NOT EXISTS facility_reviewed_by BIGINT,
+    ADD COLUMN IF NOT EXISTS facility_reviewed_on TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS national_submission_status TEXT,
+    ADD COLUMN IF NOT EXISTS national_submitted_by BIGINT,
+    ADD COLUMN IF NOT EXISTS national_submitted_on TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS national_review_status TEXT,
+    ADD COLUMN IF NOT EXISTS national_reviewed_by BIGINT,
+    ADD COLUMN IF NOT EXISTS national_reviewed_on TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS public.attendance_records (
     id BIGSERIAL PRIMARY KEY,
@@ -268,11 +312,18 @@ CREATE TABLE IF NOT EXISTS public.investigations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
+CREATE INDEX IF NOT EXISTS idx_users_employees ON public.users(employees);
 CREATE INDEX IF NOT EXISTS idx_employees_facility ON public.employees(facility);
 CREATE INDEX IF NOT EXISTS idx_employees_department ON public.employees(department);
 CREATE INDEX IF NOT EXISTS idx_staffleave_employee_id ON public.staffleave(employee_id);
+CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON public.staffleave(employee_id, leave_status, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON public.staffleave(leave_status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start ON public.weeklyreport(employee, start);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_dept_start ON public.weeklyreport(hospital, department, start);
+CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON public.weeklyreport(hospital, start, submit_status, report_status);
+CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON public.weeklyreport(employee, start, submit_status, report_status);
+CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_week_review_flow ON public.weeklyreport(hospital, start, facility_review_status, national_submission_status, national_review_status);
+CREATE INDEX IF NOT EXISTS idx_department_roles_dept_role ON public.department_roles(dept_id, role_name);
 
 INSERT INTO public.specialist_titles (id, title) VALUES
     (1, 'Medical Officer(SG)'),

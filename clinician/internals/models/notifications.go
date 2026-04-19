@@ -15,6 +15,52 @@ func EnsureLeaveSchema(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
+// EnsureWeeklyReportSchema adds columns used by attendance day selection and submission tracking.
+func EnsureWeeklyReportSchema(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+		ALTER TABLE clinician_app.weeklyreport
+		ADD COLUMN IF NOT EXISTS days_worked TEXT,
+		ADD COLUMN IF NOT EXISTS submitted_on TIMESTAMP,
+		ADD COLUMN IF NOT EXISTS facility_review_status TEXT,
+		ADD COLUMN IF NOT EXISTS facility_reviewed_by BIGINT,
+		ADD COLUMN IF NOT EXISTS facility_reviewed_on TIMESTAMP,
+		ADD COLUMN IF NOT EXISTS national_submission_status TEXT,
+		ADD COLUMN IF NOT EXISTS national_submitted_by BIGINT,
+		ADD COLUMN IF NOT EXISTS national_submitted_on TIMESTAMP,
+		ADD COLUMN IF NOT EXISTS national_review_status TEXT,
+		ADD COLUMN IF NOT EXISTS national_reviewed_by BIGINT,
+		ADD COLUMN IF NOT EXISTS national_reviewed_on TIMESTAMP
+	`)
+	return err
+}
+
+// EnsurePerformanceIndexes adds non-destructive indexes for the query patterns used
+// by dashboard, report review, leave review, and role data lookups.
+func EnsurePerformanceIndexes(ctx context.Context, db *sql.DB) error {
+	statements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON clinician_app.weeklyreport(hospital, start, submit_status, report_status)`,
+		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON clinician_app.weeklyreport(employee, start, submit_status, report_status)`,
+		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_week_review_flow ON clinician_app.weeklyreport(hospital, start, facility_review_status, national_submission_status, national_review_status)`,
+		`CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON clinician_app.staffleave(employee_id, leave_status, start_date, end_date)`,
+		`CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON clinician_app.staffleave(leave_status, start_date, end_date)`,
+		`CREATE INDEX IF NOT EXISTS idx_users_employees ON clinician_app.users(employees)`,
+		`CREATE INDEX IF NOT EXISTS idx_department_roles_dept_role ON clinician_app.department_roles(dept_id, role_name)`,
+	}
+
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// EnsureCustomizationSchema provisions audit storage for national customization changes.
+func EnsureCustomizationSchema(ctx context.Context, db *sql.DB) error {
+	return EnsureCustomizationAuditSchema(ctx, db)
+}
+
 // ExpireOldLeave marks approved/valid leaves whose end_date is before today as 'Expired'.
 // Pass facilityID = 0 to expire across all facilities.
 func ExpireOldLeave(ctx context.Context, db DB, facilityID int64) error {

@@ -847,7 +847,7 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 		snapshot.SubmissionProgress = int(float64(snapshot.WeeksSubmitted) / float64(snapshot.WeeksEntered) * 100)
 	}
 
-	reportSummary, err := GetClinicianReportHistorySummary(ctx, db, int64(employeeID), snapshot.SelectedYear, snapshot.SelectedWeek)
+	reportSummary, err := GetClinicianReportHistorySummary(ctx, db, int64(employeeID), snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek)
 	if err != nil {
 		return snapshot, err
 	}

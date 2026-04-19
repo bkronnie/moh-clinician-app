@@ -18,6 +18,14 @@ import (
 	"github.com/moh/clinician/internals/utilities"
 )
 
+// WeekDayCheck represents one day in a reporting week for the attendance day-picker.
+type WeekDayCheck struct {
+	Name    string // "Monday", "Tuesday", etc.
+	Short   string // "Mon", "Tue", etc.
+	Date    string // "2006-01-02"
+	Checked bool
+}
+
 type ClinicianEntryView struct {
 	EmployeeID     int64
 	EmployeeName   string
@@ -35,6 +43,8 @@ type ClinicianEntryView struct {
 	ReadOnly       bool
 	StatusLabel    string
 	ReturnURL      string
+	WeekDays       []WeekDayCheck
+	OnLeave        bool
 }
 
 type ClinicianReportHistoryView struct {
@@ -179,7 +189,12 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			}
 		}
 
-		sessionData.Form = ClinicianEntryView{
+		weekDays := []WeekDayCheck{}
+		onLeave := false
+		if report.WeekStart.Valid && report.WeekStop.Valid {
+			weekDays = buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String)
+		}
+		entryForm := ClinicianEntryView{
 			EmployeeID:     empID,
 			EmployeeName:   employeeName,
 			DepartmentID:   report.DepartmentID,
@@ -195,6 +210,8 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			IsEdit:         true,
 			StatusLabel:    clinicianEntryStatusLabel(report.HistoryStatus),
 			ReturnURL:      returnURL,
+			WeekDays:       weekDays,
+			OnLeave:        onLeave,
 		}
 
 		if report.WeekStart.Valid && report.WeekStop.Valid {
@@ -207,11 +224,14 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 				c.String(http.StatusInternalServerError, "Unable to verify leave status")
 				return
 			}
-			if onLeave {
+			entryForm.OnLeave = onLeave
+			if onLeave && !strings.EqualFold(sesDetails.Rights, "approver") {
 				c.String(http.StatusForbidden, "Data entry is blocked because this staff member is on leave for the selected week.")
 				return
 			}
 		}
+
+		sessionData.Form = entryForm
 
 		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
 		return
@@ -238,10 +258,11 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		c.String(http.StatusInternalServerError, "Unable to verify leave status")
 		return
 	}
-	if onLeave {
+	if onLeave && !strings.EqualFold(sesDetails.Rights, "approver") {
 		c.String(http.StatusForbidden, "Data entry is blocked because this staff member is on leave for the selected week.")
 		return
 	}
+	weekDays := buildWeekDayChecks(weekStart, weekEnd, "")
 
 	sessionData.Form = ClinicianEntryView{
 		EmployeeID:     empID,
@@ -256,6 +277,8 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		SubmitLabel:    "Save Weekly Entry",
 		Values:         defaultClinicianEntryValues(),
 		ReturnURL:      returnURL,
+		WeekDays:       weekDays,
+		OnLeave:        onLeave,
 	}
 
 	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
@@ -342,14 +365,22 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 			return
 		}
 
+		daysWorkedCSV, attendanceDays := collectDaysWorked(c, targetEmployeeID, periodStart, periodStop)
+		values := collectClinicianEntryValues(c, targetEmployeeID, attendanceDays)
+
 		onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, targetEmployeeID, periodStart, periodStop)
 		if leaveErr != nil {
 			c.String(http.StatusInternalServerError, "Unable to verify leave status")
 			return
 		}
 		if onLeave {
-			c.String(http.StatusForbidden, "Staff on leave cannot enter reports during leave period.")
-			return
+			if strings.EqualFold(sesDetails.Rights, "approver") {
+				values = zeroClinicianEntryValues()
+				daysWorkedCSV = ""
+			} else {
+				c.String(http.StatusForbidden, "Staff on leave cannot enter reports during leave period.")
+				return
+			}
 		}
 
 		// Create a new WeeklyReportExtended instance for each employee
@@ -357,47 +388,48 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 			Start: sql.NullTime{Time: periodStart, Valid: true},
 			Stop:  sql.NullTime{Time: periodStop, Valid: true},
 			Emp:   sql.NullInt64{Int64: targetEmployeeID, Valid: true},
-			Qn01:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][attendance]")), Valid: true},
-			Qn02:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ward_rounds]")), Valid: true},
-			Qn03:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][patients_reviewed]")), Valid: true},
-			Qn04:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][theatre_days]")), Valid: true},
-			Qn05:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][elective]")), Valid: true},
-			Qn06:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][emergency]")), Valid: true},
-			Qn07:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][postmortems]")), Valid: true},
-			Qn08:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][OPD_clinics]")), Valid: true},
-			Qn09:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][OPD_patients]")), Valid: true},
-			Qn10:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][anc_patients]")), Valid: true},
-			Qn11:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][teaching_rounds]")), Valid: true},
-			Qn12:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][students_taught]")), Valid: true},
-			Qn13:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][mortality_reviews]")), Valid: true},
-			Qn14:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][maternal]")), Valid: true},
-			Qn15:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][perinatal]")), Valid: true},
-			Qn16:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][surgical]")), Valid: true},
-			Qn17:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][medical]")), Valid: true},
-			Qn18:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][paed]")), Valid: true},
-			Qn19:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][labs_requests]")), Valid: true},
-			Qn20:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][imaging_requests]")), Valid: true},
-			Qn21:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][lab_investigations]")), Valid: true},
-			Qn22:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][BS]")), Valid: true},
-			Qn23:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][HIV]")), Valid: true},
-			Qn24:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][malaria]")), Valid: true},
-			Qn25:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][TB]")), Valid: true},
-			Qn26:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][CBC]")), Valid: true},
-			Qn27:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][chemistry]")), Valid: true},
-			Qn28:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][hematology]")), Valid: true},
-			Qn29:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][urinalysis]")), Valid: true},
-			Qn30:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][gram_stain]")), Valid: true},
-			Qn31:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][culture]")), Valid: true},
-			Qn32:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][microbiology]")), Valid: true},
-			Qn33:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][sensitivity_tests]")), Valid: true},
-			Qn34:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][diagnostics]")), Valid: true},
-			Qn35:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][xrays]")), Valid: true},
-			Qn36:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ct_scans]")), Valid: true},
-			Qn37:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][obstetrics_scans]")), Valid: true},
-			Qn38:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][abdominal_scans]")), Valid: true},
+			Qn01:  sql.NullInt64{Int64: values["attendance"], Valid: true},
+			Qn02:  sql.NullInt64{Int64: values["ward_rounds"], Valid: true},
+			Qn03:  sql.NullInt64{Int64: values["patients_reviewed"], Valid: true},
+			Qn04:  sql.NullInt64{Int64: values["theatre_days"], Valid: true},
+			Qn05:  sql.NullInt64{Int64: values["elective"], Valid: true},
+			Qn06:  sql.NullInt64{Int64: values["emergency"], Valid: true},
+			Qn07:  sql.NullInt64{Int64: values["postmortems"], Valid: true},
+			Qn08:  sql.NullInt64{Int64: values["OPD_clinics"], Valid: true},
+			Qn09:  sql.NullInt64{Int64: values["OPD_patients"], Valid: true},
+			Qn10:  sql.NullInt64{Int64: values["anc_patients"], Valid: true},
+			Qn11:  sql.NullInt64{Int64: values["teaching_rounds"], Valid: true},
+			Qn12:  sql.NullInt64{Int64: values["students_taught"], Valid: true},
+			Qn13:  sql.NullInt64{Int64: values["mortality_reviews"], Valid: true},
+			Qn14:  sql.NullInt64{Int64: values["maternal"], Valid: true},
+			Qn15:  sql.NullInt64{Int64: values["perinatal"], Valid: true},
+			Qn16:  sql.NullInt64{Int64: values["surgical"], Valid: true},
+			Qn17:  sql.NullInt64{Int64: values["medical"], Valid: true},
+			Qn18:  sql.NullInt64{Int64: values["paed"], Valid: true},
+			Qn19:  sql.NullInt64{Int64: values["labs_requests"], Valid: true},
+			Qn20:  sql.NullInt64{Int64: values["imaging_requests"], Valid: true},
+			Qn21:  sql.NullInt64{Int64: values["lab_investigations"], Valid: true},
+			Qn22:  sql.NullInt64{Int64: values["BS"], Valid: true},
+			Qn23:  sql.NullInt64{Int64: values["HIV"], Valid: true},
+			Qn24:  sql.NullInt64{Int64: values["malaria"], Valid: true},
+			Qn25:  sql.NullInt64{Int64: values["TB"], Valid: true},
+			Qn26:  sql.NullInt64{Int64: values["CBC"], Valid: true},
+			Qn27:  sql.NullInt64{Int64: values["chemistry"], Valid: true},
+			Qn28:  sql.NullInt64{Int64: values["hematology"], Valid: true},
+			Qn29:  sql.NullInt64{Int64: values["urinalysis"], Valid: true},
+			Qn30:  sql.NullInt64{Int64: values["gram_stain"], Valid: true},
+			Qn31:  sql.NullInt64{Int64: values["culture"], Valid: true},
+			Qn32:  sql.NullInt64{Int64: values["microbiology"], Valid: true},
+			Qn33:  sql.NullInt64{Int64: values["sensitivity_tests"], Valid: true},
+			Qn34:  sql.NullInt64{Int64: values["diagnostics"], Valid: true},
+			Qn35:  sql.NullInt64{Int64: values["xrays"], Valid: true},
+			Qn36:  sql.NullInt64{Int64: values["ct_scans"], Valid: true},
+			Qn37:  sql.NullInt64{Int64: values["obstetrics_scans"], Valid: true},
+			Qn38:  sql.NullInt64{Int64: values["abdominal_scans"], Valid: true},
 			//Qn39:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ct]")), Valid: true},
 			EnteredByID:    sql.NullInt64{Int64: enteredByID, Valid: true},
 			EntryCreatedOn: sql.NullTime{Time: time.Now(), Valid: true}, // Set created on time
+			DaysWorked:     sql.NullString{String: daysWorkedCSV, Valid: strings.TrimSpace(daysWorkedCSV) != ""},
 		}
 		// Append the report to the slice
 		reports = append(reports, report)
@@ -415,12 +447,13 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 	// Redirect clinicians to their own report history for the reporting period they just saved.
 	reportStart := parseDate(start)
 	reportYear, reportWeek := reportStart.ISOWeek()
+	reportMonth := int(reportStart.Month())
 	returnURL := sanitizeHistoryReturnURL(c.PostForm("return_to"))
 	if returnURL != "/reports/analysis" {
 		c.Redirect(http.StatusFound, returnURL)
 		return
 	}
-	c.Redirect(http.StatusFound, buildReportHistoryPeriodFilterQuery("all", reportYear, reportWeek))
+	c.Redirect(http.StatusFound, buildReportHistoryPeriodFilterQuery("all", reportYear, reportMonth, reportWeek))
 
 	// Return a success response
 	//c.JSON(http.StatusOK, gin.H{"message": "Reports saved successfully"})
@@ -454,8 +487,9 @@ func HandlerClinicianReportHistory(c *gin.Context, db *sql.DB, sessionManager *s
 	}
 
 	year, _ := strconv.Atoi(c.Query("year"))
+	month, _ := strconv.Atoi(c.Query("month"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	c.Redirect(http.StatusFound, buildReportSubmissionsURL(0, 0, year, 0, week, filterStatus))
+	c.Redirect(http.StatusFound, buildReportSubmissionsURL(0, 0, year, month, week, filterStatus))
 }
 
 func HandlerClinicianReportHistoryExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -473,8 +507,9 @@ func HandlerClinicianReportHistoryExport(c *gin.Context, db *sql.DB, sessionMana
 	}
 
 	year, _ := strconv.Atoi(c.Query("year"))
+	month, _ := strconv.Atoi(c.Query("month"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	c.Redirect(http.StatusFound, buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, filterStatus))
+	c.Redirect(http.StatusFound, buildReportSubmissionsExportURL(format, 0, 0, year, month, week, filterStatus))
 }
 
 func HandlerClinicianReportEditForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -529,6 +564,8 @@ func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 
+	daysWorkedCSV, attendanceDays := collectDaysWorked(c, sesDetails.EmpID, start, stop)
+
 	updated, err := models.UpdateClinicianReport(
 		c.Request.Context(),
 		db,
@@ -536,7 +573,8 @@ func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *sc
 		sesDetails.EmpID,
 		start,
 		stop,
-		collectClinicianEntryValues(c, sesDetails.EmpID),
+		collectClinicianEntryValues(c, sesDetails.EmpID, attendanceDays),
+		daysWorkedCSV,
 	)
 	if err != nil {
 		log.Printf("Error updating clinician report: %v", err)
@@ -607,7 +645,7 @@ func HandlerClinicianReportSubmit(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 
-	report, fetchErr := models.GetReportSubmissionByIDForReview(c.Request.Context(), db, reportID, 0)
+	report, fetchErr := models.GetReportSubmissionByIDForReview(c.Request.Context(), db, reportID, 0, sesDetails.Rights)
 	if fetchErr != nil {
 		c.String(http.StatusNotFound, "Report not found")
 		return
@@ -655,8 +693,9 @@ func HandlerFacilityReportReview(c *gin.Context, db *sql.DB, sessionManager *scs
 	}
 
 	year, _ := strconv.Atoi(c.Query("year"))
+	month, _ := strconv.Atoi(c.Query("month"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	c.Redirect(http.StatusFound, buildReportSubmissionsURL(0, 0, year, 0, week, filterStatus))
+	c.Redirect(http.StatusFound, buildReportSubmissionsURL(0, 0, year, month, week, filterStatus))
 }
 
 func HandlerFacilityReportReviewExport(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -674,8 +713,9 @@ func HandlerFacilityReportReviewExport(c *gin.Context, db *sql.DB, sessionManage
 	}
 
 	year, _ := strconv.Atoi(c.Query("year"))
+	month, _ := strconv.Atoi(c.Query("month"))
 	week, _ := strconv.Atoi(c.Query("week"))
-	c.Redirect(http.StatusFound, buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, filterStatus))
+	c.Redirect(http.StatusFound, buildReportSubmissionsExportURL(format, 0, 0, year, month, week, filterStatus))
 }
 
 func HandlerFacilityReportApprove(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -809,16 +849,92 @@ func clinicianEntryValuesFromReport(report *models.ClinicianReportHistoryRow) ma
 	values["ct_scans"] = formatNullInt(report.Qn36)
 	values["obstetrics_scans"] = formatNullInt(report.Qn37)
 	values["abdominal_scans"] = formatNullInt(report.Qn38)
+	if report.DaysWorked.Valid && strings.TrimSpace(report.DaysWorked.String) != "" {
+		selectedDates := splitDaysWorkedCSV(report.DaysWorked.String)
+		values["attendance"] = strconv.Itoa(len(selectedDates))
+	}
 	return values
 }
 
-func collectClinicianEntryValues(c *gin.Context, employeeID int64) map[string]int64 {
+func buildWeekDayChecks(start, stop time.Time, daysWorkedCSV string) []WeekDayCheck {
+	selected := map[string]bool{}
+	for _, item := range splitDaysWorkedCSV(daysWorkedCSV) {
+		selected[item] = true
+	}
+
+	weekDays := []WeekDayCheck{}
+	for day := normalizeDateOnly(start); !day.After(normalizeDateOnly(stop)); day = day.AddDate(0, 0, 1) {
+		isoDate := day.Format("2006-01-02")
+		weekDays = append(weekDays, WeekDayCheck{
+			Name:    day.Weekday().String(),
+			Short:   day.Format("Mon"),
+			Date:    isoDate,
+			Checked: selected[isoDate],
+		})
+	}
+
+	return weekDays
+}
+
+func splitDaysWorkedCSV(daysWorkedCSV string) []string {
+	parts := strings.Split(strings.TrimSpace(daysWorkedCSV), ",")
+	items := make([]string, 0, len(parts))
+	for _, p := range parts {
+		item := strings.TrimSpace(p)
+		if item == "" {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func normalizeDateOnly(value time.Time) time.Time {
+	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.Local)
+}
+
+func collectDaysWorked(c *gin.Context, employeeID int64, weekStart, weekStop time.Time) (string, int64) {
+	key := fmt.Sprintf("input[%d][days_worked][]", employeeID)
+	selectedRaw := c.PostFormArray(key)
+	seen := map[string]bool{}
+	selected := make([]string, 0, len(selectedRaw))
+
+	for _, item := range selectedRaw {
+		parsed, err := parseISODate(item)
+		if err != nil {
+			continue
+		}
+		dateOnly := normalizeDateOnly(parsed)
+		if dateOnly.Before(normalizeDateOnly(weekStart)) || dateOnly.After(normalizeDateOnly(weekStop)) {
+			continue
+		}
+		isoDate := dateOnly.Format("2006-01-02")
+		if seen[isoDate] {
+			continue
+		}
+		seen[isoDate] = true
+		selected = append(selected, isoDate)
+	}
+
+	sort.Strings(selected)
+	return strings.Join(selected, ","), int64(len(selected))
+}
+
+func zeroClinicianEntryValues() map[string]int64 {
+	zero := map[string]int64{}
+	for key := range defaultClinicianEntryValues() {
+		zero[key] = 0
+	}
+	return zero
+}
+
+func collectClinicianEntryValues(c *gin.Context, employeeID int64, attendance int64) map[string]int64 {
 	field := func(name string) int64 {
 		return parseInt(c.PostForm(fmt.Sprintf("input[%d][%s]", employeeID, name)))
 	}
 
 	return map[string]int64{
-		"attendance":         field("attendance"),
+		"attendance":         attendance,
 		"ward_rounds":        field("ward_rounds"),
 		"patients_reviewed":  field("patients_reviewed"),
 		"theatre_days":       field("theatre_days"),
@@ -859,10 +975,13 @@ func collectClinicianEntryValues(c *gin.Context, employeeID int64) map[string]in
 	}
 }
 
-func buildReportHistoryPeriodQuery(year, week int) string {
+func buildReportHistoryPeriodQuery(year, month, week int) string {
 	params := []string{}
 	if year > 0 {
 		params = append(params, fmt.Sprintf("year=%d", year))
+	}
+	if month > 0 {
+		params = append(params, fmt.Sprintf("month=%d", month))
 	}
 	if week > 0 {
 		params = append(params, fmt.Sprintf("week=%d", week))
@@ -873,20 +992,20 @@ func buildReportHistoryPeriodQuery(year, week int) string {
 	return "?" + strings.Join(params, "&")
 }
 
-func buildReportHistoryPeriodFilterQuery(status string, year, week int) string {
-	return buildReportSubmissionsURL(0, 0, year, 0, week, status)
+func buildReportHistoryPeriodFilterQuery(status string, year, month, week int) string {
+	return buildReportSubmissionsURL(0, 0, year, month, week, status)
 }
 
-func buildFacilityReportReviewURL(status string, year, week int) string {
-	return buildReportSubmissionsURL(0, 0, year, 0, week, status)
+func buildFacilityReportReviewURL(status string, year, month, week int) string {
+	return buildReportSubmissionsURL(0, 0, year, month, week, status)
 }
 
-func buildReportHistoryExportURL(format, status string, year, week int) string {
-	return buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, status)
+func buildReportHistoryExportURL(format, status string, year, month, week int) string {
+	return buildReportSubmissionsExportURL(format, 0, 0, year, month, week, status)
 }
 
-func buildFacilityReportReviewExportURL(format, status string, year, week int) string {
-	return buildReportSubmissionsExportURL(format, 0, 0, year, 0, week, status)
+func buildFacilityReportReviewExportURL(format, status string, year, month, week int) string {
+	return buildReportSubmissionsExportURL(format, 0, 0, year, month, week, status)
 }
 
 func buildReportHistoryExportFilename(filterStatus string, year, week int) string {

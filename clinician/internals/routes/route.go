@@ -39,6 +39,7 @@ func SetupRoutes(router *gin.Engine, db *sql.DB, sessionManager *scs.SessionMana
 		RouteReports(protected, db, sessionManager)
 		RouteFacilities(protected, db, sessionManager)
 		RouteDepartment(protected, db, sessionManager)
+		RouteCustomization(protected, db, sessionManager)
 		RouteEmployeee(protected, db, sessionManager)
 		RouteLeave(protected, db, sessionManager)
 	}
@@ -121,6 +122,23 @@ func RouteDepartment(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Session
 		v.GET("/list", func(c *gin.Context) { handlers.HandlerDepartmentList(c, db, sessionManager) })
 	}
 
+}
+
+func RouteCustomization(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
+	v := r.Group("/customization")
+	v.Use(middleware.RequireRoles(db, sessionManager, "admin"))
+	{
+		v.GET("", func(c *gin.Context) { handlers.HandlerCustomization(c, db, sessionManager) })
+		v.GET("/", func(c *gin.Context) { handlers.HandlerCustomization(c, db, sessionManager) })
+		v.POST("/facility/save", func(c *gin.Context) { handlers.HandlerCustomizationFacilitySave(c, db, sessionManager) })
+		v.POST("/facility/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationFacilityDelete(c, db, sessionManager) })
+		v.POST("/department/save", func(c *gin.Context) { handlers.HandlerCustomizationDepartmentSave(c, db, sessionManager) })
+		v.POST("/department/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationDepartmentDelete(c, db, sessionManager) })
+		v.POST("/role/save", func(c *gin.Context) { handlers.HandlerCustomizationRoleSave(c, db, sessionManager) })
+		v.POST("/role/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationRoleDelete(c, db, sessionManager) })
+		v.POST("/clinical-role/save", func(c *gin.Context) { handlers.HandlerCustomizationClinicalRoleSave(c, db, sessionManager) })
+		v.POST("/clinical-role/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationClinicalRoleDelete(c, db, sessionManager) })
+	}
 }
 
 func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -292,7 +293,8 @@ func HandlerReportSubmissionView(c *gin.Context, db *sql.DB, sessionManager *scs
 		scopeFacilityID = sesDetails.HFID
 	}
 
-	report, err := models.GetReportSubmissionByIDForReview(c.Request.Context(), db, reportID, scopeFacilityID)
+	reviewRole := sesDetails.Rights
+	report, err := models.GetReportSubmissionByIDForReview(c.Request.Context(), db, reportID, scopeFacilityID, reviewRole)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.String(http.StatusNotFound, "Report submission not found")
@@ -342,6 +344,7 @@ func HandlerReportSubmissionView(c *gin.Context, db *sql.DB, sessionManager *scs
 		StatusLabel:    reportSubmissionStatusLabel(report.SubmitStatus, report.ReportStatus),
 		ReturnURL:      sanitizeReportSubmissionURL(c.Query("return_to")),
 		ReadOnly:       true,
+		WeekDays:       buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String),
 	}
 
 	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
@@ -429,7 +432,11 @@ func HandlerReportSubmissionSubmitAll(c *gin.Context, db *sql.DB, sessionManager
 		return
 	}
 
-	if _, err := models.SubmitFacilityReportsByFilter(c.Request.Context(), db, sesDetails.HFID, department, year, 0, week, sesDetails.EmpID); err != nil {
+	if _, err := models.SubmitFacilityReportsByFilter(c.Request.Context(), db, sesDetails.HFID, 0, year, 0, week, sesDetails.EmpID); err != nil {
+		if errors.Is(err, models.ErrFacilityBatchRequiresApprovedReports) {
+			c.String(http.StatusForbidden, "Approve all reports for this facility week before submitting the weekly batch to national review")
+			return
+		}
 		log.Printf("Error submitting facility reports: %v", err)
 		c.String(http.StatusInternalServerError, "Unable to submit facility reports")
 		return
@@ -477,9 +484,9 @@ func handleAdminFacilitySubmissionDecision(c *gin.Context, db *sql.DB, sessionMa
 	week, _ := strconv.Atoi(c.PostForm("week"))
 
 	if approve {
-		_, err = models.ApproveFacilityReportsByFilter(c.Request.Context(), db, int64(facilityID), department, year, month, week, sesDetails.EmpID)
+		_, err = models.ApproveNationalFacilityReportsByFilter(c.Request.Context(), db, int64(facilityID), department, year, month, week, sesDetails.EmpID)
 	} else {
-		_, err = models.DeclineFacilityReportsByFilter(c.Request.Context(), db, int64(facilityID), department, year, month, week, sesDetails.EmpID)
+		_, err = models.DeclineNationalFacilityReportsByFilter(c.Request.Context(), db, int64(facilityID), department, year, month, week, sesDetails.EmpID)
 	}
 	if err != nil {
 		log.Printf("Error processing facility-level review: %v", err)

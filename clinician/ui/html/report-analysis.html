@@ -86,7 +86,7 @@
             <div class="app-list-actions">
                 {{ if and .Form.CanSubmitAll (gt .Form.SelectedYear 0) (gt .Form.SelectedWeek 0) }}
                 <form method="post" action="{{ .Form.SubmitAllURL }}" onsubmit="return confirm('Submit all eligible staff reports for this facility and week?');">
-                    <input type="hidden" name="department" value="{{ .Form.SelectedDepartment }}">
+                    <input type="hidden" name="department" value="0">
                     <input type="hidden" name="year" value="{{ .Form.SelectedYear }}">
                     <input type="hidden" name="month" value="{{ .Form.SelectedMonth }}">
                     <input type="hidden" name="week" value="{{ .Form.SelectedWeek }}">
@@ -155,7 +155,7 @@
                         <a class="btn btn-sm btn-outline-primary" href="/reports/analysis?view=staff&facility={{ .FacilityID }}{{ if gt $.Form.SelectedYear 0 }}&year={{ $.Form.SelectedYear }}{{ end }}{{ if gt $.Form.SelectedMonth 0 }}&month={{ $.Form.SelectedMonth }}{{ end }}{{ if gt $.Form.SelectedWeek 0 }}&week={{ $.Form.SelectedWeek }}{{ end }}{{ if ne $.Form.SelectedStatus "all" }}&status={{ $.Form.SelectedStatus }}{{ end }}">Open Staff Reports</a>
                         {{ if .CanApprove }}
                         <form method="post" action="/reports/analysis/facility/{{ .FacilityID }}/approve" onsubmit="return confirm('Approve all pending submitted reports for this facility and period?');">
-                            <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                            <input type="hidden" name="department" value="0">
                             <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
                             <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
                             <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
@@ -163,7 +163,7 @@
                             <button class="btn btn-sm btn-outline-success" type="submit">Approve Facility</button>
                         </form>
                         <form method="post" action="/reports/analysis/facility/{{ .FacilityID }}/decline" onsubmit="return confirm('Decline all pending submitted reports for this facility and period?');">
-                            <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                            <input type="hidden" name="department" value="0">
                             <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
                             <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
                             <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
