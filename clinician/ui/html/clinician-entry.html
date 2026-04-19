@@ -1,82 +1,5 @@
 {{ define "title"}}{{ if .Form.ReadOnly }} Report Submission Review {{ else if .Form.PageTitle }} {{ .Form.PageTitle }} {{ else }} My Weekly Data Entry {{ end }}{{ end }}
 
-{{ define "extraStyles" }}
-<style>
-    .entry-shell {
-        display: grid;
-        gap: 1.25rem;
-    }
-
-    .entry-summary {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.85rem;
-    }
-
-    .entry-summary-card {
-        background: #f8fbfc;
-        border: 1px solid #d9e8ec;
-        border-radius: 14px;
-        padding: 1rem;
-    }
-
-    .entry-summary-card small {
-        display: block;
-        color: #58727a;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 0.35rem;
-    }
-
-    .entry-summary-card strong {
-        color: #12343b;
-        font-size: 1rem;
-    }
-
-    .entry-form-panel {
-        background: #ffffff;
-        border: 1px solid #d9e8ec;
-        border-radius: 16px;
-        padding: 1.25rem;
-        box-shadow: 0 10px 30px rgba(11, 44, 54, 0.06);
-    }
-
-    .entry-section {
-        margin-top: 1.25rem;
-    }
-
-    .entry-section h3 {
-        font-size: 1rem;
-        margin-bottom: 0.85rem;
-        color: #12343b;
-    }
-
-    .entry-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.9rem;
-    }
-
-    .entry-field label {
-        display: block;
-        margin-bottom: 0.35rem;
-        font-size: 0.92rem;
-        font-weight: 600;
-        color: #204650;
-    }
-
-    .entry-field input {
-        width: 100%;
-    }
-
-    .entry-actions {
-        margin-top: 1.5rem;
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-</style>
-{{ end }}
 
 {{ define "header" }}{{ if .Form.ReadOnly }}Report Submission Review{{ else if .Form.PageTitle }}{{ .Form.PageTitle }}{{ else }}My Weekly Data Entry{{ end }}{{ end }}
 
@@ -124,11 +47,11 @@
         <div class="entry-grid">
             <div class="entry-field">
                 <label for="start">Start Date</label>
-                <input id="start" type="date" name="start" class="form-control" value="{{ .Form.StartDate }}" required>
+                <input id="start" type="date" name="start" class="form-control" value="{{ .Form.StartDate }}" required readonly>
             </div>
             <div class="entry-field">
                 <label for="stop">Stop Date</label>
-                <input id="stop" type="date" name="stop" class="form-control" value="{{ .Form.StopDate }}" required>
+                <input id="stop" type="date" name="stop" class="form-control" value="{{ .Form.StopDate }}" required readonly>
             </div>
         </div>
 

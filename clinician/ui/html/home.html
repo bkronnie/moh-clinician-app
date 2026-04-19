@@ -1,370 +1,43 @@
 {{ define "title"}} Clinician Output Dashboard {{ end }}
 
-{{ define "extraStyles" }}
-<style>
-    .dashboard-grid {
-        display: grid;
-        gap: 0.9rem;
-    }
-
-    .dashboard-overview {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.65rem;
-    }
-
-    .dashboard-tabs {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.65rem;
-    }
-
-    .dashboard-tab-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.65rem 1rem;
-        border-radius: 999px;
-        border: 1px solid #cfe0e4;
-        background: #f7fbfc;
-        color: #204650;
-        text-decoration: none;
-        font-weight: 600;
-        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
-    }
-
-    .dashboard-tab-link:hover,
-    .dashboard-tab-link:focus {
-        background: #edf6f8;
-        border-color: #98bcc4;
-        color: #12343b;
-    }
-
-    .dashboard-tab-link.active {
-        background: #12343b;
-        border-color: #12343b;
-        color: #ffffff;
-    }
-
-    .dashboard-section {
-        background: #ffffff;
-        border: 1px solid #d9e8ec;
-        border-radius: 16px;
-        padding: 0.95rem;
-        box-shadow: 0 10px 30px rgba(11, 44, 54, 0.06);
-    }
-
-    .section-title {
-        font-size: 0.95rem;
-        margin-bottom: 0.65rem;
-        color: #12343b;
-    }
-
-    .section-subtitle {
-        color: #58727a;
-        font-size: 0.84rem;
-        margin: -0.2rem 0 0.7rem;
-    }
-
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.65rem;
-    }
-
-    .kpi-card {
-        background: #f8fbfc;
-        border: 1px solid #d9e8ec;
-        border-radius: 12px;
-        padding: 0.64rem 0.72rem;
-    }
-
-    .kpi-card-link {
-        text-decoration: none;
-        color: inherit;
-        display: block;
-    }
-
-    .kpi-card-link .kpi-card {
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-    }
-
-    .kpi-card-link:hover .kpi-card,
-    .kpi-card-link:focus .kpi-card {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(11, 44, 54, 0.08);
-        border-color: #9fc4cb;
-    }
-
-    .kpi-card h4 {
-        font-size: 0.82rem;
-        margin-bottom: 0.18rem;
-        color: #204650;
-    }
-
-    .kpi-card strong {
-        font-size: 1.05rem;
-        color: #12343b;
-    }
-
-    .kpi-meta {
-        font-size: 0.75rem;
-        color: #58727a;
-        margin: 0.18rem 0 0;
-    }
-
-    .dashboard-chart canvas {
-        width: 100%;
-        min-height: 220px;
-    }
-
-    .dashboard-chart-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 0.8rem;
-    }
-
-    .chart-subtitle {
-        color: #58727a;
-        font-size: 0.8rem;
-        margin: -0.12rem 0 0.65rem;
-    }
-
-    .summary-stack {
-        display: grid;
-        gap: 0.6rem;
-    }
-
-    .summary-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 0.55rem;
-        padding: 0.72rem 0.8rem;
-        border: 1px solid #d9e8ec;
-        border-radius: 14px;
-        background: #f8fbfc;
-    }
-
-    .summary-cell strong {
-        display: block;
-        color: #12343b;
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 0.18rem;
-    }
-
-    .summary-cell span {
-        color: #204650;
-        font-size: 0.88rem;
-    }
-
-    .summary-stack.striped .summary-row:nth-child(even) {
-        background: #eef6f8;
-    }
-
-    .summary-stack.striped .summary-row:nth-child(odd) {
-        background: #f8fbfc;
-    }
-
-    .analysis-stack {
-        display: grid;
-        gap: 0.65rem;
-    }
-
-    .analysis-row {
-        display: grid;
-        gap: 0.55rem;
-        padding: 0.8rem;
-        border: 1px solid #d9e8ec;
-        border-radius: 14px;
-        background: #f8fbfc;
-    }
-
-    .analysis-row-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 0.55rem;
-        flex-wrap: wrap;
-    }
-
-    .analysis-row-title {
-        font-size: 0.92rem;
-        color: #12343b;
-        margin: 0;
-    }
-
-    .analysis-row-subtitle {
-        color: #58727a;
-        font-size: 0.82rem;
-        margin: 0.18rem 0 0;
-    }
-
-    .analysis-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 0.55rem;
-    }
-
-    .analysis-cell strong {
-        display: block;
-        color: #12343b;
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 0.18rem;
-    }
-
-    .analysis-cell span {
-        color: #204650;
-        font-size: 0.86rem;
-    }
-
-    .status-chip {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.35rem 0.7rem;
-        border-radius: 999px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        background: #edf4f2;
-        color: #204650;
-    }
-
-    .status-chip.success {
-        background: #e3f6ea;
-        color: #0f6b3a;
-    }
-
-    .status-chip.warning {
-        background: #fff4dd;
-        color: #8a5a00;
-    }
-
-    .status-chip.danger {
-        background: #fde9e7;
-        color: #a33c2f;
-    }
-
-    .status-chip.info {
-        background: #e8eefc;
-        color: #3154a5;
-    }
-
-    .entry-cta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.65rem;
-        align-items: center;
-    }
-
-    .entry-note {
-        color: #58727a;
-        font-size: 0.95rem;
-        margin: 0;
-    }
-
-    .clinician-toolbar {
-        display: grid;
-        gap: 0.75rem;
-    }
-
-    .officer-summary {
-        display: grid;
-        gap: 0.3rem;
-    }
-
-    .officer-name {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #12343b;
-        margin: 0;
-    }
-
-    .officer-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        color: #58727a;
-        font-size: 0.84rem;
-    }
-
-    .officer-meta span {
-        background: #f4fafb;
-        border: 1px solid #d9e8ec;
-        border-radius: 999px;
-        padding: 0.28rem 0.56rem;
-    }
-
-    .dashboard-filters {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.65rem;
-        align-items: end;
-    }
-
-    .filter-field label {
-        display: block;
-        margin-bottom: 0.22rem;
-        font-size: 0.82rem;
-        color: #204650;
-        font-weight: 600;
-    }
-
-    .filter-field select {
-        width: 100%;
-        border: 1px solid #c5dadd;
-        border-radius: 12px;
-        padding: 0.52rem 0.68rem;
-        background: #ffffff;
-        color: #12343b;
-    }
-
-    .filter-hint {
-        font-size: 0.76rem;
-        color: #58727a;
-        margin: 0;
-    }
-</style>
-{{ end }}
 
 {{ define "header" }}{{ .Form.ScopeTitle }}{{ end }}
 
+{{ define "pageActions" }}
+{{ if or .Form.FilterFields .Form.PrimaryActions }}
+<div class="app-list-actions">
+    <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#dashboardToolbarSection" aria-expanded="false" aria-controls="dashboardToolbarSection" id="dashboardToolbarToggle">
+        Show filters
+    </button>
+    {{ if .Form.PrimaryActions }}
+        {{ range .Form.PrimaryActions }}
+        <a class="btn {{ if eq .Tone "primary" }}btn-primary{{ else }}btn-outline-secondary{{ end }}" href="{{ .URL }}">{{ .Label }}</a>
+        {{ end }}
+    {{ end }}
+</div>
+{{ end }}
+{{ end }}
+
 {{ define "content" }}
 <div class="dashboard-grid">
-    {{ if or .Form.IdentityName .Form.FilterFields .Form.PrimaryActions }}
-    <div class="dashboard-section">
-        <div class="clinician-toolbar">
-            {{ if and .Form.IdentityName (not (hasRole . "user")) }}
-            <div class="officer-summary">
-                <div class="section-title">{{ .Form.IdentityTitle }}</div>
-                <p class="officer-name">{{ .Form.IdentityName }}</p>
-                {{ if .Form.IdentityBadges }}
-                <div class="officer-meta">
-                    {{ range .Form.IdentityBadges }}
-                    <span>{{ .Text }}</span>
-                    {{ end }}
-                </div>
-                {{ end }}
-            </div>
-            {{ end }}
-
-            {{ if .Form.FilterFields }}
+    {{ if or .Form.FilterFields .Form.PrimaryActions }}
+    <div id="dashboardToolbarSection" class="collapse">
+        <div class="app-list-panel">
             <div>
                 <div class="section-title">{{ .Form.FilterTitle }}</div>
                 {{ if .Form.FilterSummary }}
-                <p class="section-subtitle">{{ .Form.FilterSummary }}</p>
+                <p class="app-list-note">{{ .Form.FilterSummary }}</p>
                 {{ else if .Form.ScopeSubtitle }}
-                <p class="section-subtitle">{{ .Form.ScopeSubtitle }}</p>
+                <p class="app-list-note">{{ .Form.ScopeSubtitle }}</p>
                 {{ end }}
             </div>
             <form
-                class="dashboard-filters dashboard-auto-submit"
+                class="submissions-filters dashboard-auto-submit"
                 method="GET"
                 action="/"
                 id="{{ .Form.FilterFormID }}">
                 <input type="hidden" name="tab" value="{{ .Form.ActiveTab }}">
+                <div class="dashboard-filter-grid">
                 {{ range .Form.FilterFields }}
                 {{ $field := . }}
                 <div class="filter-field">
@@ -376,25 +49,20 @@
                     </select>
                 </div>
                 {{ end }}
+                </div>
+                {{ if .Form.ClearFiltersURL }}
+                <div class="entry-cta">
+                    <a class="btn btn-outline-secondary" href="{{ .Form.ClearFiltersURL }}">Clear Filters</a>
+                </div>
+                {{ end }}
             </form>
             {{ if .Form.FilterHint }}
             <p class="filter-hint">{{ .Form.FilterHint }}</p>
             {{ end }}
-            {{ if .Form.ClearFiltersURL }}
-            <div class="entry-cta">
-                <a class="btn btn-outline-secondary" href="{{ .Form.ClearFiltersURL }}">Clear Filters</a>
-            </div>
-            {{ end }}
-            {{ end }}
 
-            {{ if .Form.PrimaryActions }}
+            {{ if .Form.IdentityNote }}
             <div class="entry-cta">
-                {{ range .Form.PrimaryActions }}
-                <a class="btn {{ if eq .Tone "primary" }}btn-primary{{ else }}btn-outline-secondary{{ end }}" href="{{ .URL }}">{{ .Label }}</a>
-                {{ end }}
-                {{ if .Form.IdentityNote }}
                 <p class="entry-note">{{ .Form.IdentityNote }}</p>
-                {{ end }}
             </div>
             {{ end }}
         </div>
@@ -402,9 +70,9 @@
     {{ end }}
 
     {{ if .Form.Tabs }}
-    <div class="dashboard-tabs">
+    <div class="dashboard-tabs section-tabs">
         {{ range .Form.Tabs }}
-        <a href="{{ .URL }}" class="dashboard-tab-link {{ if eq $.Form.ActiveTab .ID }}active{{ end }}">{{ .Label }}</a>
+        <a href="{{ .URL }}" class="nav-link {{ if eq $.Form.ActiveTab .ID }}active{{ end }}">{{ .Label }}</a>
         {{ end }}
     </div>
     {{ end }}
@@ -515,7 +183,7 @@
                                 {{ if .Subtitle }}<p class="analysis-row-subtitle">{{ .Subtitle }}</p>{{ end }}
                             </div>
                             {{ if .Badges }}
-                            <div class="d-flex flex-wrap" style="gap: 0.5rem;">
+                            <div class="d-flex flex-wrap dashboard-chip-row">
                                 {{ range .Badges }}
                                 <span class="status-chip {{ .Tone }}">{{ .Text }}</span>
                                 {{ end }}
@@ -556,6 +224,38 @@
             });
         });
     });
+
+    const toolbarToggle = document.getElementById('dashboardToolbarToggle');
+    const toolbarSection = document.getElementById('dashboardToolbarSection');
+    const toolbarStorageKey = 'dashboard-toolbar-open';
+
+    if (toolbarToggle && toolbarSection) {
+        const updateToolbarText = (open) => {
+            const label = open ? 'Hide filters' : 'Show filters';
+            if (toolbarToggle.dataset.iconized !== 'true') {
+                toolbarToggle.textContent = label;
+            }
+            toolbarToggle.setAttribute('title', label);
+            toolbarToggle.setAttribute('aria-label', label);
+            toolbarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        if (localStorage.getItem(toolbarStorageKey) === 'true') {
+            toolbarSection.classList.add('show');
+            toolbarToggle.classList.remove('collapsed');
+        }
+
+        updateToolbarText(toolbarSection.classList.contains('show'));
+
+        toolbarSection.addEventListener('shown.bs.collapse', () => {
+            updateToolbarText(true);
+            localStorage.setItem(toolbarStorageKey, 'true');
+        });
+        toolbarSection.addEventListener('hidden.bs.collapse', () => {
+            updateToolbarText(false);
+            localStorage.setItem(toolbarStorageKey, 'false');
+        });
+    }
 
     const drawChart = (canvas) => {
         const labels = JSON.parse(canvas.dataset.labels || '[]');
@@ -632,6 +332,42 @@
     };
 
     document.querySelectorAll('.dashboard-chart-canvas').forEach(drawChart);
+})();
+
+(() => {
+    const toolbarToggle = document.getElementById('dashboardToolbarToggle');
+    const toolbarSection = document.getElementById('dashboardToolbarSection');
+    const storageKey = 'dashboard-filters-open';
+
+    if (!toolbarToggle || !toolbarSection) {
+        return;
+    }
+
+    const setButtonText = (open) => {
+        const label = open ? 'Hide filters' : 'Show filters';
+        if (toolbarToggle.dataset.iconized !== 'true') {
+            toolbarToggle.textContent = label;
+        }
+        toolbarToggle.setAttribute('title', label);
+        toolbarToggle.setAttribute('aria-label', label);
+        toolbarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    if (localStorage.getItem(storageKey) === 'true') {
+        toolbarSection.classList.add('show');
+        toolbarToggle.classList.remove('collapsed');
+    }
+
+    setButtonText(toolbarSection.classList.contains('show'));
+
+    toolbarSection.addEventListener('shown.bs.collapse', () => {
+        setButtonText(true);
+        localStorage.setItem(storageKey, 'true');
+    });
+    toolbarSection.addEventListener('hidden.bs.collapse', () => {
+        setButtonText(false);
+        localStorage.setItem(storageKey, 'false');
+    });
 })();
 </script>
 {{ end }}

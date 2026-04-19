@@ -34,62 +34,93 @@ type FacilityLeaveReviewView struct {
 	FilterTitle  string
 	AllURL       string
 	PendingURL   string
-	ApprovedURL  string
-	DeclinedURL  string
+	OnLeaveURL   string
 	CurrentURL   string
 	ExportCSVURL string
 	ExportPDFURL string
 }
 
+type EmployeePageView struct {
+	ActiveTab          string
+	Dashboard          models.DashboardData
+	TopEmployees       []*models.Employee
+	Employees          []*models.Employee
+	OnDuty             []*models.Employee
+	OnLeave            []*models.Employee
+	Facilities         []*models.Facility
+	Departments        []*models.Department
+	SelectedFacility   int64
+	SelectedDepartment int64
+	SearchTerm         string
+	ShowFacilityFilter bool
+}
+
 // HandlerEmployeeForm renders the HTML form for adding a new employee with session data
 func HandlerEmployeeForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-	// Get session-specific data (e.g., user ID)
-	sessionData := Get_Session_Data(c, db, sessionManager, nil)
-	log.Printf("Session Data HandlerEmployeeForm: %+v", sessionData)
-
-	// Get facilities and departments from the database
 	facilities, departments, err := models.GetFacilitiesAndDepartments(db)
 	if err != nil {
 		log.Printf("Error loading facilities or departments: %v", err)
 		c.String(http.StatusInternalServerError, "Error loading facilities or departments")
 		return
 	}
-	//log.Printf("Facilities: %+v", facilities)
-	//log.Printf("Departments: %+v", departments)
 
-	// Get the 'Created by' details using the userID from session data
-	userID := sessionManager.GetString(c.Request.Context(), "UserID")
-	log.Printf("User ID from session: %s", userID)
-
-	// Prepare data to pass to the template
-	data := gin.H{
-		"sessionData": sessionData,
+	viewData := gin.H{
 		"facilities":  facilities,
 		"departments": departments,
-		//"createdByName":     createdByName,
-		//"createdByUsername": createdByUsername,
-		//"createdByID":       createdByID, // in case we need to store or use this ID
+		"employee":    &models.Employee{},
+		"formAction":  "/employee/save",
+		"formTitle":   "New Employee",
+		"submitLabel": "Save Employee",
 	}
 
-	//log.Printf("User ID from session: %d", userID)
+	data := Get_Session_Data(c, db, sessionManager, viewData)
+	utilities.GenerateHTML(c, data, "base", "employeeform")
+}
 
-	// Render the employee form template with data
+func HandlerEmployeeEdit(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	employeeID, err := strconv.Atoi(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid employee ID")
+		return
+	}
+
+	employee, err := models.EmployeeByID(c.Request.Context(), db, employeeID)
+	if err != nil {
+		c.String(http.StatusNotFound, "Employee not found")
+		return
+	}
+
+	facilities, departments, err := models.GetFacilitiesAndDepartments(db)
+	if err != nil {
+		log.Printf("Error loading facilities or departments: %v", err)
+		c.String(http.StatusInternalServerError, "Error loading facilities or departments")
+		return
+	}
+
+	viewData := gin.H{
+		"facilities":  facilities,
+		"departments": departments,
+		"employee":    employee,
+		"formAction":  "/employee/save",
+		"formTitle":   "Update Employee",
+		"submitLabel": "Update Employee",
+	}
+
+	data := Get_Session_Data(c, db, sessionManager, viewData)
 	utilities.GenerateHTML(c, data, "base", "employeeform")
 }
 
 // Handle function to save [Employee]
 func HandlerEmployeeSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
-
-	var emp = models.Employee{}
-
-	//log.Printf("Title: %v, Department: %v, Facility: %v\n", emp.EmpTitle, emp.EmpDepartment, emp.EmpFacility)
+	var emp models.Employee
 
 	err := utilities.DecodeFormData(c, &emp)
 	if err != nil {
-		fmt.Print("" + err.Error())
+		log.Printf("Error decoding employee form: %v", err)
+		c.String(http.StatusBadRequest, "Invalid employee data")
+		return
 	}
 
-	// Get session-specific data (e.g., user ID and HFID)
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
 	if !ok {
 		log.Println("Failed to retrieve session data as TemplateData")
@@ -97,7 +128,6 @@ func HandlerEmployeeSave(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		return
 	}
 
-	// Now access the SessionDetails from the TemplateData
 	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
 	if !ok {
 		log.Println("Failed to retrieve session details from TemplateData")
@@ -105,31 +135,65 @@ func HandlerEmployeeSave(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		return
 	}
 
-	empID := sesDetails.EmpID // Retrieve HFID from the session
-	log.Printf("UserID in employee save: %+d", empID)
+	if emp.EmpID > 0 {
+		existing, err := models.EmployeeByID(c.Request.Context(), db, int(emp.EmpID))
+		if err != nil {
+			log.Printf("Error loading existing employee: %v", err)
+			c.String(http.StatusNotFound, "Employee not found")
+			return
+		}
 
-	//log.Printf("Decoded Employee Data - Title: %v, Department: %v, Facility: %v", emp.EmpTitle, emp.EmpDepartment, emp.EmpFacility)
+		existing.Fname = emp.Fname
+		existing.Lname = emp.Lname
+		existing.Oname = emp.Oname
+		existing.EmpTitleID = emp.EmpTitleID
+		existing.Specialisation = emp.Specialisation
+		existing.EmpDepartment = emp.EmpDepartment
+		existing.EmpFacility = emp.EmpFacility
 
-	//log.Printf("Title: %v, Department: %v, Facility: %v\n", emp.EmpTitle, emp.EmpDepartment, emp.EmpFacility)
-	emp.CreatedBy.Int64 = empID
-	emp.CreatedBy.Valid = true
-	emp.CreatedOn.Valid = true
+		if err := existing.Update(c.Request.Context(), db); err != nil {
+			log.Printf("Error updating employee: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update employee"})
+			return
+		}
+	} else {
+		emp.CreatedBy.Int64 = sesDetails.EmpID
+		emp.CreatedBy.Valid = true
+		emp.CreatedOn.Valid = true
+		emp.CreatedOn.Time = time.Now()
 
-	emp.CreatedOn.Time = time.Now()
-
-	// Log the data being passed to the Insert new staff function
-	log.Printf("Employee struct data: %+v", emp)
-
-	err = emp.Insert(c, db)
-	if err != nil {
-		log.Fatal(err)
+		if err := emp.Insert(c.Request.Context(), db); err != nil {
+			log.Printf("Error saving new employee: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save employee"})
+			return
+		}
 	}
 
-	// Redirect back to the home page
 	c.Redirect(http.StatusFound, "/employee/list")
 }
 
-// Handler fxn displays the staff list for facilities
+func HandlerEmployeeDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	employeeID, err := strconv.Atoi(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid employee ID")
+		return
+	}
+
+	employee, err := models.EmployeeByID(c.Request.Context(), db, employeeID)
+	if err != nil {
+		c.String(http.StatusNotFound, "Employee not found")
+		return
+	}
+
+	if err := employee.Delete(c.Request.Context(), db); err != nil {
+		log.Printf("Error deleting employee: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete employee"})
+		return
+	}
+
+	c.Redirect(http.StatusFound, "/employee/list")
+}
+
 func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	// Get session-specific data (e.g., user ID and HFID)
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
@@ -139,7 +203,6 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		return
 	}
 
-	// Now access the SessionDetails from the TemplateData
 	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
 	if !ok {
 		log.Println("Failed to retrieve session details from TemplateData")
@@ -147,22 +210,81 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		return
 	}
 
-	log.Printf("Session Data HandlerReportFacilities: %+v", sesDetails)
+	activeTab := strings.TrimSpace(c.DefaultQuery("tab", "dashboard"))
+	selectedFacilityInt, _ := parseOptionalIntQuery(c, "facility")
+	selectedDepartmentInt, _ := parseOptionalIntQuery(c, "department")
+	selectedFacility := int64(selectedFacilityInt)
+	selectedDepartment := int64(selectedDepartmentInt)
+	searchTerm := strings.TrimSpace(c.Query("search"))
+	showFacilityFilter := strings.EqualFold(sesDetails.Rights, "admin")
 
-	// Retrieve HFID from session
-	hospitalID := sesDetails.HFID
-	log.Printf("Hospital ID value from session: %d", hospitalID)
+	if !showFacilityFilter {
+		selectedFacility = sesDetails.HFID
+	}
 
-	// Retrieve employees data filtered by HFID
-	employees, err := models.Employees(c.Request.Context(), db, hospitalID, "", 0, 0)
+	facilities, departments, err := models.GetFacilitiesAndDepartments(db)
 	if err != nil {
-		log.Printf("Error retrieving employees: %v", err)
+		log.Printf("Error loading facility or department lists: %v", err)
+		c.String(http.StatusInternalServerError, "Error loading filter options")
+		return
+	}
+
+	if !showFacilityFilter {
+		facilities = []*models.Facility{{FacilityID: selectedFacility, FacilityName: sesDetails.HFName}}
+	}
+
+	dashboard, err := models.GetDashboardData(db, int(selectedFacility))
+	if err != nil {
+		log.Printf("Error building employee dashboard: %v", err)
+		c.String(http.StatusInternalServerError, "Error building employee dashboard")
+		return
+	}
+
+	if !showFacilityFilter {
+		dashboard.FacilitiesCount = 1
+	}
+
+	employees, err := models.Employees(c.Request.Context(), db, selectedFacility, "", selectedDepartment, searchTerm, 0)
+	if err != nil {
+		log.Printf("Error retrieving employee directory: %v", err)
 		employees = nil
 	}
 
-	// Get session data and populate template
-	data := Get_Session_Data(c, db, sessionManager, employees)
-	utilities.GenerateHTML(c, data, "base", "employees") // Renders "employees" template
+	onDutyEmployees, err := models.Employees(c.Request.Context(), db, selectedFacility, "on_duty", selectedDepartment, searchTerm, 0)
+	if err != nil {
+		log.Printf("Error retrieving on duty employees: %v", err)
+		onDutyEmployees = nil
+	}
+
+	onLeaveEmployees, err := models.Employees(c.Request.Context(), db, selectedFacility, "on_leave", selectedDepartment, searchTerm, 0)
+	if err != nil {
+		log.Printf("Error retrieving on leave employees: %v", err)
+		onLeaveEmployees = nil
+	}
+
+	topEmployees, err := models.Employees(c.Request.Context(), db, selectedFacility, "on_duty", 0, "", 5)
+	if err != nil {
+		log.Printf("Error retrieving top performing employees: %v", err)
+		topEmployees = nil
+	}
+
+	view := EmployeePageView{
+		ActiveTab:          activeTab,
+		Dashboard:          dashboard,
+		TopEmployees:       topEmployees,
+		Employees:          employees,
+		OnDuty:             onDutyEmployees,
+		OnLeave:            onLeaveEmployees,
+		Facilities:         facilities,
+		Departments:        departments,
+		SelectedFacility:   selectedFacility,
+		SelectedDepartment: selectedDepartment,
+		SearchTerm:         searchTerm,
+		ShowFacilityFilter: showFacilityFilter,
+	}
+
+	data := Get_Session_Data(c, db, sessionManager, view)
+	utilities.GenerateHTML(c, data, "base", "employees")
 }
 
 // Handler fxn displays on leave staff list for facilities
@@ -189,8 +311,8 @@ func HandlerLeaveList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 	hospitalID := sesDetails.HFID
 	log.Printf("Hospital ID value from session: %d", hospitalID)
 
-	// Retrieve employees data filtered by HFID
-	employees, err := models.Employees(c.Request.Context(), db, hospitalID, "Valid", 0, 0)
+	// Retrieve employees currently on leave using the updated filter signature
+	employees, err := models.Employees(c.Request.Context(), db, hospitalID, "on_leave", 0, "", 0)
 	if err != nil {
 		log.Printf("Error retrieving employees: %v", err)
 		employees = nil
@@ -198,7 +320,7 @@ func HandlerLeaveList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 
 	// Get session data and populate template
 	data := Get_Session_Data(c, db, sessionManager, employees)
-	utilities.GenerateHTML(c, data, "base", "staffonleavelist") // Renders "employees" template
+	utilities.GenerateHTML(c, data, "base", "staffonleavelist")
 }
 
 // Handler fxn to display leave form for data entry
@@ -524,6 +646,18 @@ func HandlerEmployeeLeaveHistory(c *gin.Context, db *sql.DB, sessionManager *scs
 		return
 	}
 
+	// Draft leave records are visible only to the owning staff member.
+	if employeeIDStr != "" {
+		filtered := make([]*models.LeaveHistory, 0, len(leaveHistory))
+		for _, row := range leaveHistory {
+			if row == nil || isDraftLeaveStatus(row.LeaveStatus) {
+				continue
+			}
+			filtered = append(filtered, row)
+		}
+		leaveHistory = filtered
+	}
+
 	view := LeaveHistoryView{
 		Rows:         leaveHistory,
 		ExportCSVURL: buildLeaveHistoryExportURL("csv", employeeID, employeeIDStr != ""),
@@ -570,6 +704,18 @@ func HandlerEmployeeLeaveHistoryExport(c *gin.Context, db *sql.DB, sessionManage
 		log.Printf("Error exporting leave history: %v", err)
 		c.String(http.StatusInternalServerError, "Error exporting leave history")
 		return
+	}
+
+	// Draft leave records are visible only to the owning staff member.
+	if isEmployeeRoute {
+		filtered := make([]*models.LeaveHistory, 0, len(rows))
+		for _, row := range rows {
+			if row == nil || isDraftLeaveStatus(row.LeaveStatus) {
+				continue
+			}
+			filtered = append(filtered, row)
+		}
+		rows = filtered
 	}
 
 	headers := []string{"Application ID", "Leave Type", "Submitted", "Start Date", "End Date", "Status", "Comments"}
@@ -625,7 +771,7 @@ func HandlerFacilityLeaveReview(c *gin.Context, db *sql.DB, sessionManager *scs.
 
 	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "pending")))
 	switch filterStatus {
-	case "all", "pending", "approved", "declined":
+	case "all", "pending", "on_leave":
 	default:
 		filterStatus = "pending"
 	}
@@ -643,8 +789,7 @@ func HandlerFacilityLeaveReview(c *gin.Context, db *sql.DB, sessionManager *scs.
 		FilterTitle:  facilityLeaveReviewFilterTitle(filterStatus),
 		AllURL:       buildFacilityLeaveReviewURL("all"),
 		PendingURL:   buildFacilityLeaveReviewURL("pending"),
-		ApprovedURL:  buildFacilityLeaveReviewURL("approved"),
-		DeclinedURL:  buildFacilityLeaveReviewURL("declined"),
+		OnLeaveURL:   buildFacilityLeaveReviewURL("on_leave"),
 		CurrentURL:   buildFacilityLeaveReviewURL(filterStatus),
 		ExportCSVURL: buildFacilityLeaveReviewExportURL("csv", filterStatus),
 		ExportPDFURL: buildFacilityLeaveReviewExportURL("pdf", filterStatus),
@@ -674,7 +819,7 @@ func HandlerFacilityLeaveReviewExport(c *gin.Context, db *sql.DB, sessionManager
 
 	filterStatus := strings.ToLower(strings.TrimSpace(c.DefaultQuery("status", "pending")))
 	switch filterStatus {
-	case "all", "pending", "approved", "declined":
+	case "all", "pending", "on_leave":
 	default:
 		filterStatus = "pending"
 	}
@@ -779,8 +924,11 @@ func handleFacilityLeaveDecision(c *gin.Context, db *sql.DB, sessionManager *scs
 }
 
 func buildFacilityLeaveReviewURL(status string) string {
-	if status == "" || status == "pending" {
+	if status == "" {
 		return "/leave/review"
+	}
+	if status == "all" {
+		return "/leave/review?status=all"
 	}
 	return "/leave/review?status=" + status
 }
@@ -827,15 +975,21 @@ func buildFacilityLeaveReviewExportFilename(status string) string {
 
 func facilityLeaveReviewFilterTitle(status string) string {
 	switch status {
-	case "approved":
-		return "Approved Leave Requests"
-	case "declined":
-		return "Declined Leave Requests"
-	case "all":
-		return "All Leave Requests"
-	default:
+	case "pending":
 		return "Pending Leave Requests"
+	case "on_leave":
+		return "Staff Currently On Leave"
+	default:
+		return "All Leave Requests"
 	}
+}
+
+func isDraftLeaveStatus(value sql.NullString) bool {
+	if !value.Valid {
+		return true
+	}
+	trimmed := strings.TrimSpace(value.String)
+	return trimmed == "" || strings.EqualFold(trimmed, "draft")
 }
 
 func sanitizeFacilityLeaveReviewURL(value string) string {

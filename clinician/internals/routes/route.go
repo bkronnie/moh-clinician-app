@@ -76,6 +76,9 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 		managerOrAdmin.GET("/list", func(c *gin.Context) { handlers.HandlerReportList2(c, db, sessionManager) })
 		managerOrAdmin.GET("/list/:facility", func(c *gin.Context) { handlers.HandlerReportList(c, db, sessionManager) })
 		managerOrAdmin.GET("/analysis/view/:id", func(c *gin.Context) { handlers.HandlerReportSubmissionView(c, db, sessionManager) })
+		managerOrAdmin.POST("/analysis/submit-all", func(c *gin.Context) { handlers.HandlerReportSubmissionSubmitAll(c, db, sessionManager) })
+		managerOrAdmin.POST("/analysis/facility/:facility/approve", func(c *gin.Context) { handlers.HandlerAdminFacilitySubmissionApprove(c, db, sessionManager) })
+		managerOrAdmin.POST("/analysis/facility/:facility/decline", func(c *gin.Context) { handlers.HandlerAdminFacilitySubmissionDecline(c, db, sessionManager) })
 		managerOrAdmin.GET("/report-summaries", func(c *gin.Context) { handlers.HandlerReportSummaries(c, db, sessionManager) })
 	}
 
@@ -125,7 +128,9 @@ func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionM
 	v.Use(middleware.RequireRoles(db, sessionManager, "admin", "approver"))
 	{
 		v.GET("/new", func(c *gin.Context) { handlers.HandlerEmployeeForm(c, db, sessionManager) })
+		v.GET("/edit/:id", func(c *gin.Context) { handlers.HandlerEmployeeEdit(c, db, sessionManager) })
 		v.POST("/save", func(c *gin.Context) { handlers.HandlerEmployeeSave(c, db, sessionManager) })
+		v.POST("/delete/:id", func(c *gin.Context) { handlers.HandlerEmployeeDelete(c, db, sessionManager) })
 		v.POST("/filter", func(c *gin.Context) { handlers.HandlerEmployeeList(c, db, sessionManager) })
 		v.GET("/list", func(c *gin.Context) { handlers.HandlerEmployeeList(c, db, sessionManager) })
 		v.GET("/leave/form", func(c *gin.Context) { handlers.HandlerEmployeeLeaveForm(c, db, sessionManager) })

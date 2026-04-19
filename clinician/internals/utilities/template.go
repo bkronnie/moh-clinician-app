@@ -14,14 +14,19 @@ import (
 )
 
 type TemplateData struct {
-	CurrentYear     int
-	Form            any
-	Ses             any
-	Items           []interface{}
-	Optionz         map[string]map[string]string
-	Flash           string
-	IsAuthenticated bool
-	CSRFToken       string // Add a CSRFToken field.
+	CurrentYear         int
+	Form                any
+	Ses                 any
+	Items               []interface{}
+	Optionz             map[string]map[string]string
+	Flash               string
+	IsAuthenticated     bool
+	CSRFToken           string // Add a CSRFToken field.
+	NotifPendingLeave   int    // for managers: pending leave requests
+	NotifPendingReports int    // for managers/admin: pending reports
+	NotifMyLeave        int    // for clinicians: recently reviewed leave
+	NotifMyReports      int    // for clinicians: recently reviewed reports
+	NotifMyDataEntry    int    // for clinicians: pending reminder for last-week submission
 }
 
 type SessionDetails struct {

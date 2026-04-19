@@ -306,25 +306,44 @@ func SES_SET(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) (ut
 
 func Get_Session_Data(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager, pData any) any {
 	id := security.GetCurrentUser(c, sessionManager)
-
 	if id == 0 {
 		return nil
+	}
+
+	data := GetPageData("your flash message")
+
+	ses, er := SES_SET(c, db, sessionManager)
+	if er != nil {
+		log.Printf("failed to build session data: %v", er)
+		data.Ses = utilities.SessionDetails{}
 	} else {
+		data.Ses = ses
 
-		data := GetPageData("your flash message")
+		ctx := c.Request.Context()
 
-		ses, er := SES_SET(c, db, sessionManager)
-		if er != nil {
-			log.Printf("failed to build session data: %v", er)
-			data.Ses = utilities.SessionDetails{}
-		} else {
-			data.Ses = ses
+		// Expire any approved leaves whose end_date has passed
+		if ses.HFID > 0 {
+			if err := models.ExpireOldLeave(ctx, db, ses.HFID); err != nil {
+				log.Printf("leave expiry: %v", err)
+			}
 		}
 
-		data.Form = pData
-
-		return data
+		// Load notification counts by role
+		switch ses.Rights {
+		case "approver":
+			data.NotifPendingLeave, _ = models.GetPendingLeaveCount(ctx, db, ses.HFID)
+			data.NotifPendingReports, _ = models.GetPendingReportCount(ctx, db, ses.HFID)
+		case "admin":
+			data.NotifPendingReports, _ = models.GetPendingReportCount(ctx, db, 0)
+		case "user":
+			data.NotifMyLeave, _ = models.GetMyRecentLeaveUpdates(ctx, db, ses.EmpID)
+			data.NotifMyReports, _ = models.GetMyRecentReportUpdates(ctx, db, ses.EmpID)
+			data.NotifMyDataEntry, _ = models.GetMyDataEntryReminderCount(ctx, db, ses.EmpID)
+		}
 	}
+
+	data.Form = pData
+	return data
 }
 
 func buildHomeViewModel(c *gin.Context, db *sql.DB, ses utilities.SessionDetails) (HomeViewModel, error) {

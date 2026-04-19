@@ -11,12 +11,12 @@
                 <h3 class="mb-1">Edit Your Account Details</h3>
                 <p>Update your personal details, facility assignment, and department. Changes are tracked, and future submissions follow your current facility profile.</p>
             </div>
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#accountDetailsSection" aria-expanded="true" aria-controls="accountDetailsSection">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#accountDetailsSection" aria-expanded="false" aria-controls="accountDetailsSection">
                 Toggle details
             </button>
         </div>
 
-        <div id="accountDetailsSection" class="collapse show">
+        <div id="accountDetailsSection" class="collapse">
             {{ if $view.Error }}
             <div class="alert alert-danger mt-3 mb-0" role="alert">{{ $view.Error }}</div>
             {{ end }}
@@ -103,12 +103,12 @@
                 <h3 class="mb-1">Recent Account Changes</h3>
                 <p>The latest tracked updates to your profile and assignment details.</p>
             </div>
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#accountChangesSection" aria-expanded="true" aria-controls="accountChangesSection">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#accountChangesSection" aria-expanded="false" aria-controls="accountChangesSection">
                 Toggle history
             </button>
         </div>
 
-        <div id="accountChangesSection" class="collapse show">
+        <div id="accountChangesSection" class="collapse">
             {{ if $view.Changes }}
             <div class="app-table-scroll mt-3">
                 <table class="table table-hover table-sm mb-0">

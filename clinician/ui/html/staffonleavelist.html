@@ -1,19 +1,5 @@
 {{ define "title" }} Employee List {{ end }}
 
-{{ define "extraStyles" }}
-<style>
-    .staff-leave-grid .app-list-grid-header,
-    .staff-leave-grid .app-list-grid-row {
-        grid-template-columns: minmax(200px, 1.35fr) minmax(130px, 0.8fr) minmax(150px, 1fr) minmax(120px, 0.8fr) minmax(130px, 0.9fr) minmax(170px, 1.1fr);
-    }
-
-    @media (max-width: 980px) {
-        .staff-leave-grid .app-list-grid-row {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        }
-    }
-</style>
-{{ end }}
 
 {{ define "header" }} 
     {{ .Ses.HFName }} Hospital - Staff on Leave

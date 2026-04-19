@@ -197,6 +197,22 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			ReturnURL:      returnURL,
 		}
 
+		if report.WeekStart.Valid && report.WeekStop.Valid {
+			if !isPreviousReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
+				c.String(http.StatusForbidden, "You can only enter or update reports for the previous calendar week.")
+				return
+			}
+			onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, report.WeekStart.Time, report.WeekStop.Time)
+			if leaveErr != nil {
+				c.String(http.StatusInternalServerError, "Unable to verify leave status")
+				return
+			}
+			if onLeave {
+				c.String(http.StatusForbidden, "Data entry is blocked because this staff member is on leave for the selected week.")
+				return
+			}
+		}
+
 		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
 		return
 	}
@@ -216,8 +232,16 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		}
 	}
 
-	weekStart := beginningOfWeek(time.Now())
-	weekEnd := weekStart.AddDate(0, 0, 6)
+	weekStart, weekEnd := previousReportingWeekRange(time.Now())
+	onLeave, err := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, weekStart, weekEnd)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Unable to verify leave status")
+		return
+	}
+	if onLeave {
+		c.String(http.StatusForbidden, "Data entry is blocked because this staff member is on leave for the selected week.")
+		return
+	}
 
 	sessionData.Form = ClinicianEntryView{
 		EmployeeID:     empID,
@@ -279,9 +303,23 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 	enteredByID := sesDetails.EmpID // Retrieve HFID from the session
 	//log.Printf("Hospital ID value from session: %d", enteredByID)
 
-	// Parse the start and stop dates from the form
+	// Parse and validate the reporting period from the form.
 	start := c.PostForm("start")
 	stop := c.PostForm("stop")
+	periodStart, err := parseISODate(start)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid report start date")
+		return
+	}
+	periodStop, err := parseISODate(stop)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid report end date")
+		return
+	}
+	if !isPreviousReportingWeekRange(periodStart, periodStop, time.Now()) {
+		c.String(http.StatusForbidden, "Only the previous calendar week can be entered this week.")
+		return
+	}
 
 	// Retrieve individual form fields into a slice of WeeklyReportExtended
 	var reports []models.WeeklyReportExtended
@@ -304,10 +342,20 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 			return
 		}
 
+		onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, targetEmployeeID, periodStart, periodStop)
+		if leaveErr != nil {
+			c.String(http.StatusInternalServerError, "Unable to verify leave status")
+			return
+		}
+		if onLeave {
+			c.String(http.StatusForbidden, "Staff on leave cannot enter reports during leave period.")
+			return
+		}
+
 		// Create a new WeeklyReportExtended instance for each employee
 		report := models.WeeklyReportExtended{
-			Start: sql.NullTime{Time: parseDate(start), Valid: true},
-			Stop:  sql.NullTime{Time: parseDate(stop), Valid: true},
+			Start: sql.NullTime{Time: periodStart, Valid: true},
+			Stop:  sql.NullTime{Time: periodStop, Valid: true},
 			Emp:   sql.NullInt64{Int64: targetEmployeeID, Valid: true},
 			Qn01:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][attendance]")), Valid: true},
 			Qn02:  sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ward_rounds]")), Valid: true},
@@ -471,6 +519,16 @@ func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 
+	onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, sesDetails.EmpID, start, stop)
+	if leaveErr != nil {
+		c.String(http.StatusInternalServerError, "Unable to verify leave status")
+		return
+	}
+	if onLeave {
+		c.String(http.StatusForbidden, "Staff on leave cannot update weekly reports for leave dates.")
+		return
+	}
+
 	updated, err := models.UpdateClinicianReport(
 		c.Request.Context(),
 		db,
@@ -547,6 +605,31 @@ func HandlerClinicianReportSubmit(c *gin.Context, db *sql.DB, sessionManager *sc
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid report ID")
 		return
+	}
+
+	report, fetchErr := models.GetReportSubmissionByIDForReview(c.Request.Context(), db, reportID, 0)
+	if fetchErr != nil {
+		c.String(http.StatusNotFound, "Report not found")
+		return
+	}
+	if report.EmployeeID != sesDetails.EmpID {
+		c.String(http.StatusForbidden, "You can only submit your own report")
+		return
+	}
+	if report.WeekStart.Valid && report.WeekStop.Valid {
+		if !isPreviousReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
+			c.String(http.StatusForbidden, "You can only submit reports for the previous calendar week.")
+			return
+		}
+		onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, sesDetails.EmpID, report.WeekStart.Time, report.WeekStop.Time)
+		if leaveErr != nil {
+			c.String(http.StatusInternalServerError, "Unable to verify leave status")
+			return
+		}
+		if onLeave {
+			c.String(http.StatusForbidden, "Staff on leave cannot submit reports for leave periods.")
+			return
+		}
 	}
 
 	submitted, err := models.SubmitClinicianReport(c.Request.Context(), db, reportID, sesDetails.EmpID)
@@ -1001,6 +1084,29 @@ func beginningOfWeek(now time.Time) time.Time {
 	offset := (int(now.Weekday()) + 6) % 7
 	weekStart := now.AddDate(0, 0, -offset)
 	return time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, weekStart.Location())
+}
+
+func previousReportingWeekRange(now time.Time) (time.Time, time.Time) {
+	thisWeekStart := beginningOfWeek(now)
+	previousWeekStart := thisWeekStart.AddDate(0, 0, -7)
+	return previousWeekStart, previousWeekStart.AddDate(0, 0, 6)
+}
+
+func sameCalendarDate(a, b time.Time) bool {
+	return a.Year() == b.Year() && a.Month() == b.Month() && a.Day() == b.Day()
+}
+
+func isPreviousReportingWeekRange(start, stop, now time.Time) bool {
+	expectedStart, expectedStop := previousReportingWeekRange(now)
+	return sameCalendarDate(start, expectedStart) && sameCalendarDate(stop, expectedStop)
+}
+
+func parseISODate(value string) (time.Time, error) {
+	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.Local), nil
 }
 
 func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {

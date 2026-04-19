@@ -1,38 +1,33 @@
 {{ define "title"}} Leave Requests Review {{ end }}
 
-{{ define "extraStyles" }}
-<style>
-    .facility-leave-review-grid .app-list-grid-header,
-    .facility-leave-review-grid .app-list-grid-row {
-        grid-template-columns: minmax(180px, 1.15fr) minmax(170px, 1fr) minmax(180px, 1fr) minmax(130px, 0.9fr) minmax(120px, 0.9fr) minmax(170px, 1.1fr);
-    }
-
-    @media (max-width: 980px) {
-        .facility-leave-review-grid .app-list-grid-row {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        }
-    }
-</style>
-{{ end }}
 
 {{ define "header" }}Leave Requests Review{{ end }}
+
+{{ define "pageActions" }}
+<div class="app-list-actions">
+    <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#facilityLeaveReviewToolbarSection" aria-expanded="false" aria-controls="facilityLeaveReviewToolbarSection" id="facilityLeaveReviewToolbarToggle">
+        Show filters
+    </button>
+    <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary btn-sm">Download CSV</a>
+    <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary btn-sm">Download PDF</a>
+</div>
+{{ end }}
 
 {{ define "content" }}
 <div class="app-list-shell">
     <div class="app-list-panel">
-        <div class="app-list-toolbar app-toolbar-inline">
-            <div class="app-filter-bar">
-                <a href="{{ .Form.PendingURL }}" class="btn {{ if eq .Form.FilterStatus "pending" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Pending</a>
-                <a href="{{ .Form.ApprovedURL }}" class="btn {{ if eq .Form.FilterStatus "approved" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Approved</a>
-                <a href="{{ .Form.DeclinedURL }}" class="btn {{ if eq .Form.FilterStatus "declined" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Declined</a>
-                <a href="{{ .Form.AllURL }}" class="btn {{ if eq .Form.FilterStatus "all" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">All</a>
-            </div>
-            <div class="app-list-actions">
-                <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
-                <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
-            </div>
+        <div class="nav section-tabs app-filter-bar">
+            <a href="{{ .Form.AllURL }}" class="nav-link {{ if eq .Form.FilterStatus "all" }}active{{ end }}">All</a>
+            <a href="{{ .Form.PendingURL }}" class="nav-link {{ if eq .Form.FilterStatus "pending" }}active{{ end }}">Pending Requests</a>
+            <a href="{{ .Form.OnLeaveURL }}" class="nav-link {{ if eq .Form.FilterStatus "on_leave" }}active{{ end }}">On Leave</a>
         </div>
         <p class="app-list-note">{{ .Form.FilterTitle }} for {{ .Ses.HFName }}. Review staff leave requests and approve or decline pending requests.</p>
+    </div>
+
+    <div id="facilityLeaveReviewToolbarSection" class="collapse">
+        <div class="app-list-panel">
+            <p class="app-list-note mb-0">Export the current selection or switch sections using the tabs above.</p>
+        </div>
     </div>
 
     <div class="app-list-panel">
@@ -72,11 +67,12 @@
                     <span>Submitted on</span>
                 </div>
                 <div>
-                    <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Approved") (eq $status "Valid") }}approved{{ else if or (eq $status "Rejected") (eq $status "Declined") }}declined{{ end }}">
+                    <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Approved") (eq $status "Valid") }}approved{{ else if or (eq $status "Rejected") (eq $status "Declined") }}declined{{ else if eq $status "Expired" }}expired{{ end }}">
                         {{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else }}{{ $status }}{{ end }}
                     </span>
                 </div>
                 <div class="app-row-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#leave-details-{{ .ID }}" aria-expanded="false" aria-controls="leave-details-{{ .ID }}">View</button>
                     {{ if .Actionable }}
                     <form method="post" action="/leave/review/{{ .ID }}/approve">
                         <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
@@ -91,6 +87,49 @@
                     {{ end }}
                 </div>
             </div>
+            <div id="leave-details-{{ .ID }}" class="app-list-grid-row leave-details-row collapse">
+                <div class="leave-details-card">
+                    <div class="leave-details-title">Leave request details</div>
+                    <div class="leave-details-grid">
+                        <div>
+                            <strong>Request ID</strong>
+                            <span>{{ .ID }}</span>
+                        </div>
+                        <div>
+                            <strong>Staff</strong>
+                            <span>{{ .EmployeeName }}</span>
+                        </div>
+                        <div>
+                            <strong>Department</strong>
+                            <span>{{ .DepartmentName }}</span>
+                        </div>
+                        <div>
+                            <strong>Leave Type</strong>
+                            <span>{{ .LeaveTypeName }}</span>
+                        </div>
+                        <div>
+                            <strong>Start Date</strong>
+                            <span>{{ if .StartDate.Valid }}{{ .StartDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span>
+                        </div>
+                        <div>
+                            <strong>End Date</strong>
+                            <span>{{ if .EndDate.Valid }}{{ .EndDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span>
+                        </div>
+                        <div>
+                            <strong>Status</strong>
+                            <span>{{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else }}{{ $status }}{{ end }}</span>
+                        </div>
+                        <div>
+                            <strong>Reviewed By</strong>
+                            <span>{{ if .ApprovedByName.Valid }}{{ .ApprovedByName.String }}{{ else }}Pending review{{ end }}</span>
+                        </div>
+                    </div>
+                    <div class="leave-details-comments">
+                        <strong>Comments</strong>
+                        <p>{{ if .Comments.Valid }}{{ .Comments.String }}{{ else }}No comments provided.{{ end }}</p>
+                    </div>
+                </div>
+            </div>
             {{ end }}
         {{ else }}
         <div class="app-list-empty">No leave requests found for this selection.</div>
@@ -98,3 +137,44 @@
     </div>
     </div>
 {{ end }}
+
+{{ define "extraJS" }}
+<script>
+(() => {
+    const toolbarToggle = document.getElementById('facilityLeaveReviewToolbarToggle');
+    const toolbarSection = document.getElementById('facilityLeaveReviewToolbarSection');
+    const storageKey = 'facility-leave-review-filters-open';
+
+    if (!toolbarToggle || !toolbarSection) {
+        return;
+    }
+
+    const setButtonText = (open) => {
+        const label = open ? 'Hide filters' : 'Show filters';
+        if (toolbarToggle.dataset.iconized !== 'true') {
+            toolbarToggle.textContent = label;
+        }
+        toolbarToggle.setAttribute('title', label);
+        toolbarToggle.setAttribute('aria-label', label);
+        toolbarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    if (localStorage.getItem(storageKey) === 'true') {
+        toolbarSection.classList.add('show');
+        toolbarToggle.classList.remove('collapsed');
+    }
+
+    setButtonText(toolbarSection.classList.contains('show'));
+
+    toolbarSection.addEventListener('shown.bs.collapse', () => {
+        setButtonText(true);
+        localStorage.setItem(storageKey, 'true');
+    });
+    toolbarSection.addEventListener('hidden.bs.collapse', () => {
+        setButtonText(false);
+        localStorage.setItem(storageKey, 'false');
+    });
+})();
+</script>
+{{ end }}
+

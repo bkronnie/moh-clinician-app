@@ -18,6 +18,7 @@ import (
 
 type ReportSubmissionsView struct {
 	Role               string
+	ViewMode           string
 	ScopeTitle         string
 	ScopeSubtitle      string
 	FilterSummary      string
@@ -34,6 +35,7 @@ type ReportSubmissionsView struct {
 	AvailableMonths    []models.DashboardFilterOption
 	AvailableWeeks     []models.ClinicianWeekOption
 	Rows               []*models.ReportSubmissionListRow
+	FacilityRows       []*models.FacilitySubmissionSummaryRow
 	CurrentURL         string
 	AllURL             string
 	SubmittedURL       string
@@ -45,8 +47,11 @@ type ReportSubmissionsView struct {
 	ExportPDFURL       string
 	CanApprove         bool
 	CanView            bool
+	CanSubmitAll       bool
+	SubmitAllURL       string
 	PendingCount       int
 	ClearFiltersURL    string
+	FacilityModeURL    string
 }
 
 func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities.SessionDetails) (ReportSubmissionsView, error) {
@@ -56,6 +61,10 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 	requestedMonth, hasMonth := parseOptionalIntQuery(c, "month")
 	requestedWeek, hasWeek := parseOptionalIntQuery(c, "week")
 	selectedStatus := normalizeReportSubmissionStatus(c.Query("status"))
+	if sesDetails.Rights != "user" && selectedStatus == "draft" {
+		selectedStatus = "all"
+	}
+	viewMode := normalizeReportSubmissionViewMode(sesDetails.Rights, c.Query("view"))
 
 	selectedYear, selectedMonth, selectedWeek, availableYears, availableMonths, availableWeeks, selectedWeekLabel, err := resolveReportSubmissionPeriod(c, db, requestedYear, hasYear, requestedMonth, hasMonth, requestedWeek, hasWeek)
 	if err != nil {
@@ -69,6 +78,7 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 
 	view := ReportSubmissionsView{
 		Role:              sesDetails.Rights,
+		ViewMode:          viewMode,
 		SelectedStatus:    selectedStatus,
 		SelectedYear:      selectedYear,
 		SelectedMonth:     selectedMonth,
@@ -77,8 +87,9 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		AvailableYears:    availableYears,
 		AvailableMonths:   availableMonths,
 		AvailableWeeks:    availableWeeks,
-		CanApprove:        sesDetails.Rights == "approver",
+		CanApprove:        sesDetails.Rights == "approver" || sesDetails.Rights == "admin",
 		CanView:           sesDetails.Rights != "user",
+		CanSubmitAll:      sesDetails.Rights == "approver",
 	}
 
 	scopeFacilityID := int64(0)
@@ -100,14 +111,14 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 			Name: sesDetails.HFName,
 		}}
 		view.ScopeTitle = "Facility Report Submissions"
-		view.ScopeSubtitle = "Review all report submissions for your facility, inspect the saved data in read-only mode, and approve pending submissions once they are verified."
+		view.ScopeSubtitle = "Review all report submissions for your facility, inspect the saved data in read-only mode, approve pending submissions, and submit the full weekly batch at once."
 	} else {
 		if hasFacility {
 			view.SelectedFacility = requestedFacility
 		}
 		view.FacilityOptions = facilityOptions
 		view.ScopeTitle = "National Report Submissions"
-		view.ScopeSubtitle = "Review report submissions across all hospital facilities using facility, year, month, and week filters. The default view opens on the latest reporting week in the database."
+		view.ScopeSubtitle = "Review report submissions across facilities. The default view is facility-level weekly submission status with drill-down to staff rows."
 	}
 
 	departmentOptions, err := models.GetReportSubmissionDepartmentOptions(c.Request.Context(), db, scopeFacilityID, view.SelectedFacility)
@@ -119,28 +130,41 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		view.SelectedDepartment = requestedDepartment
 	}
 
-	rows, err := models.GetReportSubmissions(c.Request.Context(), db, scopeFacilityID, scopeEmployeeID, view.SelectedFacility, view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
-	if err != nil {
-		return ReportSubmissionsView{}, err
-	}
-	view.Rows = rows
+	if sesDetails.Rights == "admin" && viewMode == "facility" {
+		facilityRows, err := models.GetFacilitySubmissionSummaries(c.Request.Context(), db, view.SelectedFacility, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+		if err != nil {
+			return ReportSubmissionsView{}, err
+		}
+		view.FacilityRows = facilityRows
+		for _, row := range facilityRows {
+			view.PendingCount += row.PendingCount
+		}
+	} else {
+		rows, err := models.GetReportSubmissions(c.Request.Context(), db, scopeFacilityID, scopeEmployeeID, view.SelectedFacility, view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+		if err != nil {
+			return ReportSubmissionsView{}, err
+		}
+		view.Rows = rows
 
-	for _, row := range rows {
-		if row.SubmitStatus.Valid && row.SubmitStatus.String == "Submitted" && (!row.ReportStatus.Valid || !isFinalReportReviewStatus(row.ReportStatus.String)) {
-			view.PendingCount++
+		for _, row := range rows {
+			if row.SubmitStatus.Valid && row.SubmitStatus.String == "Submitted" && (!row.ReportStatus.Valid || !isFinalReportReviewStatus(row.ReportStatus.String)) {
+				view.PendingCount++
+			}
 		}
 	}
 
-	view.CurrentURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus)
-	view.AllURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all")
-	view.SubmittedURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "submitted")
-	view.PendingURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending")
-	view.ApprovedURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "approved")
-	view.DeclinedURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "declined")
-	view.DraftURL = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "draft")
-	view.ExportCSVURL = buildReportSubmissionsExportURL("csv", view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus)
-	view.ExportPDFURL = buildReportSubmissionsExportURL("pdf", view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus)
-	view.ClearFiltersURL = buildReportSubmissionsURL(0, 0, 0, 0, 0, "all")
+	view.CurrentURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode)
+	view.AllURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all", view.ViewMode)
+	view.SubmittedURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "submitted", view.ViewMode)
+	view.PendingURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending", view.ViewMode)
+	view.ApprovedURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "approved", view.ViewMode)
+	view.DeclinedURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "declined", view.ViewMode)
+	view.DraftURL = buildReportSubmissionsURLWithView(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "draft", view.ViewMode)
+	view.ExportCSVURL = buildReportSubmissionsExportURLWithView("csv", view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode)
+	view.ExportPDFURL = buildReportSubmissionsExportURLWithView("pdf", view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode)
+	view.ClearFiltersURL = buildReportSubmissionsURLWithView(0, 0, 0, 0, 0, "all", view.ViewMode)
+	view.FacilityModeURL = buildReportSubmissionsURLWithView(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, "facility")
+	view.SubmitAllURL = "/reports/analysis/submit-all"
 	view.FilterSummary = reportSubmissionFilterSummary(sesDetails.Rights, selectedStatus, selectedWeekLabel)
 
 	return view, nil
@@ -278,6 +302,13 @@ func HandlerReportSubmissionView(c *gin.Context, db *sql.DB, sessionManager *scs
 		c.String(http.StatusInternalServerError, "Unable to retrieve report submission")
 		return
 	}
+	if sesDetails.Rights != "user" {
+		isDraft := report.SubmitStatus.String != "Submitted" && report.ReportStatus.String != "Approved" && report.ReportStatus.String != "Rejected" && report.ReportStatus.String != "Declined"
+		if isDraft {
+			c.String(http.StatusNotFound, "Report submission not found")
+			return
+		}
+	}
 
 	employee, err := models.EmployeeByID(c, db, int(report.EmployeeID))
 	if err != nil {
@@ -345,6 +376,114 @@ func HandlerReportSubmissionApprove(c *gin.Context, db *sql.DB, sessionManager *
 	}
 	if !updated {
 		c.String(http.StatusForbidden, "Only pending submitted reports within your facility can be approved")
+		return
+	}
+
+	c.Redirect(http.StatusFound, sanitizeReportSubmissionURL(c.PostForm("return_to")))
+}
+
+func HandlerReportSubmissionSubmitAll(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+	if sesDetails.Rights != "approver" {
+		c.String(http.StatusForbidden, "Only facility admins can submit all reports for a week")
+		return
+	}
+
+	department, _ := strconv.Atoi(c.PostForm("department"))
+	year, _ := strconv.Atoi(c.PostForm("year"))
+	week, _ := strconv.Atoi(c.PostForm("week"))
+	if year <= 0 || week <= 0 {
+		c.String(http.StatusBadRequest, "Select a specific year and week before submitting all reports")
+		return
+	}
+
+	weekStart := isoWeekStart(year, week)
+	weekStop := weekStart.AddDate(0, 0, 6)
+
+	missingOnDuty, err := models.CountOnDutyEmployeesMissingWeeklyReport(c.Request.Context(), db, sesDetails.HFID, weekStart, weekStop, department)
+	if err != nil {
+		log.Printf("Error validating missing on-duty reports: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to validate on-duty report coverage")
+		return
+	}
+	if missingOnDuty > 0 {
+		c.String(http.StatusForbidden, "Some on-duty staff still have no report for this week. Complete all on-duty entries first.")
+		return
+	}
+
+	if _, err := models.EnsureOnLeaveZeroReports(c.Request.Context(), db, sesDetails.HFID, weekStart, weekStop, sesDetails.EmpID, department); err != nil {
+		log.Printf("Error creating on-leave zero reports: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to prepare on-leave records")
+		return
+	}
+
+	if _, err := models.SubmitFacilityReportsByFilter(c.Request.Context(), db, sesDetails.HFID, department, year, 0, week, sesDetails.EmpID); err != nil {
+		log.Printf("Error submitting facility reports: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to submit facility reports")
+		return
+	}
+
+	c.Redirect(http.StatusFound, sanitizeReportSubmissionURL(c.PostForm("return_to")))
+}
+
+func HandlerAdminFacilitySubmissionApprove(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	handleAdminFacilitySubmissionDecision(c, db, sessionManager, true)
+}
+
+func HandlerAdminFacilitySubmissionDecline(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	handleAdminFacilitySubmissionDecision(c, db, sessionManager, false)
+}
+
+func handleAdminFacilitySubmissionDecision(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager, approve bool) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		log.Println("Failed to retrieve session data as TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		log.Println("Failed to retrieve session details from TemplateData")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+	if sesDetails.Rights != "admin" {
+		c.String(http.StatusForbidden, "Only national admins can approve or decline by facility")
+		return
+	}
+
+	facilityID, err := strconv.Atoi(c.Param("facility"))
+	if err != nil || facilityID <= 0 {
+		c.String(http.StatusBadRequest, "Invalid facility")
+		return
+	}
+
+	department, _ := strconv.Atoi(c.PostForm("department"))
+	year, _ := strconv.Atoi(c.PostForm("year"))
+	month, _ := strconv.Atoi(c.PostForm("month"))
+	week, _ := strconv.Atoi(c.PostForm("week"))
+
+	if approve {
+		_, err = models.ApproveFacilityReportsByFilter(c.Request.Context(), db, int64(facilityID), department, year, month, week, sesDetails.EmpID)
+	} else {
+		_, err = models.DeclineFacilityReportsByFilter(c.Request.Context(), db, int64(facilityID), department, year, month, week, sesDetails.EmpID)
+	}
+	if err != nil {
+		log.Printf("Error processing facility-level review: %v", err)
+		c.String(http.StatusInternalServerError, "Unable to process facility-level review")
 		return
 	}
 
@@ -442,6 +581,17 @@ func buildReportSubmissionsURL(facilityID int, departmentID int, year int, month
 	return "/reports/analysis?" + strings.Join(params, "&")
 }
 
+func buildReportSubmissionsURLWithView(facilityID int, departmentID int, year int, month int, week int, status string, view string) string {
+	base := buildReportSubmissionsURL(facilityID, departmentID, year, month, week, status)
+	if view == "" || view == "staff" {
+		return base
+	}
+	if strings.Contains(base, "?") {
+		return base + "&view=" + view
+	}
+	return base + "?view=" + view
+}
+
 func buildReportSubmissionsExportURL(format string, facilityID int, departmentID int, year int, month int, week int, status string) string {
 	params := []string{}
 	if facilityID > 0 {
@@ -469,6 +619,17 @@ func buildReportSubmissionsExportURL(format string, facilityID int, departmentID
 		return "/reports/analysis/export"
 	}
 	return "/reports/analysis/export?" + strings.Join(params, "&")
+}
+
+func buildReportSubmissionsExportURLWithView(format string, facilityID int, departmentID int, year int, month int, week int, status string, view string) string {
+	base := buildReportSubmissionsExportURL(format, facilityID, departmentID, year, month, week, status)
+	if view == "" || view == "staff" {
+		return base
+	}
+	if strings.Contains(base, "?") {
+		return base + "&view=" + view
+	}
+	return base + "?view=" + view
 }
 
 func buildReportSubmissionsExportFilename(facilityID int, departmentID int, year int, month int, week int, status string) string {
@@ -667,6 +828,27 @@ func normalizeReportSubmissionStatus(value string) string {
 	default:
 		return "all"
 	}
+}
+
+func normalizeReportSubmissionViewMode(role string, value string) string {
+	trimmed := strings.ToLower(strings.TrimSpace(value))
+	if role != "admin" {
+		return "staff"
+	}
+	if trimmed == "staff" {
+		return "staff"
+	}
+	return "facility"
+}
+
+func isoWeekStart(year int, week int) time.Time {
+	base := time.Date(year, time.January, 4, 0, 0, 0, 0, time.Local)
+	weekday := int(base.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	week1Monday := base.AddDate(0, 0, -(weekday - 1))
+	return week1Monday.AddDate(0, 0, (week-1)*7)
 }
 
 func reportSubmissionFilterSummary(role string, status string, periodLabel string) string {

@@ -1,131 +1,100 @@
 {{ define "title"}} Report Submissions {{ end }}
 
-{{ define "extraStyles" }}
-<style>
-    .submissions-filters {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.65rem;
-        align-items: end;
-    }
-
-    .filter-field label {
-        display: block;
-        margin-bottom: 0.22rem;
-        font-size: 0.82rem;
-        color: #204650;
-        font-weight: 600;
-    }
-
-    .filter-field select {
-        width: 100%;
-        border: 1px solid #c5dadd;
-        border-radius: 12px;
-        padding: 0.52rem 0.68rem;
-        background: #ffffff;
-        color: #12343b;
-    }
-
-    .report-submissions-grid .app-list-grid-header,
-    .report-submissions-grid .app-list-grid-row {
-        display: grid;
-        grid-template-columns: minmax(160px, 1.3fr) minmax(110px, 0.9fr) minmax(110px, 0.9fr) minmax(140px, 0.95fr) minmax(85px, 0.7fr) minmax(105px, 0.8fr) minmax(135px, 1fr);
-    }
-
-    @media (max-width: 980px) {
-        .report-submissions-grid .app-list-grid-row {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        }
-    }
-</style>
-{{ end }}
 
 {{ define "header" }}Report Submissions{{ end }}
 
+{{ define "pageActions" }}
+<div class="app-list-actions">
+    <button class="btn btn-outline-secondary btn-sm" type="button" data-toggle="collapse" data-target="#reportAnalysisToolbarSection" aria-expanded="false" aria-controls="reportAnalysisToolbarSection" id="reportAnalysisToolbarToggle">
+        Show filters
+    </button>
+    <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary btn-sm">Download CSV</a>
+    <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary btn-sm">Download PDF</a>
+</div>
+{{ end }}
+
 {{ define "content" }}
 <div class="app-list-shell">
-    <div class="app-list-panel">
-        <div class="app-list-toolbar app-toolbar-inline">
-            <div class="app-filter-bar">
-                <a href="{{ .Form.AllURL }}" class="btn {{ if eq .Form.SelectedStatus "all" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">All</a>
-                {{ if eq .Form.Role "user" }}
-                <a href="{{ .Form.SubmittedURL }}" class="btn {{ if eq .Form.SelectedStatus "submitted" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Submitted</a>
-                {{ else }}
-                <a href="{{ .Form.PendingURL }}" class="btn {{ if eq .Form.SelectedStatus "pending" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Pending</a>
+    <div id="reportAnalysisToolbarSection" class="collapse">
+        <div class="app-list-panel">
+            <p class="app-list-note">{{ .Form.ScopeSubtitle }}</p>
+            <form class="submissions-filters dashboard-auto-submit" method="GET" action="/reports/analysis">
+                {{ if ne .Form.ViewMode "staff" }}
+                <input type="hidden" name="view" value="{{ .Form.ViewMode }}">
                 {{ end }}
-                <a href="{{ .Form.ApprovedURL }}" class="btn {{ if eq .Form.SelectedStatus "approved" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Approved</a>
-                <a href="{{ .Form.DeclinedURL }}" class="btn {{ if eq .Form.SelectedStatus "declined" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Declined</a>
-                <a href="{{ .Form.DraftURL }}" class="btn {{ if eq .Form.SelectedStatus "draft" }}btn-primary{{ else }}btn-outline-secondary{{ end }}">Draft</a>
-            </div>
-            <div class="app-list-actions">
-                <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
-                <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
-            </div>
+                {{ if ne .Form.SelectedStatus "all" }}
+                <input type="hidden" name="status" value="{{ .Form.SelectedStatus }}">
+                {{ end }}
+                {{ if ne .Form.Role "user" }}
+                <div class="filter-field">
+                    <label for="submissionsFacility">Facility</label>
+                    <select id="submissionsFacility" name="facility">
+                        {{ if eq .Form.Role "admin" }}
+                        <option value="0">All facilities</option>
+                        {{ end }}
+                        {{ range .Form.FacilityOptions }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="submissionsDepartment">Department</label>
+                    <select id="submissionsDepartment" name="department">
+                        <option value="0">All departments</option>
+                        {{ range .Form.DepartmentOptions }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                {{ end }}
+                <div class="filter-field">
+                    <label for="submissionsYear">Year</label>
+                    <select id="submissionsYear" name="year">
+                        {{ range .Form.AvailableYears }}
+                        <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ if eq . 0 }}All{{ else }}{{ . }}{{ end }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="submissionsMonth">Month</label>
+                    <select id="submissionsMonth" name="month">
+                        {{ range .Form.AvailableMonths }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="submissionsWeek">Week</label>
+                    <select id="submissionsWeek" name="week">
+                        {{ range .Form.AvailableWeeks }}
+                        <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label>&nbsp;</label>
+                    <a href="{{ .Form.ClearFiltersURL }}" class="btn btn-outline-secondary btn-block">Clear Filters</a>
+                </div>
+            </form>
+            <p class="app-list-note">{{ .Form.FilterSummary }}</p>
         </div>
-        <p class="app-list-note">{{ .Form.ScopeSubtitle }}</p>
-        <form class="submissions-filters dashboard-auto-submit" method="GET" action="/reports/analysis">
-            {{ if ne .Form.SelectedStatus "all" }}
-            <input type="hidden" name="status" value="{{ .Form.SelectedStatus }}">
-            {{ end }}
-            {{ if ne .Form.Role "user" }}
-            <div class="filter-field">
-                <label for="submissionsFacility">Facility</label>
-                <select id="submissionsFacility" name="facility">
-                    {{ if eq .Form.Role "admin" }}
-                    <option value="0">All facilities</option>
-                    {{ end }}
-                    {{ range .Form.FacilityOptions }}
-                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
-                    {{ end }}
-                </select>
-            </div>
-            <div class="filter-field">
-                <label for="submissionsDepartment">Department</label>
-                <select id="submissionsDepartment" name="department">
-                    <option value="0">All departments</option>
-                    {{ range .Form.DepartmentOptions }}
-                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
-                    {{ end }}
-                </select>
-            </div>
-            {{ end }}
-            <div class="filter-field">
-                <label for="submissionsYear">Year</label>
-                <select id="submissionsYear" name="year">
-                    {{ range .Form.AvailableYears }}
-                    <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ if eq . 0 }}All{{ else }}{{ . }}{{ end }}</option>
-                    {{ end }}
-                </select>
-            </div>
-            <div class="filter-field">
-                <label for="submissionsMonth">Month</label>
-                <select id="submissionsMonth" name="month">
-                    {{ range .Form.AvailableMonths }}
-                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
-                    {{ end }}
-                </select>
-            </div>
-            <div class="filter-field">
-                <label for="submissionsWeek">Week</label>
-                <select id="submissionsWeek" name="week">
-                    {{ range .Form.AvailableWeeks }}
-                    <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
-                    {{ end }}
-                </select>
-            </div>
-            <div class="filter-field">
-                <label>&nbsp;</label>
-                <a href="{{ .Form.ClearFiltersURL }}" class="btn btn-outline-secondary btn-block">Clear Filters</a>
-            </div>
-        </form>
-        <p class="app-list-note">{{ .Form.FilterSummary }}</p>
     </div>
 
     <div class="app-list-panel">
         <div class="app-list-toolbar">
-            <p>{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.</p>
+            <p>{{ if and (eq .Form.Role "admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
             <div class="app-list-actions">
-                {{ if and .Form.CanApprove (gt .Form.PendingCount 0) }}
+                {{ if and .Form.CanSubmitAll (gt .Form.SelectedYear 0) (gt .Form.SelectedWeek 0) }}
+                <form method="post" action="{{ .Form.SubmitAllURL }}" onsubmit="return confirm('Submit all eligible staff reports for this facility and week?');">
+                    <input type="hidden" name="department" value="{{ .Form.SelectedDepartment }}">
+                    <input type="hidden" name="year" value="{{ .Form.SelectedYear }}">
+                    <input type="hidden" name="month" value="{{ .Form.SelectedMonth }}">
+                    <input type="hidden" name="week" value="{{ .Form.SelectedWeek }}">
+                    <input type="hidden" name="return_to" value="{{ .Form.CurrentURL }}">
+                    <button class="btn btn-primary" type="submit">Submit Weekly Facility Report</button>
+                </form>
+                {{ end }}
+                {{ if and (eq .Form.Role "approver") .Form.CanApprove (gt .Form.PendingCount 0) }}
                 <form method="post" action="/reports/analysis/approve-all" onsubmit="return confirm('Approve all pending submitted reports for the current filter selection?');">
                     <input type="hidden" name="department" value="{{ .Form.SelectedDepartment }}">
                     <input type="hidden" name="year" value="{{ .Form.SelectedYear }}">
@@ -137,6 +106,79 @@
                 {{ end }}
             </div>
         </div>
+        <div class="nav section-tabs app-filter-bar">
+            <a href="{{ .Form.AllURL }}" class="nav-link {{ if eq .Form.SelectedStatus "all" }}active{{ end }}">All</a>
+            {{ if eq .Form.Role "user" }}
+            <a href="{{ .Form.SubmittedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "submitted" }}active{{ end }}">Submitted</a>
+            {{ else }}
+            <a href="{{ .Form.PendingURL }}" class="nav-link {{ if eq .Form.SelectedStatus "pending" }}active{{ end }}">Pending</a>
+            {{ end }}
+            <a href="{{ .Form.ApprovedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "approved" }}active{{ end }}">Approved</a>
+            <a href="{{ .Form.DeclinedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "declined" }}active{{ end }}">Declined</a>
+            {{ if eq .Form.Role "user" }}
+            <a href="{{ .Form.DraftURL }}" class="nav-link {{ if eq .Form.SelectedStatus "draft" }}active{{ end }}">Draft</a>
+            {{ end }}
+        </div>
+
+        {{ if and (eq .Form.Role "admin") (eq .Form.ViewMode "staff") }}
+        <div class="mb-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.FacilityModeURL }}">Back To Facility Summary</a>
+        </div>
+        {{ end }}
+
+        {{ if and (eq .Form.Role "admin") (eq .Form.ViewMode "facility") }}
+        <div class="app-list-grid report-submissions-grid">
+            <div class="app-list-grid-header">
+                <div>Facility</div>
+                <div>On Duty</div>
+                <div>On Leave</div>
+                <div>Submitted</div>
+                <div>Missing</div>
+                <div>Approval</div>
+                <div>Actions</div>
+            </div>
+            {{ if .Form.FacilityRows }}
+                {{ range .Form.FacilityRows }}
+                <div class="app-list-grid-row">
+                    <div class="app-list-cell">
+                        <strong>{{ .FacilityName }}</strong>
+                        <span>Facility ID {{ .FacilityID }}</span>
+                    </div>
+                    <div class="app-list-cell"><strong>{{ .OnDutyCount }}</strong></div>
+                    <div class="app-list-cell"><strong>{{ .OnLeaveCount }}</strong></div>
+                    <div class="app-list-cell"><strong>{{ .SubmittedCount }}</strong></div>
+                    <div class="app-list-cell"><strong>{{ .MissingCount }}</strong></div>
+                    <div>
+                        <span class="status-chip {{ if eq .ApprovalStatus "Approved" }}approved{{ else if eq .ApprovalStatus "Declined" }}declined{{ else }}pending{{ end }}">{{ .ApprovalStatus }}</span>
+                    </div>
+                    <div class="app-row-actions">
+                        <a class="btn btn-sm btn-outline-primary" href="/reports/analysis?view=staff&facility={{ .FacilityID }}{{ if gt $.Form.SelectedYear 0 }}&year={{ $.Form.SelectedYear }}{{ end }}{{ if gt $.Form.SelectedMonth 0 }}&month={{ $.Form.SelectedMonth }}{{ end }}{{ if gt $.Form.SelectedWeek 0 }}&week={{ $.Form.SelectedWeek }}{{ end }}{{ if ne $.Form.SelectedStatus "all" }}&status={{ $.Form.SelectedStatus }}{{ end }}">Open Staff Reports</a>
+                        {{ if .CanApprove }}
+                        <form method="post" action="/reports/analysis/facility/{{ .FacilityID }}/approve" onsubmit="return confirm('Approve all pending submitted reports for this facility and period?');">
+                            <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                            <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
+                            <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
+                            <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-success" type="submit">Approve Facility</button>
+                        </form>
+                        <form method="post" action="/reports/analysis/facility/{{ .FacilityID }}/decline" onsubmit="return confirm('Decline all pending submitted reports for this facility and period?');">
+                            <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                            <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
+                            <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
+                            <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Decline Facility</button>
+                        </form>
+                        {{ end }}
+                    </div>
+                </div>
+                {{ end }}
+            {{ else }}
+            <div class="app-list-empty">No facility submissions were found for the selected filters.</div>
+            {{ end }}
+        </div>
+        {{ else }}
         <div class="app-list-grid report-submissions-grid">
             <div class="app-list-grid-header">
                 <div>Staff</div>
@@ -156,6 +198,7 @@
                     <div class="app-list-cell">
                         <strong>{{ .EmployeeName }}</strong>
                         <span>Report ID {{ .ReportID }}</span>
+                        {{ if .IsOnLeave }}<span class="status-chip draft ml-2">On Leave</span>{{ end }}
                     </div>
                     {{ if ne $.Form.Role "user" }}
                     <div class="app-list-cell">
@@ -213,7 +256,7 @@
                         {{ end }}
                         {{ else }}
                         <a class="btn btn-sm btn-outline-primary" href="/reports/analysis/view/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">View</a>
-                        {{ if and $.Form.CanApprove .Actionable }}
+                        {{ if and (eq $.Form.Role "approver") $.Form.CanApprove .Actionable }}
                         <form method="post" action="/reports/analysis/{{ .ReportID }}/approve">
                             <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
                             <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
@@ -231,6 +274,7 @@
             <div class="app-list-empty">No report submissions were found for the selected filters.</div>
             {{ end }}
         </div>
+        {{ end }}
     </div>
 </div>
 {{ end }}
@@ -242,5 +286,41 @@
             select.addEventListener('change', () => form.requestSubmit());
         });
     });
+
+    (() => {
+        const toolbarToggle = document.getElementById('reportAnalysisToolbarToggle');
+        const toolbarSection = document.getElementById('reportAnalysisToolbarSection');
+        const storageKey = 'report-analysis-filters-open';
+
+        if (!toolbarToggle || !toolbarSection) {
+            return;
+        }
+
+        const setButtonText = (open) => {
+            const label = open ? 'Hide filters' : 'Show filters';
+            if (toolbarToggle.dataset.iconized !== 'true') {
+                toolbarToggle.textContent = label;
+            }
+            toolbarToggle.setAttribute('title', label);
+            toolbarToggle.setAttribute('aria-label', label);
+            toolbarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        if (localStorage.getItem(storageKey) === 'true') {
+            toolbarSection.classList.add('show');
+            toolbarToggle.classList.remove('collapsed');
+        }
+
+        setButtonText(toolbarSection.classList.contains('show'));
+
+        toolbarSection.addEventListener('shown.bs.collapse', () => {
+            setButtonText(true);
+            localStorage.setItem(storageKey, 'true');
+        });
+        toolbarSection.addEventListener('hidden.bs.collapse', () => {
+            setButtonText(false);
+            localStorage.setItem(storageKey, 'false');
+        });
+    })();
 </script>
 {{ end }}

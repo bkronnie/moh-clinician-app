@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 )
 
 // Employee represents a row from 'clinician_app.employees'.
@@ -175,8 +177,8 @@ func (e *Employee) Update(ctx context.Context, db DB) error {
 		`fname = $1, lname = $2, oname = $3, title = $4, specialisation = $5, department = $6, facility = $7, created_by = $8, created_on = $9 ` +
 		`WHERE id = $10`
 	// run
-	logf(sqlstr, e.Fname, e.Lname, e.Oname, e.EmpTitle, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn, e.EmpID)
-	if _, err := db.ExecContext(ctx, sqlstr, e.Fname, e.Lname, e.Oname, e.EmpTitle, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn, e.EmpID); err != nil {
+	logf(sqlstr, e.Fname, e.Lname, e.Oname, e.EmpTitleID, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn, e.EmpID)
+	if _, err := db.ExecContext(ctx, sqlstr, e.Fname, e.Lname, e.Oname, e.EmpTitleID, e.Specialisation, e.EmpDepartment, e.EmpFacility, e.CreatedBy, e.CreatedOn, e.EmpID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -294,44 +296,68 @@ func EmployeeByID(ctx context.Context, db DB, id int) (*Employee, error) {
 	return &e, nil
 }
 
-// Fxn Employee with hospitalID, leave, start and cnt parameters
-func Employees(ctx context.Context, db *sql.DB, hospitalID int64, leave string, start int, cnt int) ([]*Employee, error) {
+// Fxn Employee with hospitalID, leave, department, search and limit parameters
+func Employees(ctx context.Context, db *sql.DB, facilityID int64, leave string, departmentID int64, search string, limit int) ([]*Employee, error) {
 	var sqlstr string
-	whereString := ""
+	whereClauses := []string{}
+	args := []interface{}{}
+	argIndex := 1
 
-	// SQL query to retrieve employees' details with filtering by hospital ID
-	if hospitalID > 0 {
-		if whereString != "" {
-			whereString += " AND "
-		}
-		whereString += fmt.Sprintf(" WHERE e.facility = %d ", hospitalID)
+	if facilityID > 0 {
+		whereClauses = append(whereClauses, fmt.Sprintf("e.facility = $%d", argIndex))
+		args = append(args, facilityID)
+		argIndex++
 	}
 
-	// Add leave_status filter only if leave is not empty or not "Valid"
-	if leave != "" {
-		if whereString != "" {
-			whereString += " AND "
-		}
-		if leave == "Valid" {
-			whereString += " s.leave_status IN ('Valid', 'Approved')"
+	if departmentID > 0 {
+		whereClauses = append(whereClauses, fmt.Sprintf("e.department = $%d", argIndex))
+		args = append(args, departmentID)
+		argIndex++
+	}
+
+	if search = strings.TrimSpace(search); search != "" {
+		if id, err := strconv.Atoi(search); err == nil {
+			whereClauses = append(whereClauses, fmt.Sprintf("(e.id = $%d OR LOWER(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''), ' ', COALESCE(e.oname, ''))) LIKE LOWER($%d))", argIndex, argIndex+1))
+			args = append(args, id, "%"+strings.ToLower(search)+"%")
+			argIndex += 2
 		} else {
-			whereString += fmt.Sprintf(" s.leave_status = '%s'", leave)
+			whereClauses = append(whereClauses, fmt.Sprintf("LOWER(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''), ' ', COALESCE(e.oname, ''))) LIKE LOWER($%d)", argIndex))
+			args = append(args, "%"+strings.ToLower(search)+"%")
+			argIndex++
 		}
-		log.Printf("WhereString: %s", whereString)
 	}
 
-	log.Printf("WhereString: %s", whereString)
+	if leave != "" {
+		switch leave {
+		case "Valid", "on_leave":
+			whereClauses = append(whereClauses, fmt.Sprintf("s.leave_status IN ('Valid', 'Approved')"))
+		case "on_duty":
+			whereClauses = append(whereClauses, fmt.Sprintf("(s.leave_status IS NULL OR s.leave_status NOT IN ('Valid', 'Approved'))"))
+		default:
+			whereClauses = append(whereClauses, fmt.Sprintf("s.leave_status = '%s'", leave))
+		}
+	}
+
+	whereString := ""
+	if len(whereClauses) > 0 {
+		whereString = " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
 	sqlstr = `SELECT
-				e.id, e.fname, e.lname, e.oname, st.title, e.specialisation, d.d_name, f.f_name, e.created_by, e.created_on, s.leave_status, s.return_date
+			e.id, e.fname, e.lname, e.oname, st.title, e.specialisation, d.d_name, f.f_name, e.created_by, e.created_on, s.leave_status, s.return_date
                 FROM clinician_app.employees e
                 LEFT JOIN clinician_app.facilities f ON e.facility = f.id
-				LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id
-				LEFT JOIN clinician_app.staffleave_view s ON e.id = s.employee_id
+			LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id
+			LEFT JOIN clinician_app.staffleave_view s ON e.id = s.employee_id
                 LEFT JOIN clinician_app.departments d ON e.department = d.id` +
 		whereString +
-		`ORDER BY e.id`
+		` ORDER BY e.id`
 
-	rows, err := db.QueryContext(ctx, sqlstr)
+	if limit > 0 {
+		sqlstr += fmt.Sprintf(" LIMIT %d", limit)
+	}
+
+	rows, err := db.QueryContext(ctx, sqlstr, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +505,8 @@ func PendingLeaveByID(ctx context.Context, db DB, leaveID int, employeeID int64)
 }
 
 func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filterStatus string) ([]*FacilityLeaveReviewRow, error) {
-	whereClause := `WHERE e.facility = $1`
+	// Draft leave requests (empty or explicit Draft status) are visible only in the creator's own history.
+	whereClause := `WHERE e.facility = $1 AND COALESCE(a.leave_status, '') NOT IN ('', 'Draft')`
 	args := []interface{}{facilityID}
 
 	switch filterStatus {
@@ -489,6 +516,10 @@ func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filter
 		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Approved', 'Valid')`
 	case "declined":
 		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Rejected', 'Declined')`
+	case "expired":
+		whereClause += ` AND COALESCE(a.leave_status, '') = 'Expired'`
+	case "on_leave":
+		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Approved', 'Valid') AND a.start_date::date <= CURRENT_DATE AND a.end_date::date >= CURRENT_DATE`
 	default:
 		filterStatus = "all"
 	}
@@ -554,7 +585,7 @@ func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filter
 func ApproveFacilityLeave(ctx context.Context, db DB, leaveID int, facilityID int64, approverID int64) (bool, error) {
 	const sqlstr = `
 		UPDATE clinician_app.staffleave a
-		SET leave_status = 'Approved', approved_by = $3
+		SET leave_status = 'Approved', approved_by = $3, reviewed_on = NOW()
 		FROM clinician_app.employees e
 		WHERE a.leave_id = $1
 			AND e.id = a.employee_id
@@ -578,7 +609,7 @@ func ApproveFacilityLeave(ctx context.Context, db DB, leaveID int, facilityID in
 func DeclineFacilityLeave(ctx context.Context, db DB, leaveID int, facilityID int64, approverID int64) (bool, error) {
 	const sqlstr = `
 		UPDATE clinician_app.staffleave a
-		SET leave_status = 'Rejected', approved_by = $3
+		SET leave_status = 'Rejected', approved_by = $3, reviewed_on = NOW()
 		FROM clinician_app.employees e
 		WHERE a.leave_id = $1
 			AND e.id = a.employee_id

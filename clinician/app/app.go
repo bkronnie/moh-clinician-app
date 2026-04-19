@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/moh/clinician/internals/middleware"
+	"github.com/moh/clinician/internals/models"
 	"github.com/moh/clinician/internals/routes"
 	"github.com/moh/clinician/internals/utilities"
 
@@ -88,6 +90,11 @@ func Run() error {
 	if err := verifySchema(db, schemaName); err != nil {
 		utilities.Danger(err)
 		return err
+	}
+
+	if err := models.EnsureLeaveSchema(context.Background(), db); err != nil {
+		utilities.Danger("leave schema migration:", err)
+		// Non-fatal: the column may already exist or the table may be differently structured
 	}
 
 	router.Use(middleware.RequestLogger())

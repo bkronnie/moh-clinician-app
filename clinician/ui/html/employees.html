@@ -1,22 +1,8 @@
-{{ define "title" }} Staff List {{ end }}
+{{ define "title" }}Employees{{ end }}
 
-{{ define "extraStyles" }}
-<style>
-    .employees-grid .app-list-grid-header,
-    .employees-grid .app-list-grid-row {
-        grid-template-columns: minmax(200px, 1.35fr) minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(150px, 1fr) minmax(220px, 1.2fr);
-    }
 
-    @media (max-width: 980px) {
-        .employees-grid .app-list-grid-row {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        }
-    }
-</style>
-{{ end }}
-
-{{ define "header" }} 
-    {{ .Ses.HFName }} Hospital: Staff List
+{{ define "header" }}
+Staff Management
 {{ end }}
 
 {{ define "content" }}
@@ -24,60 +10,163 @@
     <div class="app-list-panel">
         <div class="app-list-header">
             <div>
-                <h3 class="mb-0">Staff List</h3>
-                <p>All staff records for {{ .Ses.HFName }}, using the shared list-table styling from the reports workspace.</p>
-            </div>
-            <div class="app-list-actions">
-                <a href="/employee/new/" class="btn btn-primary">New Employee</a>
-                <a href="/employee/leave/staffonleave" class="btn btn-secondary">Staff Leave</a>
+                <p>Filtered staff lists, on-duty staff, and active leave for {{ .Ses.HFName }}.</p>
             </div>
         </div>
     </div>
 
     <div class="app-list-panel">
+        <ul class="nav section-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link {{ if eq .Form.ActiveTab "dashboard" }}active{{ end }}" href="/employee/list?tab=dashboard">Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ if eq .Form.ActiveTab "list" }}active{{ end }}" href="/employee/list?tab=list">Employee List</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ if eq .Form.ActiveTab "on_duty" }}active{{ end }}" href="/employee/list?tab=on_duty">On Duty</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ if eq .Form.ActiveTab "on_leave" }}active{{ end }}" href="/employee/list?tab=on_leave">Active Leave</a>
+            </li>
+        </ul>
+
+        {{ if ne .Form.ActiveTab "dashboard" }}
+        <form class="filter-form" method="get" action="/employee/list">
+            <input type="hidden" name="tab" value="{{ .Form.ActiveTab }}">
+            {{ if .Form.ShowFacilityFilter }}
+            <div class="form-group">
+                <label for="facility" class="sr-only">Facility</label>
+                <select id="facility" name="facility" class="form-control form-control-sm">
+                    <option value="">All Facilities</option>
+                    {{ range .Form.Facilities }}
+                    <option value="{{ .FacilityID }}" {{ if eq (printf "%d" .FacilityID) (printf "%d" $.Form.SelectedFacility) }}selected{{ end }}>{{ .FacilityName }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            {{ else }}
+            <div class="form-group">
+                <label class="d-block mb-1 text-muted">Facility</label>
+                {{ with index .Form.Facilities 0 }}
+                <div class="form-control form-control-sm">{{ .FacilityName }}</div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            <div class="form-group">
+                <label for="department" class="sr-only">Department</label>
+                <select id="department" name="department" class="form-control form-control-sm">
+                    <option value="">All Departments</option>
+                    {{ range .Form.Departments }}
+                    <option value="{{ .DeptID }}" {{ if eq (printf "%d" .DeptID) (printf "%d" $.Form.SelectedDepartment) }}selected{{ end }}>{{ .DepartmentName.String }}</option>
+                    {{ end }}
+                </select>
+            </div>
+
+            <div class="form-group filter-form-search-group">
+                <label for="search" class="sr-only">Search</label>
+                <input id="search" name="search" type="search" class="form-control form-control-sm" placeholder="Search name or ID" value="{{ .Form.SearchTerm }}">
+            </div>
+
+            <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+            <a class="btn btn-outline-secondary btn-sm" href="/employee/list?tab={{ .Form.ActiveTab }}">Clear</a>
+        </form>
+        {{ end }}
+
+        {{ if eq .Form.ActiveTab "dashboard" }}
+        <div class="employee-dashboard-cards">
+            <div class="employee-card">
+                <h4>Total employees</h4>
+                <span>{{ .Form.Dashboard.TotalStaff }}</span>
+            </div>
+            <div class="employee-card">
+                <h4>Active leave</h4>
+                <span>{{ .Form.Dashboard.TotalLeave }}</span>
+            </div>
+            <div class="employee-card">
+                <h4>Current on duty</h4>
+                <span>{{ .Form.Dashboard.TotalOnDuty }}</span>
+            </div>
+            <div class="employee-card">
+                <h4>Facilities</h4>
+                <span>{{ .Form.Dashboard.FacilitiesCount }}</span>
+            </div>
+        </div>
+
         <div class="app-list-grid employees-grid">
             <div class="app-list-grid-header">
-                <div>Staff</div>
+                <div>Top Performing Staff</div>
                 <div>Title</div>
-                <div>Specialization</div>
                 <div>Department</div>
+                <div>Facility</div>
                 <div>Actions</div>
             </div>
-            {{ if .Form }}
-                {{ range $employee := .Form }}
+            {{ if .Form.TopEmployees }}
+                {{ range $employee := .Form.TopEmployees }}
                 <div class="app-list-grid-row">
                     <div class="app-list-cell">
-                        <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
-                        <span>Employee ID {{ $employee.EmpID }}</span>
+                        <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }}</strong>
+                        <span>ID {{ $employee.EmpID }}</span>
                     </div>
-                    <div class="app-list-cell">
-                        <strong>{{ $employee.EmpTitle.String }}</strong>
-                        <span>Staff title</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ $employee.Specialisation.String }}</strong>
-                        <span>Specialization</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ $employee.EmpDepartmentName.String }}</strong>
-                        <span>{{ .Ses.HFName }}</span>
-                    </div>
+                    <div class="app-list-cell">{{ $employee.EmpTitle.String }}</div>
+                    <div class="app-list-cell">{{ $employee.EmpDepartmentName.String }}</div>
+                    <div class="app-list-cell">{{ $employee.EmpFacilityName.String }}</div>
                     <div class="app-row-actions">
-                        <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-primary">Leave History</a>
-                        <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-secondary">Update Record</a>
+                        <a href="/employee/edit/{{ $employee.EmpID }}" class="btn btn-sm btn-outline-primary">Edit</a>
                     </div>
                 </div>
                 {{ end }}
             {{ else }}
-            <div class="app-list-empty">No employees found.</div>
+            <div class="app-list-empty">No top employees found.</div>
             {{ end }}
         </div>
+        {{ else if eq .Form.ActiveTab "list" }}
+        {{ template "employeeTable" .Form.Employees }}
+        {{ else if eq .Form.ActiveTab "on_duty" }}
+        {{ template "employeeTable" .Form.OnDuty }}
+        {{ else if eq .Form.ActiveTab "on_leave" }}
+        {{ template "employeeTable" .Form.OnLeave }}
+        {{ end }}
     </div>
 </div>
 {{ end }}
 
+{{ define "employeeTable" }}
+<div class="app-list-grid employees-grid">
+    <div class="app-list-grid-header">
+        <div>Staff</div>
+        <div>Title</div>
+        <div>Department</div>
+        <div>Status</div>
+        <div>Actions</div>
+    </div>
+    {{ if . }}
+        {{ range $employee := . }}
+        <div class="app-list-grid-row">
+            <div class="app-list-cell">
+                <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
+                <span>ID {{ $employee.EmpID }}</span>
+            </div>
+            <div class="app-list-cell">{{ $employee.EmpTitle.String }}</div>
+            <div class="app-list-cell">{{ $employee.EmpDepartmentName.String }}</div>
+            <div class="app-list-cell">
+                <span class="status-chip">{{ if $employee.LeaveStatus.Valid }}{{ $employee.LeaveStatus.String }}{{ else }}On Duty{{ end }}</span>
+                {{ if and $employee.ReturnDate.Valid (ne $employee.LeaveStatus.String "") }}<div>Return {{ $employee.ReturnDate.Time.Format "2006-01-02" }}</div>{{ end }}
+            </div>
+            <div class="app-row-actions">
+                <a href="/employee/edit/{{ $employee.EmpID }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                <form method="post" action="/employee/delete/{{ $employee.EmpID }}" class="inline-form" onsubmit="return confirm('Delete this employee?');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+                <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-secondary">Leave History</a>
+            </div>
+        </div>
+        {{ end }}
+    {{ else }}
+    <div class="app-list-empty">No employees found.</div>
+    {{ end }}
+</div>
+{{ end }}
+
 {{ define "extraJS" }}
-<script>
-    // Any additional JavaScript if needed
-</script>
 {{ end }}

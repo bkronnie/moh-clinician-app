@@ -134,7 +134,7 @@ type WeeklyReportExtended struct {
 	_exists, _deleted bool
 }
 
-//Struct to populate weekly report facility submissions
+// Struct to populate weekly report facility submissions
 type WeeklyReportSubmission struct {
 	HospitalID            int            `json:"hospital_id"`
 	EmpID                 int            `json:"emp_id"`
@@ -1179,12 +1179,28 @@ func WeeklyBulkCapture(ctx context.Context, db DB, hospitalID, departmentID int6
 		whereString += " d.id = " + fmt.Sprintf("%d", departmentID)
 	}
 
+	if reportingWeekStart == "" {
+		now := time.Now()
+		offset := (int(now.Weekday()) + 6) % 7
+		weekStart := now.AddDate(0, 0, -offset)
+		reportingWeekStart = weekStart.Format("2006-01-02")
+	}
+	if reportingWeekEnd == "" {
+		start, _ := time.Parse("2006-01-02", reportingWeekStart)
+		reportingWeekEnd = start.AddDate(0, 0, 6).Format("2006-01-02")
+	}
+
 	if reportingWeekStart != "" && reportingWeekEnd != "" {
 		if whereString != "" {
 			whereString += " AND "
 		}
 		whereString += " w.start >= '" + reportingWeekStart + "' AND w.stop <= '" + reportingWeekEnd + "'"
 	}
+
+	if whereString != "" {
+		whereString += " AND "
+	}
+	whereString += " NOT EXISTS (SELECT 1 FROM clinician_app.staffleave sl WHERE sl.employee_id = e.id AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid') AND sl.start_date::date <= '" + reportingWeekEnd + "'::date AND sl.end_date::date >= '" + reportingWeekStart + "'::date)"
 
 	if whereString != "" {
 		whereString = "WHERE " + whereString
@@ -1399,7 +1415,7 @@ func getFacilityAndDepartmentID(db *sql.DB, employeeID int64) (int64, int64, err
 	return facilityID, departmentID, nil
 }
 
-//Get facilities List to be used to populate iframe tables
+// Get facilities List to be used to populate iframe tables
 // GetFacilitiesList retrieves the list of facilities, filtering by hospitalID if provided.
 func GetFacilitiesList(ctx context.Context, db DB, hospitalID int64) ([]*Facility, error) {
 	var sqlstr string

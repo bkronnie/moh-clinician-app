@@ -30,16 +30,16 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
-                    <a class="nav-link active" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
+                    <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                 </li>
                 {{ if or $isClinician $isManager $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                 </li>
                 {{ end }}
                 {{ if $isClinician }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
+                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
                 </li>
                 {{ end }}
                 {{ if $isManager }}
@@ -49,17 +49,17 @@
                 {{ end }}
                 {{ if $isClinician }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
+                    <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span>{{ if gt .NotifMyLeave 0 }}<span class="nav-badge">{{ .NotifMyLeave }}</span>{{ end }}</a>
                 </li>
                 {{ end }}
                 {{ if $isManager }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
+                    <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span>{{ if gt .NotifPendingLeave 0 }}<span class="nav-badge">{{ .NotifPendingLeave }}</span>{{ end }}</a>
                 </li>
                 {{ end }}
                 {{ if or $isManager $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
+                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                 </li>
                 {{ end }}
                 {{ if $isAdmin }}
@@ -133,22 +133,22 @@
                 <div class="nav flex-wrap">
                     <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                     {{ if or $isClinician $isManager $isAdmin }}
-                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                    <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                     {{ end }}
                     {{ if $isClinician }}
-                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
+                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
                     {{ end }}
                     {{ if $isManager }}
                     <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                     {{ end }}
                     {{ if $isClinician }}
-                    <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
+                    <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span>{{ if gt .NotifMyLeave 0 }}<span class="nav-badge">{{ .NotifMyLeave }}</span>{{ end }}</a>
                     {{ end }}
                     {{ if $isManager }}
-                    <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
+                    <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span>{{ if gt .NotifPendingLeave 0 }}<span class="nav-badge">{{ .NotifPendingLeave }}</span>{{ end }}</a>
                     {{ end }}
                     {{ if or $isManager $isAdmin }}
-                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
+                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                     {{ end }}
                     {{ if $isAdmin }}
                     <a class="nav-link" href="/facilities/list"><span class="nav-link-icon">{{ navIcon "facilities" }}</span><span>Facilities</span></a>
@@ -162,16 +162,16 @@
                 <div class="sidebar-sticky">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link active" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
+                            <a class="nav-link" href="/"><span class="nav-link-icon">{{ navIcon "dashboard" }}</span><span>Dashboard</span></a>
                         </li>
                         {{ if or $isClinician $isManager $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span></a>
+                            <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if $isClinician }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span></a>
+                            <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if $isManager }}
@@ -181,17 +181,17 @@
                         {{ end }}
                         {{ if $isClinician }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span></a>
+                            <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span>{{ if gt .NotifMyLeave 0 }}<span class="nav-badge">{{ .NotifMyLeave }}</span>{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span></a>
+                            <a class="nav-link" href="/leave/review"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Leave Requests</span>{{ if gt .NotifPendingLeave 0 }}<span class="nav-badge">{{ .NotifPendingLeave }}</span>{{ end }}</a>
                         </li>
                         {{ end }}
                         {{ if or $isManager $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Employees</span></a>
+                            <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                         </li>
                         {{ end }}
                         {{ if $isAdmin }}
@@ -222,6 +222,7 @@
                             {{ end }}
                         </div>
                     </div>
+                    {{ block "pageActions" . }}{{ end }}
                 </div>
                 <div class="content">
                     {{ template "content" . }}
@@ -241,6 +242,114 @@
     <script src="/static/js/jquery-3.5.1.slim.min.js"></script>
     <script src="/static/js/popper.min.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
+    <script>
+    (() => {
+        const path = window.location.pathname || "/";
+
+        const scoreMatch = (href) => {
+            if (!href || !href.startsWith("/")) {
+                return 0;
+            }
+
+            if (href === "/") {
+                return path === "/" ? 1 : 0;
+            }
+
+            if (href.startsWith("/reports/new/")) {
+                return /^\/reports\/new(\/|$)/.test(path) ? 200 : 0;
+            }
+
+            if (path === href) {
+                return 1000 + href.length;
+            }
+
+            return path.startsWith(href + "/") ? href.length : 0;
+        };
+
+        const containers = document.querySelectorAll(".app-navbar .navbar-nav, .mobile-sidebar .nav, .sidebar .nav");
+        containers.forEach((container) => {
+            const links = Array.from(container.querySelectorAll(".nav-link[href^='/']"));
+            links.forEach((link) => link.classList.remove("active"));
+
+            let winner = null;
+            let bestScore = 0;
+            links.forEach((link) => {
+                const score = scoreMatch(link.getAttribute("href"));
+                if (score > bestScore) {
+                    bestScore = score;
+                    winner = link;
+                }
+            });
+
+            if (winner) {
+                winner.classList.add("active");
+            }
+        });
+    })();
+
+    (() => {
+        const iconSVG = {
+            view: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+            open: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3h7v7"></path><path d="M10 14L21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>',
+            edit: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>',
+            approve: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg>',
+            decline: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
+            submit: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 2 11 13"></path><path d="m22 2-7 20-4-9-9-4Z"></path></svg>',
+            save: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>',
+            delete: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>',
+            export: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M4 21h16"></path></svg>',
+            filter: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h18"></path><path d="M6 12h12"></path><path d="M10 19h4"></path></svg>'
+        };
+
+        const resolveAction = (label) => {
+            const text = label.toLowerCase();
+            if (text.includes("approve")) return "approve";
+            if (text.includes("decline") || text.includes("reject")) return "decline";
+            if (text.includes("delete") || text.includes("remove")) return "delete";
+            if (text.includes("edit") || text.includes("update")) return "edit";
+            if (text.includes("view")) return "view";
+            if (text.includes("open")) return "open";
+            if (text.includes("submit") || text.includes("send")) return "submit";
+            if (text.includes("save")) return "save";
+            if (text.includes("download") || text.includes("export")) return "export";
+            if (text.includes("filter") || text.includes("clear")) return "filter";
+            return "";
+        };
+
+        const targets = document.querySelectorAll(".app-row-actions .btn, .app-list-actions .btn, .filter-form .btn, .app-list-toolbar .btn");
+        targets.forEach((element) => {
+            if (element.dataset.iconized === "true" || element.dataset.keepText === "true") {
+                return;
+            }
+
+            const label = (element.textContent || "").trim().replace(/\s+/g, " ");
+            if (!label) {
+                return;
+            }
+
+            const action = resolveAction(label);
+            if (!action || !iconSVG[action]) {
+                return;
+            }
+
+            element.dataset.iconized = "true";
+            element.classList.add("action-icon-btn", `action-icon-${action}`);
+            element.setAttribute("title", label);
+            element.setAttribute("aria-label", label);
+            element.setAttribute("data-action-tooltip", "true");
+            element.setAttribute("data-tooltip-label", label);
+            element.innerHTML = `<span class="action-icon-svg" aria-hidden="true">${iconSVG[action]}</span><span class="sr-only">${label}</span>`;
+        });
+
+        if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.tooltip === "function") {
+            window.jQuery("body").tooltip({
+                selector: '[data-action-tooltip="true"]',
+                container: "body",
+                trigger: "hover focus"
+            });
+        }
+    })();
+    </script>
     {{ block "extraJS" . }}{{ end }}
 </body>
 </html>
