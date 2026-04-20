@@ -44,6 +44,7 @@ type LeaveHistory struct {
 	Comments       sql.NullString
 	SubmittedBy    sql.NullInt64
 	SubmissionDate sql.NullTime
+	ReviewedOn     sql.NullTime
 	// xo fields
 	_exists, _deleted bool
 }
@@ -59,6 +60,7 @@ type FacilityLeaveReviewRow struct {
 	LeaveStatus    sql.NullString
 	Comments       sql.NullString
 	SubmissionDate sql.NullTime
+	ReviewedOn     sql.NullTime
 	ApprovedByName sql.NullString
 	Actionable     bool
 }
@@ -470,7 +472,7 @@ func GetFacilitiesAndDepartments(db *sql.DB) ([]*Facility, []*Department, error)
 // GetHistory() fxn to retrieve user leave request history from the db
 func GetHistory(db *sql.DB, employeeID int) ([]*LeaveHistory, error) {
 	query := `
-        SELECT a.leave_id, a.employee_id, l.leave_type_name, a.leave_type_id, a.start_date, a.end_date, a.leave_status, a.notes, a.created_on
+	SELECT a.leave_id, a.employee_id, l.leave_type_name, a.leave_type_id, a.start_date, a.end_date, a.leave_status, a.notes, a.created_on, a.reviewed_on
         FROM clinician_app.staffleave a
         JOIN clinician_app.leavetypes l ON a.leave_type_id = l.leave_type_id
         WHERE a.employee_id = $1
@@ -486,7 +488,7 @@ func GetHistory(db *sql.DB, employeeID int) ([]*LeaveHistory, error) {
 	history := []*LeaveHistory{}
 	for rows.Next() {
 		h := &LeaveHistory{}
-		err = rows.Scan(&h.ID, &h.EmpID, &h.LeaveTypeName, &h.LeaveTypeID, &h.StartDate, &h.EndDate, &h.LeaveStatus, &h.Comments, &h.SubmissionDate)
+		err = rows.Scan(&h.ID, &h.EmpID, &h.LeaveTypeName, &h.LeaveTypeID, &h.StartDate, &h.EndDate, &h.LeaveStatus, &h.Comments, &h.SubmissionDate, &h.ReviewedOn)
 		if err != nil {
 			return nil, err
 		}
@@ -559,6 +561,7 @@ func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filter
 			a.leave_status,
 			a.notes,
 			a.created_on,
+			a.reviewed_on,
 			NULLIF(TRIM(CONCAT(COALESCE(ap.fname, ''), ' ', COALESCE(ap.lname, ''))), '') AS approved_by_name
 		FROM clinician_app.staffleave a
 		JOIN clinician_app.employees e ON e.id = a.employee_id
@@ -589,6 +592,7 @@ func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filter
 			&item.LeaveStatus,
 			&item.Comments,
 			&item.SubmissionDate,
+			&item.ReviewedOn,
 			&item.ApprovedByName,
 		); err != nil {
 			return nil, logerror(err)

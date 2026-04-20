@@ -25,11 +25,11 @@
                 {{ if ne .Form.SelectedStatus "all" }}
                 <input type="hidden" name="status" value="{{ .Form.SelectedStatus }}">
                 {{ end }}
-                {{ if ne .Form.Role "user" }}
+                {{ if ne .Form.Role "Staff" }}
                 <div class="filter-field">
                     <label for="submissionsFacility">Facility</label>
                     <select id="submissionsFacility" name="facility">
-                        {{ if eq .Form.Role "admin" }}
+                        {{ if eq .Form.Role "National Admin" }}
                         <option value="0">All facilities</option>
                         {{ end }}
                         {{ range .Form.FacilityOptions }}
@@ -82,7 +82,7 @@
 
     <div class="app-list-panel">
         <div class="app-list-toolbar">
-            <p>{{ if and (eq .Form.Role "admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
+            <p>{{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
             <div class="app-list-actions">
                 {{ if and .Form.CanSubmitAll (gt .Form.SelectedYear 0) (gt .Form.SelectedWeek 0) }}
                 <form method="post" action="{{ .Form.SubmitAllURL }}" onsubmit="return confirm('Submit all eligible staff reports for this facility and week?');">
@@ -94,7 +94,7 @@
                     <button class="btn btn-primary" type="submit">Submit Weekly Facility Report</button>
                 </form>
                 {{ end }}
-                {{ if and (eq .Form.Role "approver") .Form.CanApprove (gt .Form.PendingCount 0) }}
+                {{ if and (eq .Form.Role "Facility Admin") .Form.CanApprove (gt .Form.PendingCount 0) }}
                 <form method="post" action="/reports/analysis/approve-all" onsubmit="return confirm('Approve all pending submitted reports for the current filter selection?');">
                     <input type="hidden" name="department" value="{{ .Form.SelectedDepartment }}">
                     <input type="hidden" name="year" value="{{ .Form.SelectedYear }}">
@@ -108,28 +108,29 @@
         </div>
         <div class="nav section-tabs app-filter-bar">
             <a href="{{ .Form.AllURL }}" class="nav-link {{ if eq .Form.SelectedStatus "all" }}active{{ end }}">All</a>
-            {{ if eq .Form.Role "user" }}
+            {{ if eq .Form.Role "Staff" }}
             <a href="{{ .Form.SubmittedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "submitted" }}active{{ end }}">Submitted</a>
             {{ else }}
             <a href="{{ .Form.PendingURL }}" class="nav-link {{ if eq .Form.SelectedStatus "pending" }}active{{ end }}">Pending</a>
             {{ end }}
             <a href="{{ .Form.ApprovedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "approved" }}active{{ end }}">Approved</a>
             <a href="{{ .Form.DeclinedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "declined" }}active{{ end }}">Declined</a>
-            {{ if eq .Form.Role "user" }}
+            {{ if eq .Form.Role "Staff" }}
             <a href="{{ .Form.DraftURL }}" class="nav-link {{ if eq .Form.SelectedStatus "draft" }}active{{ end }}">Draft</a>
             {{ end }}
         </div>
 
-        {{ if and (eq .Form.Role "admin") (eq .Form.ViewMode "staff") }}
+        {{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "staff") }}
         <div class="mb-2">
             <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.FacilityModeURL }}">Back To Facility Summary</a>
         </div>
         {{ end }}
 
-        {{ if and (eq .Form.Role "admin") (eq .Form.ViewMode "facility") }}
-        <div class="app-list-grid report-submissions-grid">
+        {{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}
+        <div class="app-list-grid report-submissions-grid report-submissions-facility-grid">
             <div class="app-list-grid-header">
                 <div>Facility</div>
+            <div>Week</div>
                 <div>On Duty</div>
                 <div>On Leave</div>
                 <div>Submitted</div>
@@ -144,9 +145,22 @@
                         <strong>{{ .FacilityName }}</strong>
                         <span>Facility ID {{ .FacilityID }}</span>
                     </div>
+                    <div class="app-list-cell">
+                        <strong>
+                            {{ if and .WeekStart.Valid .WeekStop.Valid }}
+                            {{ .WeekStart.Time.Format "02 Jan 2006" }} - {{ .WeekStop.Time.Format "02 Jan 2006" }}
+                            {{ else }}
+                            -
+                            {{ end }}
+                        </strong>
+                        <span>Reporting week</span>
+                    </div>
                     <div class="app-list-cell"><strong>{{ .OnDutyCount }}</strong></div>
                     <div class="app-list-cell"><strong>{{ .OnLeaveCount }}</strong></div>
-                    <div class="app-list-cell"><strong>{{ .SubmittedCount }}</strong></div>
+                    <div class="app-list-cell">
+                        <strong>{{ .SubmittedCount }}</strong>
+                        <span>Submitted {{ if .SubmittedOn.Valid }}{{ humanDate .SubmittedOn.Time }}{{ else }}-{{ end }}</span>
+                    </div>
                     <div class="app-list-cell"><strong>{{ .MissingCount }}</strong></div>
                     <div>
                         <span class="status-chip {{ if eq .ApprovalStatus "Approved" }}approved{{ else if eq .ApprovalStatus "Declined" }}declined{{ else }}pending{{ end }}">{{ .ApprovalStatus }}</span>
@@ -182,7 +196,7 @@
         <div class="app-list-grid report-submissions-grid">
             <div class="app-list-grid-header">
                 <div>Staff</div>
-                {{ if ne .Form.Role "user" }}<div>Facility</div>{{ else }}<div>Status</div>{{ end }}
+                {{ if ne .Form.Role "Staff" }}<div>Facility</div>{{ else }}<div>Status</div>{{ end }}
                 <div>Department</div>
                 <div>Week</div>
                 <div>Status</div>
@@ -200,7 +214,7 @@
                         <span>Report ID {{ .ReportID }}</span>
                         {{ if .IsOnLeave }}<span class="status-chip draft ml-2">On Leave</span>{{ end }}
                     </div>
-                    {{ if ne $.Form.Role "user" }}
+                    {{ if ne $.Form.Role "Staff" }}
                     <div class="app-list-cell">
                         <strong>{{ .FacilityName }}</strong>
                         <span>Facility ID {{ .FacilityID }}</span>
@@ -210,6 +224,9 @@
                         <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else if eq $submitStatus "Submitted" }}submitted{{ else }}draft{{ end }}">
                             {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
                         </span>
+                        {{ if and (or (eq $reportStatus "Approved") (eq $reportStatus "Rejected") (eq $reportStatus "Declined")) .DecisionOn.Valid }}
+                        <span class="d-block text-muted small mt-1">{{ if eq $reportStatus "Approved" }}Approved{{ else }}Declined{{ end }} on {{ humanDate .DecisionOn.Time }}</span>
+                        {{ end }}
                     </div>
                     {{ end }}
                     <div class="app-list-cell">
@@ -228,19 +245,22 @@
                     </div>
                     <div>
                         <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else if eq $submitStatus "Submitted" }}pending{{ else }}draft{{ end }}">
-                            {{ if eq $.Form.Role "user" }}
+                            {{ if eq $.Form.Role "Staff" }}
                                 {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
                             {{ else }}
-                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Pending Review{{ else }}Draft{{ end }}
+                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
                             {{ end }}
                         </span>
+                        {{ if and (or (eq $reportStatus "Approved") (eq $reportStatus "Rejected") (eq $reportStatus "Declined")) .DecisionOn.Valid }}
+                        <span class="d-block text-muted small mt-1">{{ if eq $reportStatus "Approved" }}Approved{{ else }}Declined{{ end }} on {{ humanDate .DecisionOn.Time }}</span>
+                        {{ end }}
                     </div>
                     <div class="app-list-cell">
                         <strong>{{ .PatientsReviewed }} patients</strong>
                         <span>Attendance {{ .Attendance }} | Procedures {{ .Procedures }}</span>
                     </div>
                     <div class="app-row-actions">
-                        {{ if eq $.Form.Role "user" }}
+                        {{ if eq $.Form.Role "Staff" }}
                         {{ if .Actionable }}
                         <a class="btn btn-sm btn-outline-primary" href="/reports/new/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">Edit</a>
                         <form method="post" action="/reports/submit-self/{{ .ReportID }}" onsubmit="return confirm('Submit this report for review?');">
@@ -256,7 +276,7 @@
                         {{ end }}
                         {{ else }}
                         <a class="btn btn-sm btn-outline-primary" href="/reports/analysis/view/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">View</a>
-                        {{ if and (eq $.Form.Role "approver") $.Form.CanApprove .Actionable }}
+                        {{ if and (eq $.Form.Role "Facility Admin") $.Form.CanApprove .Actionable }}
                         <form method="post" action="/reports/analysis/{{ .ReportID }}/approve">
                             <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
                             <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
@@ -273,6 +293,31 @@
             {{ else }}
             <div class="app-list-empty">No report submissions were found for the selected filters.</div>
             {{ end }}
+        </div>
+        {{ end }}
+
+        {{ if gt .Form.TotalPages 1 }}
+        <div class="d-flex align-items-center justify-content-between mt-3">
+            <small class="text-muted">Page {{ .Form.Page }} of {{ .Form.TotalPages }} ({{ .Form.TotalRows }} records)</small>
+            <nav aria-label="Report submissions pagination">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {{ if not .Form.PrevPageURL }}disabled{{ end }}">
+                        {{ if .Form.PrevPageURL }}
+                        <a class="page-link" href="{{ .Form.PrevPageURL }}">Previous</a>
+                        {{ else }}
+                        <span class="page-link">Previous</span>
+                        {{ end }}
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">{{ .Form.Page }}</span></li>
+                    <li class="page-item {{ if not .Form.NextPageURL }}disabled{{ end }}">
+                        {{ if .Form.NextPageURL }}
+                        <a class="page-link" href="{{ .Form.NextPageURL }}">Next</a>
+                        {{ else }}
+                        <span class="page-link">Next</span>
+                        {{ end }}
+                    </li>
+                </ul>
+            </nav>
         </div>
         {{ end }}
     </div>

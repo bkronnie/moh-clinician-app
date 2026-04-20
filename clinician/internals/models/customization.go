@@ -48,15 +48,21 @@ type CustomizationView struct {
 	ClinicalRoles []CustomizationClinicalRole
 	DataElements  []ReportDataElement
 	History       []CustomizationChange
+	HistoryPage   int
+	HistorySize   int
+	HistoryTotal  int
+	HistoryPages  int
+	HistoryPrev   string
+	HistoryNext   string
 	ActiveTab     string
 	Success       string
 	Error         string
 }
 
 var immutableRoleNames = map[string]struct{}{
-	"admin":    {},
-	"approver": {},
-	"user":     {},
+        "National Admin": {},
+        "Facility Admin": {},
+        "Staff":          {},
 }
 
 func EnsureCustomizationAuditSchema(ctx context.Context, db *sql.DB) error {
@@ -93,9 +99,12 @@ func EnsureCustomizationAuditSchema(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
-func GetCustomizationView(ctx context.Context, db DB, historyLimit int) (CustomizationView, error) {
+func GetCustomizationView(ctx context.Context, db DB, historyLimit int, historyOffset int) (CustomizationView, error) {
 	if historyLimit <= 0 {
 		historyLimit = 100
+	}
+	if historyOffset < 0 {
+		historyOffset = 0
 	}
 
 	facilities, err := ListCustomizationFacilities(ctx, db)
@@ -123,7 +132,12 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int) (Customi
 		return CustomizationView{}, err
 	}
 
-	history, err := ListCustomizationHistory(ctx, db, historyLimit)
+	history, err := ListCustomizationHistory(ctx, db, historyLimit, historyOffset)
+	if err != nil {
+		return CustomizationView{}, err
+	}
+
+	historyTotal, err := CountCustomizationHistory(ctx, db)
 	if err != nil {
 		return CustomizationView{}, err
 	}
@@ -135,6 +149,7 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int) (Customi
 		ClinicalRoles: clinicalRoles,
 		DataElements:  dataElements,
 		History:       history,
+		HistoryTotal:  historyTotal,
 	}, nil
 }
 
@@ -230,9 +245,12 @@ func ListCustomizationClinicalRoles(ctx context.Context, db DB) ([]Customization
 	return items, rows.Err()
 }
 
-func ListCustomizationHistory(ctx context.Context, db DB, limit int) ([]CustomizationChange, error) {
+func ListCustomizationHistory(ctx context.Context, db DB, limit int, offset int) ([]CustomizationChange, error) {
 	if limit <= 0 {
 		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 
 	rows, err := db.QueryContext(ctx, `
@@ -247,8 +265,8 @@ func ListCustomizationHistory(ctx context.Context, db DB, limit int) ([]Customiz
 		FROM clinician_app.customization_change_log c
 		LEFT JOIN clinician_app.employees e ON e.id = c.changed_by_employee
 		ORDER BY c.changed_on DESC, c.id DESC
-		LIMIT $1
-	`, limit)
+		LIMIT $1 OFFSET $2
+	`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -272,6 +290,12 @@ func ListCustomizationHistory(ctx context.Context, db DB, limit int) ([]Customiz
 	}
 
 	return items, rows.Err()
+}
+
+func CountCustomizationHistory(ctx context.Context, db DB) (int, error) {
+	var total int
+	err := db.QueryRowContext(ctx, `SELECT COUNT(1) FROM clinician_app.customization_change_log`).Scan(&total)
+	return total, err
 }
 
 func SaveCustomizationFacility(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64, name string, level string) error {

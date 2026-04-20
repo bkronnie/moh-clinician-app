@@ -27,12 +27,14 @@ type TemplateData struct {
 	NotifMyLeave        int    // for clinicians: recently reviewed leave
 	NotifMyReports      int    // for clinicians: recently reviewed reports
 	NotifMyDataEntry    int    // for clinicians: pending reminder for last-week submission
+	NotifMyDataState    string // "overdue" or "current" for the nav indicator
 }
 
 type SessionDetails struct {
 	Email  string `form:"email"`
 	FName  string `form:"fname"`
 	LName  string `form:"lname"`
+	Title  string `form:"title"`
 	Right  int64  `form:"right"`
 	EmpID  int64  `form:"employeeid"`
 	Rights string `form:"rights"`
@@ -41,6 +43,12 @@ type SessionDetails struct {
 	HFID   int64  `form:"hfid"`
 	HDID   int64  `form:"hdid"` //facility id
 }
+
+const (
+	RoleNationalAdmin = "National Admin"
+	RoleFacilityAdmin = "Facility Admin"
+	RoleStaff         = "Staff"
+)
 
 // Initialize a template.FuncMap object and store it in a global variable. This is
 // essentially a string-keyed map which acts as a lookup between the names of our
@@ -228,19 +236,61 @@ func SessionFromTemplateData(root interface{}) SessionDetails {
 	return SessionDetails{}
 }
 
-func HasRole(root interface{}, roles ...string) bool {
-	ses := SessionFromTemplateData(root)
-	if ses.Rights == "" {
-		return false
+func NormalizeRoleKey(role string) string {
+	trimmed := strings.TrimSpace(role)
+	if trimmed == "" {
+		return ""
 	}
 
+	normalizedWords := strings.Join(strings.Fields(strings.ToLower(trimmed)), " ")
+	compact := strings.NewReplacer(" ", "", "-", "", "_", "", "/", "").Replace(normalizedWords)
+
+	switch normalizedWords {
+	case strings.ToLower(RoleNationalAdmin):
+		return RoleNationalAdmin
+	case strings.ToLower(RoleFacilityAdmin):
+		return RoleFacilityAdmin
+	case strings.ToLower(RoleStaff):
+		return RoleStaff
+	}
+
+	switch compact {
+	case "nationaladmin", "nationaladministrator", "nationalsupervisor":
+		return RoleNationalAdmin
+	case "facilityadmin", "facilityadministrator", "facilitymanager", "hospitaladmin", "hospitaladministrator", "hospitalmanager":
+		return RoleFacilityAdmin
+	case "staff", "staffmember", "clinician", "clinicianstaff", "employee":
+		return RoleStaff
+	}
+
+	switch {
+	case strings.Contains(normalizedWords, "national") && strings.Contains(normalizedWords, "admin"):
+		return RoleNationalAdmin
+	case (strings.Contains(normalizedWords, "facility") || strings.Contains(normalizedWords, "hospital")) && (strings.Contains(normalizedWords, "admin") || strings.Contains(normalizedWords, "manager")):
+		return RoleFacilityAdmin
+	case strings.Contains(normalizedWords, "staff") || strings.Contains(normalizedWords, "clinician"):
+		return RoleStaff
+	default:
+		return trimmed
+	}
+}
+
+func RoleMatches(actual string, roles ...string) bool {
+	normalizedActual := NormalizeRoleKey(actual)
+	if normalizedActual == "" {
+		return false
+	}
 	for _, role := range roles {
-		if strings.EqualFold(ses.Rights, role) {
+		if normalizedActual == NormalizeRoleKey(role) {
 			return true
 		}
 	}
-
 	return false
+}
+
+func HasRole(root interface{}, roles ...string) bool {
+	ses := SessionFromTemplateData(root)
+	return RoleMatches(ses.Rights, roles...)
 }
 
 func ToJSON(v interface{}) template.JS {

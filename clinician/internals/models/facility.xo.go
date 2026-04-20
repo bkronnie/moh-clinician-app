@@ -5,7 +5,7 @@ package models
 import (
 	"context"
 	"database/sql"
-	"strconv"
+	"fmt"
 )
 
 // Facility represents a row from 'clinician_app.facilities'.
@@ -159,12 +159,12 @@ func Facilitys(ctx context.Context, db DB, flt string, start int, cnt int) ([]*F
 
 	lmt := ""
 	if cnt > 0 {
-		lmt = " LIMIT " + strconv.Itoa(start) + " " + strconv.Itoa(cnt)
+		lmt = fmt.Sprintf(" LIMIT %d OFFSET %d", cnt, start)
 	}
 
 	sqlstr = `SELECT ` +
-		`id, d_name ` +
-		`FROM clinician_app.departments ` + whereString + lmt
+		`id, f_name, f_level, f_lg, created_by, created_on ` +
+		`FROM clinician_app.facilities ` + whereString + lmt
 
 	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {

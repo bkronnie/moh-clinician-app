@@ -69,25 +69,24 @@ func LoginHandler(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager
 		log.Printf("UserID: %s", userID)
 
 		/*
-					// Retrieve facilityID and rights for the user from the database
-					var facilityID int
-					var rights string
-					query := `
-			            SELECT u.rights, f.id
+						// Retrieve facilityID and rights for the user from the database
+						var facilityID int
+						var rights string
+						query := `
+			            SELECT r.rights, f.id
 			            FROM clinician_app.users u
 			            JOIN clinician_app.employees e ON u.employees = e.id
+			            JOIN clinician_app.employeerights er ON er.employee = e.id
+			            JOIN clinician_app.rights r ON r.id = er.rights
 			            JOIN clinician_app.facilities f ON e.facility = f.id
 			            JOIN clinician_app.departments d ON e.department = d.id
 			            WHERE u.id = $1
-			        `
-					if err := db.QueryRowContext(c.Request.Context(), query, user.ID).Scan(&rights, &facilityID); err != nil {
-						utilities.Danger("Failed to retrieve facility ID and rights - " + err.Error())
-						c.Redirect(http.StatusFound, "/login")
-						c.Abort()
-						return
-					}
+			            ORDER BY er.id DESC
+			            LIMIT 1
+							return
+						}
 
-					log.Printf("FacilityID: %d, Rights: %s", facilityID, rights) */
+						log.Printf("FacilityID: %d, Rights: %s", facilityID, rights) */
 
 		// Store userID, facilityID, and rights in the session
 		sessionCtx, er := sessionManager.Load(c.Request.Context(), "session_token")

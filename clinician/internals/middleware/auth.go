@@ -3,11 +3,11 @@ package middleware
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/moh/clinician/internals/models"
+	"github.com/moh/clinician/internals/utilities"
 )
 
 func AuthMiddleware(sessionManager *scs.SessionManager) gin.HandlerFunc {
@@ -50,11 +50,16 @@ func RequireRoles(db models.DB, sessionManager *scs.SessionManager, allowedRoles
 			return
 		}
 
-		for _, role := range allowedRoles {
-			if strings.EqualFold(user.Rights, role) {
-				c.Next()
-				return
-			}
+		roleName, err := models.UserRoleNameByID(c.Request.Context(), db, user.ID)
+		if err != nil {
+			c.Redirect(http.StatusFound, "/login")
+			c.Abort()
+			return
+		}
+
+		if utilities.RoleMatches(roleName, allowedRoles...) {
+			c.Next()
+			return
 		}
 
 		c.Redirect(http.StatusFound, "/")

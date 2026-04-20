@@ -70,6 +70,9 @@
                     <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Approved") (eq $status "Valid") }}approved{{ else if or (eq $status "Rejected") (eq $status "Declined") }}declined{{ else if eq $status "Expired" }}expired{{ end }}">
                         {{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else }}{{ $status }}{{ end }}
                     </span>
+                    {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) .ReviewedOn.Valid }}
+                    <span class="d-block text-muted small mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate .ReviewedOn.Time }}</span>
+                    {{ end }}
                 </div>
                 <div class="app-row-actions">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#leave-details-{{ .ID }}" aria-expanded="false" aria-controls="leave-details-{{ .ID }}">View</button>
@@ -118,6 +121,10 @@
                         <div>
                             <strong>Status</strong>
                             <span>{{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else }}{{ $status }}{{ end }}</span>
+                        </div>
+                        <div>
+                            <strong>Reviewed On</strong>
+                            <span>{{ if .ReviewedOn.Valid }}{{ humanDate .ReviewedOn.Time }}{{ else }}Pending review{{ end }}</span>
                         </div>
                         <div>
                             <strong>Reviewed By</strong>

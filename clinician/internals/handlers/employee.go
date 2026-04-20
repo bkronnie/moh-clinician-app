@@ -242,11 +242,21 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 
 	activeTab := normalizeEmployeeTab(c.DefaultQuery("tab", "dashboard"))
 	selectedFacilityInt, _ := parseOptionalIntQuery(c, "facility")
+	if selectedFacilityInt <= 0 {
+		if parsedFacilityID, ok := parseOptionalIntQuery(c, "facilityID"); ok {
+			selectedFacilityInt = parsedFacilityID
+		}
+	}
+	if selectedFacilityInt <= 0 {
+		if parsedFacilityID, ok := parseOptionalIntQuery(c, "facility_id"); ok {
+			selectedFacilityInt = parsedFacilityID
+		}
+	}
 	selectedDepartmentInt, _ := parseOptionalIntQuery(c, "department")
 	selectedFacility := int64(selectedFacilityInt)
 	selectedDepartment := int64(selectedDepartmentInt)
 	searchTerm := strings.TrimSpace(c.Query("search"))
-	showFacilityFilter := strings.EqualFold(sesDetails.Rights, "admin")
+	showFacilityFilter := utilities.RoleMatches(sesDetails.Rights, "National Admin")
 
 	if !showFacilityFilter {
 		selectedFacility = sesDetails.HFID
@@ -379,7 +389,7 @@ func HandlerEmployeeLeaveForm(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 		SubmitLabel: "Submit Leave Request",
 	}
 
-	if sesDetails.Rights == "admin" || sesDetails.Rights == "approver" {
+	if utilities.RoleMatches(sesDetails.Rights, "National Admin") || utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 		formView.ActionURL = "/employee/leave/save"
 	}
 
@@ -419,7 +429,7 @@ func HandlerEmployeeLeaveSave(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 	leaveStatus := sql.NullString{String: "Pending", Valid: true}
 	approvedBy := sql.NullInt64{}
 
-	if sesDetails.Rights == "admin" || sesDetails.Rights == "approver" {
+	if utilities.RoleMatches(sesDetails.Rights, "National Admin") || utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 		employeeIDValue := strings.TrimSpace(c.PostForm("employee_id"))
 		if employeeIDValue == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Employee ID is required"})

@@ -69,7 +69,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_employee_number_unique
 CREATE TABLE IF NOT EXISTS public.employeerights (
     id BIGSERIAL PRIMARY KEY,
     employee BIGINT REFERENCES public.employees(id),
-    rights BIGINT REFERENCES public.rights(id)
+    rights BIGINT NOT NULL REFERENCES public.rights(id)
 );
 
 CREATE TABLE IF NOT EXISTS public.users (
@@ -78,24 +78,85 @@ CREATE TABLE IF NOT EXISTS public.users (
     pssword TEXT NOT NULL,
     employees BIGINT REFERENCES public.employees(id),
     created_by BIGINT,
-    created_on TIMESTAMP,
-    rights TEXT NOT NULL DEFAULT 'user'
+    created_on TIMESTAMP
 );
-
-ALTER TABLE public.users
-    ADD COLUMN IF NOT EXISTS access_scope TEXT NOT NULL DEFAULT 'individual';
 
 DO $$
 BEGIN
-    IF NOT EXISTS (
+    IF EXISTS (
         SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'users_access_scope_check'
-          AND conrelid = 'public.users'::regclass
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'rights'
+          AND data_type IN ('text', 'character varying')
     ) THEN
-        ALTER TABLE public.users
-            ADD CONSTRAINT users_access_scope_check
-            CHECK (access_scope IN ('national', 'facility', 'individual'));
+        INSERT INTO public.employeerights (employee, rights)
+        SELECT u.employees, COALESCE(r.id, s.id)
+        FROM public.users u
+        CROSS JOIN (
+            SELECT id
+            FROM public.rights
+            WHERE rights = 'Staff'
+            LIMIT 1
+        ) s
+        LEFT JOIN public.rights r
+            ON LOWER(TRIM(u.rights)) = LOWER(TRIM(r.rights))
+        WHERE u.employees IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1
+              FROM public.employeerights er
+              WHERE er.employee = u.employees
+          );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'rights'
+          AND data_type IN ('bigint', 'integer', 'smallint')
+    ) THEN
+        INSERT INTO public.employeerights (employee, rights)
+        SELECT u.employees, COALESCE(u.rights, s.id)
+        FROM public.users u
+        CROSS JOIN (
+            SELECT id
+            FROM public.rights
+            WHERE rights = 'Staff'
+            LIMIT 1
+        ) s
+        WHERE u.employees IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1
+              FROM public.employeerights er
+              WHERE er.employee = u.employees
+          );
+
+        ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_rights_fk;
+        ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_rights_fkey;
+        ALTER TABLE public.users DROP COLUMN rights;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'rights_legacy'
+    ) THEN
+        ALTER TABLE public.users DROP COLUMN rights_legacy;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'access_scope'
+    ) THEN
+        ALTER TABLE public.users DROP COLUMN access_scope;
     END IF;
 END
 $$;
@@ -334,6 +395,9 @@ CREATE INDEX IF NOT EXISTS idx_staffleave_employee_id ON public.staffleave(emplo
 CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON public.staffleave(employee_id, leave_status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON public.staffleave(leave_status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start ON public.weeklyreport(employee, start);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_weeklyreport_employee_start_stop
+ON public.weeklyreport(employee, start, stop)
+WHERE employee IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_dept_start ON public.weeklyreport(hospital, department, start);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON public.weeklyreport(hospital, start, submit_status, report_status);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON public.weeklyreport(employee, start, submit_status, report_status);
@@ -363,9 +427,9 @@ INSERT INTO public.leavetypes (leave_type_id, leave_type_name, description) VALU
 ON CONFLICT (leave_type_id) DO NOTHING;
 
 INSERT INTO public.rights (rights) VALUES
-    ('admin'),
-    ('user'),
-    ('approver')
+    ('National Admin'),
+    ('Staff'),
+    ('Facility Admin')
 ON CONFLICT (rights) DO NOTHING;
 
 INSERT INTO public.departments (id, d_name) VALUES

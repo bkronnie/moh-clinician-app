@@ -21,7 +21,7 @@ Staff Management
                 <a class="nav-link {{ if eq .Form.ActiveTab "dashboard" }}active{{ end }}" href="/employee/list?tab=dashboard{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Dashboard</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {{ if eq .Form.ActiveTab "list" }}active{{ end }}" href="/employee/list?tab=list{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Employee List</a>
+                <a class="nav-link {{ if eq .Form.ActiveTab "list" }}active{{ end }}" href="/employee/list?tab=list{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Staff List</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link {{ if eq .Form.ActiveTab "on_duty" }}active{{ end }}" href="/employee/list?tab=on_duty{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">On Duty</a>
@@ -137,6 +137,7 @@ Staff Management
         <div>Staff</div>
         <div>Title</div>
         <div>Department</div>
+        <div>Facility</div>
         <div>Status</div>
         <div>Actions</div>
     </div>
@@ -149,6 +150,7 @@ Staff Management
             </div>
             <div class="app-list-cell">{{ $employee.EmpTitle.String }}</div>
             <div class="app-list-cell">{{ $employee.EmpDepartmentName.String }}</div>
+            <div class="app-list-cell">{{ $employee.EmpFacilityName.String }}</div>
             <div class="app-list-cell">
                 <span class="status-chip">{{ if $employee.LeaveStatus.Valid }}On Leave{{ else }}On Duty{{ end }}</span>
                 {{ if $employee.ReturnDate.Valid }}<div>Return {{ $employee.ReturnDate.Time.Format "2006-01-02" }}</div>{{ end }}
@@ -169,4 +171,26 @@ Staff Management
 {{ end }}
 
 {{ define "extraJS" }}
+<script>
+(function () {
+    var form = document.querySelector('.filter-form');
+    if (!form) {
+        return;
+    }
+
+    var facilitySelect = document.getElementById('facility');
+    var departmentSelect = document.getElementById('department');
+
+    if (facilitySelect) {
+        facilitySelect.addEventListener('change', function () {
+            // Department options are global in this view, so clear stale selections
+            // when the facility changes before submitting a fresh filter.
+            if (departmentSelect) {
+                departmentSelect.value = '';
+            }
+            form.requestSubmit();
+        });
+    }
+})();
+</script>
 {{ end }}

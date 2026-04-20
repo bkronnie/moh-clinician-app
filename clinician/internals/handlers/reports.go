@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,6 +28,24 @@ type WeekDayCheck struct {
 	Checked bool
 }
 
+type ClinicianEntryWeekOption struct {
+	StartDate string
+	Label     string
+	URL       string
+	Selected  bool
+}
+
+type ClinicianEntryField struct {
+	Key      string
+	Label    string
+	ReadOnly bool
+}
+
+type ClinicianEntrySection struct {
+	Title  string
+	Fields []ClinicianEntryField
+}
+
 type ClinicianEntryView struct {
 	EmployeeID     int64
 	EmployeeName   string
@@ -34,6 +53,7 @@ type ClinicianEntryView struct {
 	DepartmentName string
 	FacilityName   string
 	Labels         map[string]string
+	Sections       []ClinicianEntrySection
 	PageTitle      string
 	StartDate      string
 	StopDate       string
@@ -46,7 +66,10 @@ type ClinicianEntryView struct {
 	StatusLabel    string
 	ReturnURL      string
 	WeekDays       []WeekDayCheck
+	WeekOptions    []ClinicianEntryWeekOption
+	SelectedWeek   string
 	OnLeave        bool
+	AttendanceOnly bool
 }
 
 type ClinicianReportHistoryView struct {
@@ -98,6 +121,45 @@ type BulkEntryRow struct {
 	EntryURL       string
 }
 
+func canAccessReportSubmissions(role string) bool {
+	normalized := roleFromRights(role)
+	return normalized == utilities.RoleNationalAdmin || normalized == utilities.RoleFacilityAdmin
+}
+
+func resolveReportSubmissionsRoute(path string, isNational bool) (flag int, isDepartment bool, ok bool) {
+	switch path {
+	case "/reports/submissions":
+		if isNational {
+			return 1, false, true
+		}
+		return 2, true, true
+	case "/reports/submissions/departments":
+		return 2, true, true
+	default:
+		return 0, false, false
+	}
+}
+
+func resolveSubmissionsScopeFacilityID(isNational bool, currentHospitalID int64, facilityIDParam string) (int64, error) {
+	if !isNational {
+		if currentHospitalID <= 0 {
+			return 0, errors.New("facility assignment is required for facility submissions")
+		}
+		return currentHospitalID, nil
+	}
+
+	if strings.TrimSpace(facilityIDParam) == "" {
+		return 0, errors.New("facility is required for national department submissions")
+	}
+
+	facilityID, err := strconv.Atoi(facilityIDParam)
+	if err != nil || facilityID <= 0 {
+		return 0, errors.New("Invalid facilityID")
+	}
+
+	return int64(facilityID), nil
+}
+
 type BulkEntryView struct {
 	ScopeTitle         string
 	ScopeSubtitle      string
@@ -129,19 +191,21 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	entryTitle := "My Weekly Data Entry"
 
 	requestedEmployeeID := 0
+	approverSelfEntry := utilities.RoleMatches(sesDetails.Rights, "Facility Admin")
 	if rawEmployeeID := strings.TrimSpace(c.Query("employee")); rawEmployeeID != "" {
 		parsedEmployeeID, err := strconv.Atoi(rawEmployeeID)
 		if err != nil || parsedEmployeeID <= 0 {
 			c.String(http.StatusBadRequest, "Invalid employee selection")
 			return
 		}
-		if !strings.EqualFold(sesDetails.Rights, "approver") {
+		if !utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 			c.String(http.StatusForbidden, "Only facility admins can open staff bulk entry forms.")
 			return
 		}
 		requestedEmployeeID = parsedEmployeeID
 		empID = int64(parsedEmployeeID)
 		entryTitle = "Bulk Staff Data Entry"
+		approverSelfEntry = false
 	}
 
 	log.Printf("UserID: %+d", empID)
@@ -163,10 +227,6 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	returnURL := sanitizeHistoryReturnURL(c.Query("return_to"))
 
 	if reportID > 0 {
-		if requestedEmployeeID > 0 {
-			c.String(http.StatusForbidden, "Editing an existing report through bulk entry is not supported.")
-			return
-		}
 		report, err := models.ClinicianEditableReportByID(c.Request.Context(), db, reportID, sesDetails.EmpID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -197,6 +257,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		if report.WeekStart.Valid && report.WeekStop.Valid {
 			weekDays = buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String)
 		}
+		sectionKeys := resolveClinicianEntryKeys(c.Request.Context(), db, report.DepartmentID)
 		entryForm := ClinicianEntryView{
 			EmployeeID:     empID,
 			EmployeeName:   employeeName,
@@ -204,6 +265,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			DepartmentName: reportDepartment.DepartmentName.String,
 			FacilityName:   facilityName,
 			Labels:         labels,
+			Sections:       buildClinicianEntrySections(c.Request.Context(), db, report.DepartmentID, labels),
 			PageTitle:      entryTitle,
 			StartDate:      formatNullDate(report.WeekStart),
 			StopDate:       formatNullDate(report.WeekStop),
@@ -216,11 +278,12 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			ReturnURL:      returnURL,
 			WeekDays:       weekDays,
 			OnLeave:        onLeave,
+			AttendanceOnly: false,
 		}
 
 		if report.WeekStart.Valid && report.WeekStop.Valid {
-			if !isPreviousReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
-				c.String(http.StatusForbidden, "You can only enter or update reports for the previous calendar week.")
+			if !isCompletedReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
+				c.String(http.StatusForbidden, "You can only enter or update reports for completed reporting weeks.")
 				return
 			}
 			onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, report.WeekStart.Time, report.WeekStop.Time)
@@ -229,17 +292,29 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 				return
 			}
 			entryForm.OnLeave = onLeave
-			if onLeave && !strings.EqualFold(sesDetails.Rights, "approver") {
+			if onLeave && !utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 				c.String(http.StatusForbidden, "Data entry is blocked because this staff member is on leave for the selected week.")
 				return
 			}
 		}
+
+		applyDynamicReportValues(c.Request.Context(), db, report.ReportID, sectionKeys, entryForm.Values)
 
 		sessionData.Form = entryForm
 
 		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
 		return
 	}
+
+	pendingWeeks, err := models.GetClinicianPendingEntryWeeks(c.Request.Context(), db, int(empID))
+	if err != nil {
+		log.Printf("Error loading pending entry weeks for employee %d: %v", empID, err)
+		c.String(http.StatusInternalServerError, "Unable to load reporting weeks")
+		return
+	}
+
+	selectedWeekStart, selectedWeekEnd, selectedWeekLabel := resolveClinicianEntryWeekSelection(c.Query("start"), pendingWeeks, time.Now())
+	weekOptions := buildClinicianEntryWeekOptions(reportID, requestedEmployeeID, returnURL, pendingWeeks, selectedWeekStart)
 
 	departmentID := employee.EmpDepartment
 	department, err := models.DepartmentByID(c, db, int(departmentID))
@@ -256,17 +331,95 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		}
 	}
 
-	weekStart, weekEnd := previousReportingWeekRange(time.Now())
-	onLeave, err := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, weekStart, weekEnd)
+	onLeave, err := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, selectedWeekStart, selectedWeekEnd)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Unable to verify leave status")
 		return
 	}
-	if onLeave && !strings.EqualFold(sesDetails.Rights, "approver") {
+	if onLeave && !utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 		c.String(http.StatusForbidden, "Data entry is blocked because this staff member is on leave for the selected week.")
 		return
 	}
-	weekDays := buildWeekDayChecks(weekStart, weekEnd, "")
+	weekDays := buildWeekDayChecks(selectedWeekStart, selectedWeekEnd, "")
+	existingReport, existingErr := models.LatestClinicianReportByPeriod(c.Request.Context(), db, empID, selectedWeekStart, selectedWeekEnd)
+	if existingErr != nil && existingErr != sql.ErrNoRows {
+		log.Printf("Error loading existing weekly report for employee %d: %v", empID, existingErr)
+		c.String(http.StatusInternalServerError, "Error loading report")
+		return
+	}
+	if existingReport != nil {
+		reportDepartmentName := department.DepartmentName.String
+		if existingReport.DepartmentID > 0 && existingReport.DepartmentID != departmentID {
+			reportDepartment, deptErr := models.DepartmentByID(c, db, int(existingReport.DepartmentID))
+			if deptErr == nil {
+				reportDepartmentName = reportDepartment.DepartmentName.String
+			}
+		}
+
+		values := clinicianEntryValuesFromReport(existingReport)
+		if approverSelfEntry {
+			for key := range values {
+				if key != "attendance" {
+					values[key] = "0"
+				}
+			}
+		}
+
+		sections := buildClinicianEntrySections(c.Request.Context(), db, existingReport.DepartmentID, labels)
+		if approverSelfEntry {
+			sections = nil
+		}
+
+		entryForm := ClinicianEntryView{
+			EmployeeID:     empID,
+			EmployeeName:   employeeName,
+			DepartmentID:   existingReport.DepartmentID,
+			DepartmentName: reportDepartmentName,
+			FacilityName:   facilityName,
+			Labels:         labels,
+			Sections:       sections,
+			PageTitle:      entryTitle,
+			StartDate:      formatNullDate(existingReport.WeekStart),
+			StopDate:       formatNullDate(existingReport.WeekStop),
+			ReportID:       existingReport.ReportID,
+			ActionURL:      "/reports/zave",
+			SubmitLabel:    "Update Weekly Entry",
+			Values:         values,
+			IsEdit:         true,
+			ReadOnly:       !existingReport.Actionable,
+			StatusLabel:    clinicianEntryStatusLabel(existingReport.HistoryStatus),
+			ReturnURL:      returnURL,
+			WeekDays:       buildWeekDayChecks(selectedWeekStart, selectedWeekEnd, existingReport.DaysWorked.String),
+			WeekOptions:    weekOptions,
+			SelectedWeek:   selectedWeekLabel,
+			OnLeave:        onLeave,
+			AttendanceOnly: approverSelfEntry,
+		}
+
+		if existingReport.Actionable {
+			entryForm.SubmitLabel = "Update Existing Entry"
+		} else {
+			entryForm.SubmitLabel = "Already Submitted"
+		}
+
+		sectionKeys := resolveClinicianEntryKeys(c.Request.Context(), db, existingReport.DepartmentID)
+		applyDynamicReportValues(c.Request.Context(), db, existingReport.ReportID, sectionKeys, entryForm.Values)
+
+		sessionData.Form = entryForm
+		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
+		return
+	}
+
+	defaultValues := defaultClinicianEntryValues()
+	sections := buildClinicianEntrySections(c.Request.Context(), db, departmentID, labels)
+	if approverSelfEntry {
+		for key := range defaultValues {
+			if key != "attendance" {
+				defaultValues[key] = "0"
+			}
+		}
+		sections = nil
+	}
 
 	sessionData.Form = ClinicianEntryView{
 		EmployeeID:     empID,
@@ -275,15 +428,19 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		DepartmentName: department.DepartmentName.String,
 		FacilityName:   facilityName,
 		Labels:         labels,
+		Sections:       sections,
 		PageTitle:      entryTitle,
-		StartDate:      weekStart.Format("2006-01-02"),
-		StopDate:       weekEnd.Format("2006-01-02"),
+		StartDate:      selectedWeekStart.Format("2006-01-02"),
+		StopDate:       selectedWeekEnd.Format("2006-01-02"),
 		ActionURL:      "/reports/zave",
 		SubmitLabel:    "Save Weekly Entry",
-		Values:         defaultClinicianEntryValues(),
+		Values:         defaultValues,
 		ReturnURL:      returnURL,
 		WeekDays:       weekDays,
+		WeekOptions:    weekOptions,
+		SelectedWeek:   selectedWeekLabel,
 		OnLeave:        onLeave,
+		AttendanceOnly: approverSelfEntry,
 	}
 
 	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
@@ -332,23 +489,25 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 		c.String(http.StatusBadRequest, "Invalid report end date")
 		return
 	}
-	if !isPreviousReportingWeekRange(periodStart, periodStop, time.Now()) {
-		c.String(http.StatusForbidden, "Only the previous calendar week can be entered this week.")
+	if !isCompletedReportingWeekRange(periodStart, periodStop, time.Now()) {
+		c.String(http.StatusForbidden, "Only completed reporting weeks can be entered.")
 		return
 	}
 
 	// Retrieve individual form fields into a slice of WeeklyReportExtended
 	var reports []models.WeeklyReportExtended
+	allValuesByEmployee := map[int64]map[string]sql.NullInt64{}
 
 	// Assume you have a list of employee IDs to loop through
 	for empID := range c.PostFormMap("input") {
 		targetEmployeeID := empIDToInt(empID)
-		if strings.EqualFold(sesDetails.Rights, "approver") {
-			employee, err := models.EmployeeByID(c.Request.Context(), db, int(targetEmployeeID))
-			if err != nil {
-				c.String(http.StatusBadRequest, "Invalid employee selected for bulk entry")
-				return
-			}
+		employee, err := models.EmployeeByID(c.Request.Context(), db, int(targetEmployeeID))
+		if err != nil {
+			c.String(http.StatusBadRequest, "Invalid employee selected for bulk entry")
+			return
+		}
+
+		if utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 			if employee.EmpFacility != sesDetails.HFID {
 				c.String(http.StatusForbidden, "You can only enter data for staff within your facility.")
 				return
@@ -359,7 +518,15 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 		}
 
 		daysWorkedCSV, attendanceDays := collectDaysWorked(c, targetEmployeeID, periodStart, periodStop)
-		values := collectClinicianEntryValues(c, targetEmployeeID, attendanceDays)
+		entryKeys := resolveClinicianEntryKeys(c.Request.Context(), db, employee.EmpDepartment)
+		values := collectClinicianEntryValues(c, targetEmployeeID, attendanceDays, entryKeys)
+		if utilities.RoleMatches(sesDetails.Rights, "Facility Admin") && targetEmployeeID == sesDetails.EmpID {
+			for key := range values {
+				if key != "attendance" {
+					values[key] = sql.NullInt64{}
+				}
+			}
+		}
 
 		onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, targetEmployeeID, periodStart, periodStop)
 		if leaveErr != nil {
@@ -367,58 +534,59 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 			return
 		}
 		if onLeave {
-			if strings.EqualFold(sesDetails.Rights, "approver") {
-				values = zeroClinicianEntryValues()
+			if utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
+				values = nullableClinicianEntryValues()
 				daysWorkedCSV = ""
 			} else {
 				c.String(http.StatusForbidden, "Staff on leave cannot enter reports during leave period.")
 				return
 			}
 		}
+		allValuesByEmployee[targetEmployeeID] = values
 
 		// Create a new WeeklyReportExtended instance for each employee
 		report := models.WeeklyReportExtended{
 			Start: sql.NullTime{Time: periodStart, Valid: true},
 			Stop:  sql.NullTime{Time: periodStop, Valid: true},
 			Emp:   sql.NullInt64{Int64: targetEmployeeID, Valid: true},
-			Qn01:  sql.NullInt64{Int64: values["attendance"], Valid: true},
-			Qn02:  sql.NullInt64{Int64: values["ward_rounds"], Valid: true},
-			Qn03:  sql.NullInt64{Int64: values["patients_reviewed"], Valid: true},
-			Qn04:  sql.NullInt64{Int64: values["theatre_days"], Valid: true},
-			Qn05:  sql.NullInt64{Int64: values["elective"], Valid: true},
-			Qn06:  sql.NullInt64{Int64: values["emergency"], Valid: true},
-			Qn07:  sql.NullInt64{Int64: values["postmortems"], Valid: true},
-			Qn08:  sql.NullInt64{Int64: values["OPD_clinics"], Valid: true},
-			Qn09:  sql.NullInt64{Int64: values["OPD_patients"], Valid: true},
-			Qn10:  sql.NullInt64{Int64: values["anc_patients"], Valid: true},
-			Qn11:  sql.NullInt64{Int64: values["teaching_rounds"], Valid: true},
-			Qn12:  sql.NullInt64{Int64: values["students_taught"], Valid: true},
-			Qn13:  sql.NullInt64{Int64: values["mortality_reviews"], Valid: true},
-			Qn14:  sql.NullInt64{Int64: values["maternal"], Valid: true},
-			Qn15:  sql.NullInt64{Int64: values["perinatal"], Valid: true},
-			Qn16:  sql.NullInt64{Int64: values["surgical"], Valid: true},
-			Qn17:  sql.NullInt64{Int64: values["medical"], Valid: true},
-			Qn18:  sql.NullInt64{Int64: values["paed"], Valid: true},
-			Qn19:  sql.NullInt64{Int64: values["labs_requests"], Valid: true},
-			Qn20:  sql.NullInt64{Int64: values["imaging_requests"], Valid: true},
-			Qn21:  sql.NullInt64{Int64: values["lab_investigations"], Valid: true},
-			Qn22:  sql.NullInt64{Int64: values["BS"], Valid: true},
-			Qn23:  sql.NullInt64{Int64: values["HIV"], Valid: true},
-			Qn24:  sql.NullInt64{Int64: values["malaria"], Valid: true},
-			Qn25:  sql.NullInt64{Int64: values["TB"], Valid: true},
-			Qn26:  sql.NullInt64{Int64: values["CBC"], Valid: true},
-			Qn27:  sql.NullInt64{Int64: values["chemistry"], Valid: true},
-			Qn28:  sql.NullInt64{Int64: values["hematology"], Valid: true},
-			Qn29:  sql.NullInt64{Int64: values["urinalysis"], Valid: true},
-			Qn30:  sql.NullInt64{Int64: values["gram_stain"], Valid: true},
-			Qn31:  sql.NullInt64{Int64: values["culture"], Valid: true},
-			Qn32:  sql.NullInt64{Int64: values["microbiology"], Valid: true},
-			Qn33:  sql.NullInt64{Int64: values["sensitivity_tests"], Valid: true},
-			Qn34:  sql.NullInt64{Int64: values["diagnostics"], Valid: true},
-			Qn35:  sql.NullInt64{Int64: values["xrays"], Valid: true},
-			Qn36:  sql.NullInt64{Int64: values["ct_scans"], Valid: true},
-			Qn37:  sql.NullInt64{Int64: values["obstetrics_scans"], Valid: true},
-			Qn38:  sql.NullInt64{Int64: values["abdominal_scans"], Valid: true},
+			Qn01:  values["attendance"],
+			Qn02:  values["ward_rounds"],
+			Qn03:  values["patients_reviewed"],
+			Qn04:  values["theatre_days"],
+			Qn05:  values["elective"],
+			Qn06:  values["emergency"],
+			Qn07:  values["postmortems"],
+			Qn08:  values["OPD_clinics"],
+			Qn09:  values["OPD_patients"],
+			Qn10:  values["anc_patients"],
+			Qn11:  values["teaching_rounds"],
+			Qn12:  values["students_taught"],
+			Qn13:  values["mortality_reviews"],
+			Qn14:  values["maternal"],
+			Qn15:  values["perinatal"],
+			Qn16:  values["surgical"],
+			Qn17:  values["medical"],
+			Qn18:  values["paed"],
+			Qn19:  values["labs_requests"],
+			Qn20:  values["imaging_requests"],
+			Qn21:  values["lab_investigations"],
+			Qn22:  values["BS"],
+			Qn23:  values["HIV"],
+			Qn24:  values["malaria"],
+			Qn25:  values["TB"],
+			Qn26:  values["CBC"],
+			Qn27:  values["chemistry"],
+			Qn28:  values["hematology"],
+			Qn29:  values["urinalysis"],
+			Qn30:  values["gram_stain"],
+			Qn31:  values["culture"],
+			Qn32:  values["microbiology"],
+			Qn33:  values["sensitivity_tests"],
+			Qn34:  values["diagnostics"],
+			Qn35:  values["xrays"],
+			Qn36:  values["ct_scans"],
+			Qn37:  values["obstetrics_scans"],
+			Qn38:  values["abdominal_scans"],
 			//Qn39:           sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ct]")), Valid: true},
 			EnteredByID:    sql.NullInt64{Int64: enteredByID, Valid: true},
 			EntryCreatedOn: sql.NullTime{Time: time.Now(), Valid: true}, // Set created on time
@@ -428,11 +596,35 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 		reports = append(reports, report)
 	}
 
-	// Insert each report into the database
+	// Insert each report into the database, or update the existing record for the same staff/week.
 	for _, report := range reports {
-		if err := report.InsertNewRecord(c.Request.Context(), db); err != nil {
-			// Handle error (you might want to log it and return a proper response)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save report"})
+		existingReport, existingErr := models.LatestClinicianReportByPeriod(c.Request.Context(), db, report.Emp.Int64, periodStart, periodStop)
+		if existingErr != nil && existingErr != sql.ErrNoRows {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify existing report"})
+			return
+		}
+
+		if existingReport != nil {
+			if !existingReport.Actionable {
+				c.JSON(http.StatusConflict, gin.H{"error": "A submitted or approved report already exists for this week."})
+				return
+			}
+			report.ID = existingReport.ReportID
+			report.LastUpdateOn = sql.NullTime{Time: time.Now(), Valid: true}
+			if err := report.Updatez(c.Request.Context(), db); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update existing report"})
+				return
+			}
+		} else {
+			if err := report.InsertNewRecord(c.Request.Context(), db); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save report"})
+				return
+			}
+		}
+
+		values := allValuesByEmployee[report.Emp.Int64]
+		if err := models.UpdateWeeklyReportValuesByElementKeys(c.Request.Context(), db, report.ID, report.Emp.Int64, values); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to apply report data elements"})
 			return
 		}
 	}
@@ -558,6 +750,14 @@ func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *sc
 	}
 
 	daysWorkedCSV, attendanceDays := collectDaysWorked(c, sesDetails.EmpID, start, stop)
+	employee, err := models.EmployeeByID(c.Request.Context(), db, int(sesDetails.EmpID))
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Unable to load employee details")
+		return
+	}
+
+	entryKeys := resolveClinicianEntryKeys(c.Request.Context(), db, employee.EmpDepartment)
+	values := collectClinicianEntryValues(c, sesDetails.EmpID, attendanceDays, entryKeys)
 
 	updated, err := models.UpdateClinicianReport(
 		c.Request.Context(),
@@ -566,7 +766,7 @@ func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *sc
 		sesDetails.EmpID,
 		start,
 		stop,
-		collectClinicianEntryValues(c, sesDetails.EmpID, attendanceDays),
+		values,
 		daysWorkedCSV,
 	)
 	if err != nil {
@@ -576,6 +776,11 @@ func HandlerClinicianReportUpdate(c *gin.Context, db *sql.DB, sessionManager *sc
 	}
 	if !updated {
 		c.String(http.StatusForbidden, "This report can no longer be edited.")
+		return
+	}
+
+	if err := models.UpdateWeeklyReportValuesByElementKeys(c.Request.Context(), db, reportID, sesDetails.EmpID, values); err != nil {
+		c.String(http.StatusInternalServerError, "Unable to persist dynamic data elements")
 		return
 	}
 
@@ -648,8 +853,8 @@ func HandlerClinicianReportSubmit(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 	if report.WeekStart.Valid && report.WeekStop.Valid {
-		if !isPreviousReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
-			c.String(http.StatusForbidden, "You can only submit reports for the previous calendar week.")
+		if !isCompletedReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
+			c.String(http.StatusForbidden, "You can only submit reports for completed reporting weeks.")
 			return
 		}
 		onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, sesDetails.EmpID, report.WeekStart.Time, report.WeekStop.Time)
@@ -799,6 +1004,161 @@ func defaultClinicianEntryValues() map[string]string {
 		"ct_scans":           "0",
 		"obstetrics_scans":   "0",
 		"abdominal_scans":    "0",
+	}
+}
+
+func clinicianEntryCoreKeys() []string {
+	return []string{
+		"attendance",
+		"ward_rounds",
+		"patients_reviewed",
+		"OPD_clinics",
+		"OPD_patients",
+		"teaching_rounds",
+		"students_taught",
+		"mortality_reviews",
+		"labs_requests",
+		"imaging_requests",
+	}
+}
+
+func fallbackDepartmentDataPointKeys(departmentID int64) []string {
+	switch departmentID {
+	case 1:
+		return []string{"theatre_days", "elective", "emergency", "postmortems", "xrays", "ct_scans"}
+	case 2:
+		return []string{"medical", "CBC", "chemistry", "hematology", "urinalysis"}
+	case 3:
+		return []string{"paed", "malaria", "TB", "CBC"}
+	case 4:
+		return []string{"theatre_days", "elective", "emergency", "anc_patients", "maternal", "perinatal", "obstetrics_scans", "abdominal_scans"}
+	default:
+		return []string{}
+	}
+}
+
+func departmentMetricsTitle(departmentID int64, defaultName string) string {
+	switch departmentID {
+	case 1:
+		return "Surgery Metrics"
+	case 2:
+		return "Internal Medicine Metrics"
+	case 3:
+		return "Paediatrics Metrics"
+	case 4:
+		return "Obstetrics and Gynaecology Metrics"
+	default:
+		if strings.TrimSpace(defaultName) == "" {
+			return "Department Metrics"
+		}
+		return strings.TrimSpace(defaultName) + " Metrics"
+	}
+}
+
+func buildClinicianEntrySections(ctx context.Context, db *sql.DB, departmentID int64, labels map[string]string) []ClinicianEntrySection {
+	deptKeys, err := models.GetDepartmentRoleDataPoints(ctx, db, departmentID)
+	if err != nil || len(deptKeys) == 0 {
+		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
+	}
+
+	core := map[string]struct{}{}
+	for _, key := range clinicianEntryCoreKeys() {
+		core[key] = struct{}{}
+	}
+	core["attendance"] = struct{}{}
+
+	fields := make([]ClinicianEntryField, 0)
+	seen := map[string]struct{}{}
+	for _, key := range deptKeys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if _, isCore := core[key]; isCore {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		label := strings.TrimSpace(labels[key])
+		if label == "" {
+			label = strings.ReplaceAll(strings.Title(strings.ReplaceAll(strings.ToLower(key), "_", " ")), " Opd", " OPD")
+		}
+		fields = append(fields, ClinicianEntryField{Key: key, Label: label})
+	}
+
+	if len(fields) == 0 {
+		return []ClinicianEntrySection{}
+	}
+
+	return []ClinicianEntrySection{{
+		Title:  departmentMetricsTitle(departmentID, ""),
+		Fields: fields,
+	}}
+}
+
+func resolveClinicianEntryKeys(ctx context.Context, db *sql.DB, departmentID int64) []string {
+	keys := make([]string, 0)
+	seen := map[string]struct{}{}
+
+	for _, key := range clinicianEntryCoreKeys() {
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+
+	deptKeys, err := models.GetDepartmentRoleDataPoints(ctx, db, departmentID)
+	if err != nil || len(deptKeys) == 0 {
+		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
+	}
+	for _, key := range deptKeys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+
+	if _, ok := seen["attendance"]; !ok {
+		keys = append(keys, "attendance")
+	}
+
+	return keys
+}
+
+func applyDynamicReportValues(ctx context.Context, db *sql.DB, reportID int, extraKeys []string, values map[string]string) {
+	if reportID <= 0 {
+		return
+	}
+	keys := make([]string, 0, len(values)+len(extraKeys))
+	seen := map[string]struct{}{}
+	for key := range values {
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	for _, key := range extraKeys {
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+		if _, exists := values[key]; !exists {
+			values[key] = "0"
+		}
+	}
+	dynamicValues, err := models.GetWeeklyReportValuesByElementKeys(ctx, db, reportID, keys)
+	if err != nil {
+		return
+	}
+	for key, value := range dynamicValues {
+		values[key] = strconv.FormatInt(value, 10)
 	}
 }
 
@@ -973,59 +1333,44 @@ func collectDaysWorked(c *gin.Context, employeeID int64, weekStart, weekStop tim
 	return strings.Join(selected, ","), int64(len(selected))
 }
 
-func zeroClinicianEntryValues() map[string]int64 {
-	zero := map[string]int64{}
+func nullableClinicianEntryValues() map[string]sql.NullInt64 {
+	zero := map[string]sql.NullInt64{}
 	for key := range defaultClinicianEntryValues() {
-		zero[key] = 0
+		zero[key] = sql.NullInt64{}
 	}
 	return zero
 }
 
-func collectClinicianEntryValues(c *gin.Context, employeeID int64, attendance int64) map[string]int64 {
-	field := func(name string) int64 {
-		return parseInt(c.PostForm(fmt.Sprintf("input[%d][%s]", employeeID, name)))
+func collectClinicianEntryValues(c *gin.Context, employeeID int64, attendance int64, allowedKeys []string) map[string]sql.NullInt64 {
+	field := func(name string) sql.NullInt64 {
+		raw := strings.TrimSpace(c.PostForm(fmt.Sprintf("input[%d][%s]", employeeID, name)))
+		if raw == "" {
+			return sql.NullInt64{}
+		}
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return sql.NullInt64{}
+		}
+		return sql.NullInt64{Int64: parsed, Valid: true}
 	}
 
-	return map[string]int64{
-		"attendance":         attendance,
-		"ward_rounds":        field("ward_rounds"),
-		"patients_reviewed":  field("patients_reviewed"),
-		"theatre_days":       field("theatre_days"),
-		"elective":           field("elective"),
-		"emergency":          field("emergency"),
-		"postmortems":        field("postmortems"),
-		"OPD_clinics":        field("OPD_clinics"),
-		"OPD_patients":       field("OPD_patients"),
-		"anc_patients":       field("anc_patients"),
-		"teaching_rounds":    field("teaching_rounds"),
-		"students_taught":    field("students_taught"),
-		"mortality_reviews":  field("mortality_reviews"),
-		"maternal":           field("maternal"),
-		"perinatal":          field("perinatal"),
-		"surgical":           field("surgical"),
-		"medical":            field("medical"),
-		"paed":               field("paed"),
-		"labs_requests":      field("labs_requests"),
-		"imaging_requests":   field("imaging_requests"),
-		"lab_investigations": field("lab_investigations"),
-		"BS":                 field("BS"),
-		"HIV":                field("HIV"),
-		"malaria":            field("malaria"),
-		"TB":                 field("TB"),
-		"CBC":                field("CBC"),
-		"chemistry":          field("chemistry"),
-		"hematology":         field("hematology"),
-		"urinalysis":         field("urinalysis"),
-		"gram_stain":         field("gram_stain"),
-		"culture":            field("culture"),
-		"microbiology":       field("microbiology"),
-		"sensitivity_tests":  field("sensitivity_tests"),
-		"diagnostics":        field("diagnostics"),
-		"xrays":              field("xrays"),
-		"ct_scans":           field("ct_scans"),
-		"obstetrics_scans":   field("obstetrics_scans"),
-		"abdominal_scans":    field("abdominal_scans"),
+	values := nullableClinicianEntryValues()
+	attendanceValue := attendance
+	if attendanceValue == 0 {
+		rawAttendance := field("attendance")
+		if rawAttendance.Valid {
+			attendanceValue = rawAttendance.Int64
+		}
 	}
+	for _, key := range allowedKeys {
+		key = strings.TrimSpace(key)
+		if key == "" || key == "attendance" {
+			continue
+		}
+		values[key] = field(key)
+	}
+	values["attendance"] = sql.NullInt64{Int64: attendanceValue, Valid: true}
+	return values
 }
 
 func buildReportHistoryPeriodQuery(year, month, week int) string {
@@ -1273,12 +1618,158 @@ func isPreviousReportingWeekRange(start, stop, now time.Time) bool {
 	return sameCalendarDate(start, expectedStart) && sameCalendarDate(stop, expectedStop)
 }
 
+func isCompletedReportingWeekRange(start, stop, now time.Time) bool {
+	startDate := normalizeDateOnly(start)
+	stopDate := normalizeDateOnly(stop)
+	if !sameCalendarDate(stopDate, startDate.AddDate(0, 0, 6)) {
+		return false
+	}
+	if startDate.Weekday() != time.Monday {
+		return false
+	}
+	thisWeekStart := beginningOfWeek(now)
+	return startDate.Before(thisWeekStart)
+}
+
+func resolveClinicianEntryWeekSelection(requestedStart string, pendingWeeks []models.ClinicianWeekOption, now time.Time) (time.Time, time.Time, string) {
+	defaultStart, defaultStop := previousReportingWeekRange(now)
+	defaultLabel := fmt.Sprintf("Week %02d (%s - %s)", func() int {
+		_, wk := defaultStart.ISOWeek()
+		return wk
+	}(), defaultStart.Format("02 Jan 2006"), defaultStop.Format("02 Jan 2006"))
+
+	if len(pendingWeeks) == 0 {
+		return defaultStart, defaultStop, defaultLabel
+	}
+
+	selected := pendingWeeks[0]
+	requestedStart = strings.TrimSpace(requestedStart)
+	if requestedStart != "" {
+		for _, option := range pendingWeeks {
+			if option.StartDate == requestedStart {
+				selected = option
+				break
+			}
+		}
+	}
+
+	start, err := parseISODate(selected.StartDate)
+	if err != nil {
+		return defaultStart, defaultStop, defaultLabel
+	}
+	stop := start.AddDate(0, 0, 6)
+	label := strings.TrimSpace(selected.Label)
+	if label == "" {
+		_, weekVal := start.ISOWeek()
+		label = fmt.Sprintf("Week %02d (%s - %s)", weekVal, start.Format("02 Jan 2006"), stop.Format("02 Jan 2006"))
+	}
+
+	return start, stop, label
+}
+
+func buildClinicianEntryWeekOptions(reportID int, employeeID int, returnURL string, pendingWeeks []models.ClinicianWeekOption, selectedStart time.Time) []ClinicianEntryWeekOption {
+	if reportID > 0 {
+		return nil
+	}
+	options := make([]ClinicianEntryWeekOption, 0, len(pendingWeeks))
+	selectedDate := selectedStart.Format("2006-01-02")
+	for _, option := range pendingWeeks {
+		params := url.Values{}
+		if employeeID > 0 {
+			params.Set("employee", strconv.Itoa(employeeID))
+		}
+		if strings.TrimSpace(returnURL) != "" {
+			params.Set("return_to", returnURL)
+		}
+		params.Set("start", option.StartDate)
+		options = append(options, ClinicianEntryWeekOption{
+			StartDate: option.StartDate,
+			Label:     option.Label,
+			URL:       "/reports/new/0?" + params.Encode(),
+			Selected:  option.StartDate == selectedDate,
+		})
+	}
+	return options
+}
+
 func parseISODate(value string) (time.Time, error) {
 	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(value))
 	if err != nil {
 		return time.Time{}, err
 	}
 	return time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.Local), nil
+}
+
+func buildBulkEntryWeekOptions(now time.Time, maxWeeks int) []models.ClinicianWeekOption {
+	if maxWeeks <= 0 {
+		maxWeeks = 12
+	}
+	start, _ := previousReportingWeekRange(now)
+	options := make([]models.ClinicianWeekOption, 0, maxWeeks)
+	for i := 0; i < maxWeeks; i++ {
+		weekStart := start.AddDate(0, 0, -(7 * i))
+		weekStop := weekStart.AddDate(0, 0, 6)
+		yearVal, weekVal := weekStart.ISOWeek()
+		options = append(options, models.ClinicianWeekOption{
+			Year:      yearVal,
+			Week:      weekVal,
+			StartDate: weekStart.Format("2006-01-02"),
+			EndDate:   weekStop.Format("2006-01-02"),
+			Label:     fmt.Sprintf("Week %02d (%s - %s)", weekVal, weekStart.Format("02 Jan 2006"), weekStop.Format("02 Jan 2006")),
+		})
+	}
+	return options
+}
+
+func resolveBulkEntryWeekSelection(requestedStart string, options []models.ClinicianWeekOption) (time.Time, time.Time, string, error) {
+	if len(options) == 0 {
+		return time.Time{}, time.Time{}, "", errors.New("no available weeks")
+	}
+	selected := options[0]
+	requestedStart = strings.TrimSpace(requestedStart)
+	if requestedStart != "" {
+		for _, option := range options {
+			if option.StartDate == requestedStart {
+				selected = option
+				break
+			}
+		}
+	}
+	start, err := parseISODate(selected.StartDate)
+	if err != nil {
+		return time.Time{}, time.Time{}, "", err
+	}
+	stop := start.AddDate(0, 0, 6)
+	label := strings.TrimSpace(selected.Label)
+	if label == "" {
+		_, weekVal := start.ISOWeek()
+		label = fmt.Sprintf("Week %02d (%s - %s)", weekVal, start.Format("02 Jan 2006"), stop.Format("02 Jan 2006"))
+	}
+	return start, stop, label, nil
+}
+
+func parseBulkEntryWeekRange(startRaw, stopRaw string, now time.Time) (time.Time, time.Time, error) {
+	startRaw = strings.TrimSpace(startRaw)
+	stopRaw = strings.TrimSpace(stopRaw)
+	if startRaw == "" || stopRaw == "" {
+		start, stop := previousReportingWeekRange(now)
+		return start, stop, nil
+	}
+	start, err := parseISODate(startRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	stop, err := parseISODate(stopRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	if !sameCalendarDate(stop, start.AddDate(0, 0, 6)) {
+		return time.Time{}, time.Time{}, errors.New("invalid week range")
+	}
+	if !isCompletedReportingWeekRange(start, stop, now) {
+		return time.Time{}, time.Time{}, errors.New("only completed weeks are allowed")
+	}
+	return start, stop, nil
 }
 
 func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
@@ -1296,7 +1787,7 @@ func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.Sess
 		return
 	}
 
-	if !strings.EqualFold(sesDetails.Rights, "approver") {
+	if !utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
 		c.String(http.StatusForbidden, "Bulk entry is only available to facility admins.")
 		return
 	}
@@ -1486,39 +1977,103 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 	//log.Printf("Hospital ID value from session: %s", empIDStr)
 
 	facilityID := sesDetails.HFID // Retrieve HFID from the session
-	//log.Printf("Hospital ID value from session: %d", facilityID)
 
-	// Check if departmentID is provided
-	departmentID := c.Query("departmentID") // Capture departmentID from the query
+	departmentID := c.Query("departmentID")
+	if departmentID != "" || c.Query("week_start") != "" || c.Query("week_end") != "" {
+		deptID := 0
+		if strings.TrimSpace(departmentID) != "" {
+			parsedDeptID, err := strconv.Atoi(departmentID)
+			if err != nil || parsedDeptID <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid department ID"})
+				return
+			}
+			deptID = parsedDeptID
+		}
 
-	if departmentID != "" {
-		// Dynamic loading logic for department-specific data
-		deptID, err := strconv.Atoi(departmentID)
-		log.Printf("Dept Id from dropdown %d", deptID)
+		weekStart, weekStop, err := parseBulkEntryWeekRange(c.Query("week_start"), c.Query("week_end"), time.Now())
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid department ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid week selection"})
 			return
 		}
 
-		// Fetch staff and data points for the department
-		staff, dataPoints, err := models.GetStaffAndDataPointsByDepartment(db, deptID, int(facilityID))
+		staffList, err := models.WeeklyBulkCapture(c.Request.Context(), db, facilityID, int64(deptID), weekStart.Format("2006-01-02"), weekStop.Format("2006-01-02"))
 		if err != nil {
-			log.Printf("Error fetching staff and data points: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch data"})
+			log.Printf("Error loading bulk staff list: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch staff"})
 			return
 		}
 
-		// Return the data in JSON format for AJAX
-		c.JSON(http.StatusOK, gin.H{"staff": staff, "dataPoints": dataPoints})
+		labels := resolveClinicianEntryLabels(c.Request.Context(), db)
+		entryKeys := make([]string, 0)
+		seenKeys := map[string]struct{}{}
+		for _, item := range staffList {
+			if item == nil {
+				continue
+			}
+			staffKeys := resolveClinicianEntryKeys(c.Request.Context(), db, int64(item.DeptID))
+			for _, key := range staffKeys {
+				key = strings.TrimSpace(key)
+				if key == "" {
+					continue
+				}
+				if _, exists := seenKeys[key]; exists {
+					continue
+				}
+				seenKeys[key] = struct{}{}
+				entryKeys = append(entryKeys, key)
+			}
+		}
+
+		type bulkStaffRow struct {
+			EmployeeID int64  `json:"employeeID"`
+			Name       string `json:"name"`
+			Title      string `json:"title"`
+		}
+		type bulkDataPoint struct {
+			Key   string `json:"key"`
+			Label string `json:"label"`
+		}
+
+		rows := make([]bulkStaffRow, 0, len(staffList))
+		for _, item := range staffList {
+			if item == nil {
+				continue
+			}
+			rows = append(rows, bulkStaffRow{
+				EmployeeID: int64(item.EmpID),
+				Name:       formatEmployeeName(item.Fname.String, item.Lname.String, item.Oname.String),
+				Title:      strings.TrimSpace(item.EmpTitle.String),
+			})
+		}
+
+		points := make([]bulkDataPoint, 0, len(entryKeys))
+		for _, key := range entryKeys {
+			key = strings.TrimSpace(key)
+			if key == "" {
+				continue
+			}
+			label := strings.TrimSpace(labels[key])
+			if label == "" {
+				label = strings.ReplaceAll(strings.Title(strings.ReplaceAll(strings.ToLower(key), "_", " ")), " Opd", " OPD")
+			}
+			points = append(points, bulkDataPoint{Key: key, Label: label})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"staff": rows, "dataPoints": points})
 		return
 	}
 
-	//log.Printf("Executing GetFacilitiesAndDepartments fxn from HandlerBulkCaptureForm2")
-	// Fetch facilities and departments for the dropdowns
 	facilities, departments, err := models.GetFacilitiesAndDepartments(db)
 	if err != nil {
 		log.Printf("Error loading facilities or departments: %v", err)
 		c.String(http.StatusInternalServerError, "Error loading facilities or departments")
+		return
+	}
+
+	weekOptions := buildBulkEntryWeekOptions(time.Now(), 16)
+	selectedWeekStart, selectedWeekStop, selectedWeekLabel, err := resolveBulkEntryWeekSelection(c.Query("week_start"), weekOptions)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid week selection")
 		return
 	}
 
@@ -1527,6 +2082,10 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 		"sessionData": sessionData,
 		"facilities":  facilities,
 		"departments": departments,
+		"weekOptions": weekOptions,
+		"weekStart":   selectedWeekStart.Format("2006-01-02"),
+		"weekEnd":     selectedWeekStop.Format("2006-01-02"),
+		"weekLabel":   selectedWeekLabel,
 		"zdata":       nil, // Default empty data on initial load
 	}
 
@@ -1651,8 +2210,19 @@ func HandlerReportFacilities2(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 		return
 	}
 
-	userRightsID := sesDetails.Rights
+	userRole := roleFromRights(sesDetails.Rights)
+	isNational := userRole == utilities.RoleNationalAdmin
 	hospitalID := sesDetails.HFID // Retrieve HFID from the session
+
+	if !canAccessReportSubmissions(userRole) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	if !isNational && hospitalID <= 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "facility assignment is required for facility submissions"})
+		return
+	}
 
 	log.Printf("Hospital ID: %d", hospitalID)
 
@@ -1686,35 +2256,37 @@ func HandlerReportFacilities2(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 
 	// Detect the URL path and call the corresponding function
 	var dts []*models.WeeklyReportSubmission
-	flag := 0
-
-	if c.FullPath() == "/reports/submissions" && userRightsID <= "2" {
-		log.Println("Handler called for facilities submissions")
-		flag = 1
-		dts, err = models.WeeklyReportFacilities2(c.Request.Context(), db, hospitalID, yearint, monthint, flag, userRightsID)
-
-	} else if c.FullPath() == "/reports/submissions/departments" || (c.FullPath() == "/reports/submissions" && userRightsID > "2") {
-		log.Println("Handler called for departments submissions")
-		log.Printf("Departments submissions facility id: %d", hospitalID)
-		flag = 2
-		week := c.Query("week")
-
-		if userRightsID == "1" {
-			facilityIDstr := c.Query("facility")
-			facilityID, err := strconv.Atoi(facilityIDstr)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid facilityID"})
-				return
-			}
-			hospitalID = int64(facilityID)
-			log.Printf("Hospital ID UserRights 1: %d", hospitalID)
-		}
-
-		dts, err = models.WeeklyReportDepartments(c.Request.Context(), db, hospitalID, userRightsID, week, yearint, monthint)
-	} else {
+	flag, isDepartmentRoute, ok := resolveReportSubmissionsRoute(c.FullPath(), isNational)
+	if !ok {
 		log.Println("Invalid endpoint")
 		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid endpoint"})
 		return
+	}
+
+	if !isDepartmentRoute {
+		log.Println("Handler called for facilities submissions")
+		dts, err = models.WeeklyReportFacilities2(c.Request.Context(), db, hospitalID, yearint, monthint, flag, userRole)
+
+	} else {
+		log.Println("Handler called for departments submissions")
+		log.Printf("Departments submissions facility id: %d", hospitalID)
+		week := c.Query("week")
+
+		resolvedHospitalID, scopeErr := resolveSubmissionsScopeFacilityID(isNational, hospitalID, c.Query("facility"))
+		if scopeErr != nil {
+			status := http.StatusBadRequest
+			if !isNational {
+				status = http.StatusForbidden
+			}
+			c.JSON(status, gin.H{"error": scopeErr.Error()})
+			return
+		}
+		hospitalID = resolvedHospitalID
+		if isNational {
+			log.Printf("National department submissions facility id: %d", hospitalID)
+		}
+
+		dts, err = models.WeeklyReportDepartments(c.Request.Context(), db, hospitalID, userRole, week, yearint, monthint)
 	}
 
 	//dts, err := models.WeeklyReportFacilities2(c.Request.Context(), db, hospitalID, yearint, monthint, flag)

@@ -14,9 +14,9 @@
 </head>
 <body>
     {{ $ses := session . }}
-    {{ $isAdmin := hasRole . "admin" }}
-    {{ $isManager := hasRole . "approver" }}
-    {{ $isClinician := hasRole . "user" }}
+    {{ $isAdmin := hasRole . "National Admin" }}
+    {{ $isManager := hasRole . "Facility Admin" }}
+    {{ $isClinician := hasRole . "Staff" }}
     <div class="app-shell">
     <nav class="navbar navbar-expand-lg navbar-light app-navbar">
         <a class="navbar-brand" href="/">
@@ -39,9 +39,9 @@
                     <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                 </li>
                 {{ end }}
-                {{ if $isClinician }}
+                {{ if or $isClinician $isManager }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
+                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span><span class="nav-badge {{ if eq .NotifMyDataState "current" }}nav-badge--current{{ else }}nav-badge--overdue{{ end }}">{{ if eq .NotifMyDataState "current" }}Current{{ else }}Overdue{{ if gt .NotifMyDataEntry 0 }} ({{ .NotifMyDataEntry }}){{ end }}{{ end }}</span></a>
                 </li>
                 {{ end }}
                 {{ if $isManager }}
@@ -87,13 +87,14 @@
                     <div class="dropdown-menu dropdown-menu-right account-menu" aria-labelledby="accountMenu">
                         <div class="account-menu-header">
                             <div class="account-menu-name">{{ $ses.FName }} {{ $ses.LName }}</div>
+                            {{ if $ses.Title }}<div class="account-menu-email">{{ $ses.Title }}</div>{{ end }}
                             {{ if $ses.Email }}<div class="account-menu-email">{{ $ses.Email }}</div>{{ end }}
                         </div>
                         <div class="account-menu-details">
                             <div class="account-detail-row">
-                                <span class="account-detail-label">Role</span>
+                                <span class="account-detail-label">Title</span>
                                 <span class="account-detail-value">
-                                    {{ if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Medical Officer{{ else }}User{{ end }}
+                                    {{ if $ses.Title }}{{ $ses.Title }}{{ else if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Staff{{ else }}User{{ end }}
                                 </span>
                             </div>
                             {{ if gt $ses.EmpID 0 }}
@@ -134,8 +135,8 @@
                     {{ if or $isClinician $isManager $isAdmin }}
                     <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                     {{ end }}
-                    {{ if $isClinician }}
-                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
+                    {{ if or $isClinician $isManager }}
+                    <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span><span class="nav-badge {{ if eq .NotifMyDataState "current" }}nav-badge--current{{ else }}nav-badge--overdue{{ end }}">{{ if eq .NotifMyDataState "current" }}Current{{ else }}Overdue{{ if gt .NotifMyDataEntry 0 }} ({{ .NotifMyDataEntry }}){{ end }}{{ end }}</span></a>
                     {{ end }}
                     {{ if $isManager }}
                     <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
@@ -172,9 +173,9 @@
                             <a class="nav-link" href="/reports/analysis" data-tooltip="Reports"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                         </li>
                         {{ end }}
-                        {{ if $isClinician }}
+                        {{ if or $isClinician $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/new/0" data-tooltip="My Data Entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span>{{ if gt .NotifMyDataEntry 0 }}<span class="nav-badge">{{ .NotifMyDataEntry }}</span>{{ end }}</a>
+                            <a class="nav-link" href="/reports/new/0" data-tooltip="My Data Entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span><span class="nav-badge {{ if eq .NotifMyDataState "current" }}nav-badge--current{{ else }}nav-badge--overdue{{ end }}">{{ if eq .NotifMyDataState "current" }}Current{{ else }}Overdue{{ if gt .NotifMyDataEntry 0 }} ({{ .NotifMyDataEntry }}){{ end }}{{ end }}</span></a>
                         </li>
                         {{ end }}
                         {{ if $isManager }}
@@ -396,3 +397,4 @@
 </body>
 </html>
 {{ end }}
+

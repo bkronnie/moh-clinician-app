@@ -69,6 +69,27 @@
     </div>
     {{ end }}
 
+    <div class="dashboard-section dashboard-hero">
+        <div>
+            <div class="dashboard-eyebrow">{{ if eq .Form.Role "National Admin" }}National{{ else if eq .Form.Role "Facility Admin" }}Facility{{ else }}Personal{{ end }}</div>
+            <h2 class="dashboard-hero-title">{{ .Form.ScopeTitle }}</h2>
+            {{ if .Form.ScopeSubtitle }}
+            <p class="dashboard-hero-subtitle">{{ .Form.ScopeSubtitle }}</p>
+            {{ end }}
+        </div>
+        <div class="dashboard-hero-meta">
+            {{ if .Form.FilterSummary }}
+            <span class="dashboard-hero-pill">{{ .Form.FilterSummary }}</span>
+            {{ end }}
+            {{ if .Form.IdentityName }}
+            <span class="dashboard-hero-pill">{{ .Form.IdentityName }}</span>
+            {{ end }}
+            {{ range .Form.IdentityBadges }}
+            <span class="dashboard-hero-pill">{{ .Text }}</span>
+            {{ end }}
+        </div>
+    </div>
+
     {{ if .Form.Tabs }}
     <div class="dashboard-tabs section-tabs">
         {{ range .Form.Tabs }}
@@ -95,7 +116,7 @@
         <div class="kpi-grid">
             {{ range .Form.KPIs }}
             {{ if .Link }}
-            <a class="kpi-card-link" href="{{ .Link }}">
+            <a class="kpi-card-link" href="{{ .Link }}" title="{{ .Tooltip }}" data-kpi-tooltip="true">
                 <div class="kpi-card">
                     <h4>{{ .Title }}</h4>
                     <strong>{{ .Value }}</strong>
@@ -103,7 +124,7 @@
                 </div>
             </a>
             {{ else }}
-            <div class="kpi-card">
+            <div class="kpi-card" title="{{ .Tooltip }}" data-kpi-tooltip="true">
                 <h4>{{ .Title }}</h4>
                 <strong>{{ .Value }}</strong>
                 <div class="kpi-meta">{{ .Unit }}{{ if .Meta }} - {{ .Meta }}{{ end }}</div>
@@ -257,6 +278,43 @@
         });
     }
 
+    const wrapLabel = (ctx, text, maxWidth, maxLines) => {
+        const raw = String(text || '').trim();
+        if (!raw) {
+            return [''];
+        }
+
+        const tokens = raw.split(/\s+/);
+        const lines = [];
+        let current = '';
+
+        tokens.forEach((token) => {
+            const next = current ? `${current} ${token}` : token;
+            if (ctx.measureText(next).width <= maxWidth || !current) {
+                current = next;
+                return;
+            }
+            lines.push(current);
+            current = token;
+        });
+
+        if (current) {
+            lines.push(current);
+        }
+
+        if (lines.length <= maxLines) {
+            return lines;
+        }
+
+        const clipped = lines.slice(0, maxLines);
+        let last = clipped[maxLines - 1];
+        while (last.length > 0 && ctx.measureText(`${last}...`).width > maxWidth) {
+            last = last.slice(0, -1);
+        }
+        clipped[maxLines - 1] = `${last}...`;
+        return clipped;
+    };
+
     const drawChart = (canvas) => {
         const labels = JSON.parse(canvas.dataset.labels || '[]');
         const seriesA = JSON.parse(canvas.dataset.seriesA || '[]');
@@ -268,11 +326,16 @@
         const ctx = canvas.getContext('2d');
         const parent = canvas.parentElement;
         const width = parent.clientWidth || 900;
-        const height = 320;
+        ctx.font = '12px Segoe UI, sans-serif';
+
+        const preliminaryGroupWidth = Math.max((width - 72) / Math.max(labels.length, 1), 48);
+        const wrappedLabels = labels.map((label) => wrapLabel(ctx, label, Math.max(preliminaryGroupWidth - 8, 44), 3));
+        const maxLabelLines = wrappedLabels.reduce((max, lines) => Math.max(max, lines.length), 1);
+        const height = 300 + Math.max(0, maxLabelLines-1) * 16;
         canvas.width = width;
         canvas.height = height;
 
-        const padding = { top: 24, right: 24, bottom: 60, left: 44 };
+        const padding = { top: 28, right: 24, bottom: 54 + maxLabelLines * 14, left: 44 };
         const plotWidth = width - padding.left - padding.right;
         const plotHeight = height - padding.top - padding.bottom;
         const maxValue = Math.max(1, ...seriesA, ...seriesB);
@@ -308,13 +371,12 @@
             ctx.fillStyle = '#73b7c2';
             ctx.fillRect(baseX + 4, padding.top + plotHeight - bHeight, barWidth, bHeight);
 
-            ctx.save();
-            ctx.translate(baseX, height - 12);
-            ctx.rotate(-0.35);
-            ctx.textAlign = 'right';
             ctx.fillStyle = '#204650';
-            ctx.fillText(label, 0, 0);
-            ctx.restore();
+            ctx.textAlign = 'center';
+            const lines = wrappedLabels[index];
+            lines.forEach((line, lineIndex) => {
+                ctx.fillText(line, baseX, padding.top + plotHeight + 18 + lineIndex * 14);
+            });
         });
 
         const legendY = 12;
@@ -331,7 +393,27 @@
         }
     };
 
-    document.querySelectorAll('.dashboard-chart-canvas').forEach(drawChart);
+    const renderCharts = () => {
+        document.querySelectorAll('.dashboard-chart-canvas').forEach(drawChart);
+    };
+
+    renderCharts();
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        if (resizeTimer) {
+            window.clearTimeout(resizeTimer);
+        }
+        resizeTimer = window.setTimeout(renderCharts, 120);
+    });
+
+    if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.tooltip === 'function') {
+        window.jQuery('[data-kpi-tooltip="true"]').tooltip({
+            container: 'body',
+            trigger: 'hover focus',
+            placement: 'top'
+        });
+    }
 })();
 
 (() => {

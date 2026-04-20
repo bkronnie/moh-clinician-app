@@ -44,6 +44,7 @@ func EnsurePerformanceIndexes(ctx context.Context, db *sql.DB) error {
 	statements := []string{
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON clinician_app.weeklyreport(hospital, start, submit_status, report_status)`,
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON clinician_app.weeklyreport(employee, start, submit_status, report_status)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS ux_weeklyreport_employee_start_stop ON clinician_app.weeklyreport(employee, start, stop) WHERE employee IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_week_review_flow ON clinician_app.weeklyreport(hospital, start, facility_review_status, national_submission_status, national_review_status)`,
 		`CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON clinician_app.staffleave(employee_id, leave_status, start_date, end_date)`,
 		`CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON clinician_app.staffleave(leave_status, start_date, end_date)`,
@@ -112,14 +113,8 @@ func GetPendingReportCount(ctx context.Context, db DB, facilityID int64) (int, e
 	var err error
 	if facilityID > 0 {
 		err = db.QueryRowContext(ctx, `
-			WITH latest_week AS (
-				SELECT MAX(w.start)::date AS week_start
-				FROM clinician_app.weeklyreport w
-				WHERE w.hospital = $1
-			)
-			SELECT COUNT(DISTINCT w.employee)
+			SELECT COUNT(*)
 			FROM clinician_app.weeklyreport w
-			JOIN latest_week lw ON lw.week_start IS NOT NULL AND w.start::date = lw.week_start
 			WHERE w.hospital = $1
 			  AND COALESCE(w.submit_status, '') = 'Submitted'
 			  AND COALESCE(w.report_status, '') NOT IN ('Approved', 'Valid', 'Rejected', 'Declined')
@@ -188,18 +183,19 @@ func GetMyRecentLeaveUpdates(ctx context.Context, db DB, empID int64) (int, erro
 func GetMyRecentReportUpdates(ctx context.Context, db DB, empID int64) (int, error) {
 	var count int
 	err := db.QueryRowContext(ctx, `
-		WITH latest_change AS (
-			SELECT COALESCE(last_updated_on, created_on) AS changed_on
-			FROM clinician_app.weeklyreport
-			WHERE employee = $1
-			  AND (
-				COALESCE(submit_status, '') = 'Submitted'
-				OR COALESCE(report_status, '') IN ('Approved', 'Rejected', 'Declined')
-			  )
-			ORDER BY COALESCE(last_updated_on, created_on) DESC
-			LIMIT 1
-		)
-		SELECT COALESCE((SELECT CASE WHEN changed_on >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END FROM latest_change), 0)
+		SELECT COUNT(DISTINCT w.id)
+		FROM clinician_app.weeklyreport w
+		WHERE w.employee = $1
+		  AND (
+			(
+				COALESCE(w.report_status, '') IN ('Approved', 'Rejected', 'Declined')
+				AND COALESCE(w.facility_reviewed_on, w.last_updated_on, w.created_on) >= NOW() - INTERVAL '7 days'
+			)
+			OR (
+				COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined')
+				AND COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) >= NOW() - INTERVAL '7 days'
+			)
+		  )
 	`, empID).Scan(&count)
 	if err != nil {
 		return 0, nil

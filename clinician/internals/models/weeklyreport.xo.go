@@ -14,6 +14,11 @@ import (
 	"github.com/lib/pq" // Import the pq package
 )
 
+func isNationalAdminRole(role string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(role))
+	return normalized == "national admin" || normalized == "nationaladmin"
+}
+
 // Weeklyreport represents a row from 'clinician_app.weeklyreport'.
 type Weeklyreport struct {
 	ID             int           `json:"reportid"`          // id
@@ -658,13 +663,13 @@ func WeeklyReportFacilities(ctx context.Context, db DB, hospitalID int64) ([]*We
 
 // Populate the Facilities Submission List with date filtering
 func WeeklyReportFacilities2(ctx context.Context, db DB, hospitalID int64, year, month, flag int, userRights string) ([]*WeeklyReportSubmission, error) {
-	log.Printf("From WeeklyReportFacilities2: Year: %d, Month: %d, Flag: %d, UserRightsID: %s, FacilityID %d", year, month, flag, userRights, hospitalID)
+	log.Printf("From WeeklyReportFacilities2: Year: %d, Month: %d, Flag: %d, UserRole: %s, FacilityID %d", year, month, flag, userRights, hospitalID)
 
 	var sqlstr string
 	var rows *sql.Rows
 	var err error
 
-	if userRights == "1" {
+	if isNationalAdminRole(userRights) {
 		log.Printf("MoH Admin route...")
 		sqlstr = `
         WITH StaffCounts AS (
@@ -1038,7 +1043,7 @@ func WeeklyReportDepartments22(ctx context.Context, db DB, hospitalID int64, use
 	var rows *sql.Rows
 	var err error
 
-	//Check if week is an empty string caused by (c.FullPath() == "/reports/submissions" && userRightsID > "2") in handler
+	// Handle empty week when requests reach this path through role-based submissions routing.
 	if week == "" {
 		sqlstr = `
                 SELECT w.start
@@ -1181,28 +1186,8 @@ func WeeklyBulkCapture(ctx context.Context, db DB, hospitalID, departmentID int6
 		whereString += " d.id = " + fmt.Sprintf("%d", departmentID)
 	}
 
-	if reportingWeekStart == "" {
-		now := time.Now()
-		offset := (int(now.Weekday()) + 6) % 7
-		weekStart := now.AddDate(0, 0, -offset)
-		reportingWeekStart = weekStart.Format("2006-01-02")
-	}
-	if reportingWeekEnd == "" {
-		start, _ := time.Parse("2006-01-02", reportingWeekStart)
-		reportingWeekEnd = start.AddDate(0, 0, 6).Format("2006-01-02")
-	}
-
-	if reportingWeekStart != "" && reportingWeekEnd != "" {
-		if whereString != "" {
-			whereString += " AND "
-		}
-		whereString += " w.start >= '" + reportingWeekStart + "' AND w.stop <= '" + reportingWeekEnd + "'"
-	}
-
-	if whereString != "" {
-		whereString += " AND "
-	}
-	whereString += " NOT EXISTS (SELECT 1 FROM clinician_app.staffleave sl WHERE sl.employee_id = e.id AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid') AND sl.start_date::date <= '" + reportingWeekEnd + "'::date AND sl.end_date::date >= '" + reportingWeekStart + "'::date)"
+	_ = reportingWeekStart
+	_ = reportingWeekEnd
 
 	if whereString != "" {
 		whereString = "WHERE " + whereString
@@ -1214,7 +1199,6 @@ func WeeklyBulkCapture(ctx context.Context, db DB, hospitalID, departmentID int6
 	sqlstr = `SELECT DISTINCT ON (e.id)
                 f.f_name, e.id, e.fname, e.lname, e.oname, st.title, e.facility, e.department, d.d_name
                 FROM clinician_app.employees e
-                LEFT JOIN clinician_app.weeklyreport w ON w.employee = e.id
                 LEFT JOIN clinician_app.facilities f ON e.facility = f.id
                 LEFT JOIN clinician_app.departments d ON e.department = d.id
 				LEFT JOIN clinician_app.specialist_titles st ON e.title = st.id ` +

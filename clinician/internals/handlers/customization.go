@@ -20,10 +20,35 @@ func HandlerCustomization(c *gin.Context, db *sql.DB, sessionManager *scs.Sessio
 		return
 	}
 
-	view, err := models.GetCustomizationView(c.Request.Context(), db, 120)
+	historyPage := 1
+	if parsed, err := strconv.Atoi(strings.TrimSpace(c.Query("history_page"))); err == nil && parsed > 0 {
+		historyPage = parsed
+	}
+	historySize := 60
+	historyOffset := (historyPage - 1) * historySize
+
+	view, err := models.GetCustomizationView(c.Request.Context(), db, historySize, historyOffset)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "failed to load customization data")
 		return
+	}
+
+	historyPages := 1
+	if view.HistoryTotal > 0 {
+		historyPages = (view.HistoryTotal + historySize - 1) / historySize
+	}
+	if historyPage > historyPages {
+		historyPage = historyPages
+	}
+
+	view.HistoryPage = historyPage
+	view.HistorySize = historySize
+	view.HistoryPages = historyPages
+	if historyPage > 1 {
+		view.HistoryPrev = buildCustomizationHistoryPageURL(historyPage - 1)
+	}
+	if historyPage < historyPages {
+		view.HistoryNext = buildCustomizationHistoryPageURL(historyPage + 1)
 	}
 
 	view.Success = strings.TrimSpace(c.Query("ok"))
@@ -239,12 +264,29 @@ func HandlerCustomizationDataElementDelete(c *gin.Context, db *sql.DB, sessionMa
 	}
 
 	id := parsePositiveInt64(c.Param("id"))
-	if err := models.DeleteReportDataElement(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
-		redirectCustomizationError(c, tab, err.Error())
+	actionMode := strings.ToLower(strings.TrimSpace(c.PostForm("action_mode")))
+	guard := strings.TrimSpace(c.PostForm("guard"))
+
+	var opErr error
+	var okMessage string
+	switch actionMode {
+	case "activate":
+		opErr = models.SetReportDataElementActive(c.Request.Context(), db, actor.UserID, actor.EmpID, id, true)
+		okMessage = "Data element activated"
+	case "purge":
+		opErr = models.PurgeReportDataElement(c.Request.Context(), db, actor.UserID, actor.EmpID, id, guard)
+		okMessage = "Data element permanently deleted"
+	default:
+		opErr = models.SetReportDataElementActive(c.Request.Context(), db, actor.UserID, actor.EmpID, id, false)
+		okMessage = "Data element deactivated"
+	}
+
+	if opErr != nil {
+		redirectCustomizationError(c, tab, opErr.Error())
 		return
 	}
 
-	redirectCustomizationOK(c, tab, "Data element deleted")
+	redirectCustomizationOK(c, tab, okMessage)
 }
 
 func parsePositiveInt64(raw string) int64 {
@@ -277,4 +319,14 @@ func sanitizeCustomizationTab(raw string) string {
 	default:
 		return "facilities"
 	}
+}
+
+func buildCustomizationHistoryPageURL(page int) string {
+	if page <= 1 {
+		return "/customization?tab=history"
+	}
+	q := url.Values{}
+	q.Set("tab", "history")
+	q.Set("history_page", strconv.Itoa(page))
+	return "/customization?" + q.Encode()
 }

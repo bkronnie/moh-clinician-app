@@ -9,30 +9,57 @@ TRUNCATE TABLE
     clinician_app.weeklyreport
 RESTART IDENTITY CASCADE;
 
-INSERT INTO clinician_app.users (username, pssword, employees, created_on, rights, access_scope)
-SELECT v.username, v.pssword, v.employees, v.created_on, v.rights, v.access_scope
+INSERT INTO clinician_app.users (username, pssword, employees, created_on)
+SELECT v.username, v.pssword, v.employees, v.created_on
 FROM (VALUES
-    ('admin-arua-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1001, NOW(), 'approver', 'facility'),
-    ('admin-entebbe-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1006, NOW(), 'approver', 'facility'),
-    ('admin-fortportal-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1011, NOW(), 'approver', 'facility'),
-    ('admin-gulu-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1016, NOW(), 'approver', 'facility'),
-    ('admin-hoima-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1021, NOW(), 'approver', 'facility'),
-    ('admin-jinja-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1026, NOW(), 'approver', 'facility'),
-    ('admin-kabale-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1031, NOW(), 'approver', 'facility'),
-    ('admin-kayunga-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1036, NOW(), 'approver', 'facility'),
-    ('admin-lira-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1041, NOW(), 'approver', 'facility'),
-    ('admin-masaka-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1046, NOW(), 'approver', 'facility'),
-    ('admin-mbale-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1051, NOW(), 'approver', 'facility'),
-    ('admin-mbarara-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1056, NOW(), 'approver', 'facility'),
-    ('admin-moroto-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1061, NOW(), 'approver', 'facility'),
-    ('admin-mubende-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1066, NOW(), 'approver', 'facility'),
-    ('admin-soroti-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1071, NOW(), 'approver', 'facility'),
-    ('admin-naguru-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1076, NOW(), 'approver', 'facility')
-) AS v(username, pssword, employees, created_on, rights, access_scope)
+    ('admin-arua-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1001, NOW(), 'Facility Admin'),
+    ('admin-entebbe-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1006, NOW(), 'Facility Admin'),
+    ('admin-fortportal-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1011, NOW(), 'Facility Admin'),
+    ('admin-gulu-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1016, NOW(), 'Facility Admin'),
+    ('admin-hoima-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1021, NOW(), 'Facility Admin'),
+    ('admin-jinja-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1026, NOW(), 'Facility Admin'),
+    ('admin-kabale-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1031, NOW(), 'Facility Admin'),
+    ('admin-kayunga-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1036, NOW(), 'Facility Admin'),
+    ('admin-lira-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1041, NOW(), 'Facility Admin'),
+    ('admin-masaka-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1046, NOW(), 'Facility Admin'),
+    ('admin-mbale-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1051, NOW(), 'Facility Admin'),
+    ('admin-mbarara-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1056, NOW(), 'Facility Admin'),
+    ('admin-moroto-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1061, NOW(), 'Facility Admin'),
+    ('admin-mubende-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1066, NOW(), 'Facility Admin'),
+    ('admin-soroti-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1071, NOW(), 'Facility Admin'),
+    ('admin-naguru-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1076, NOW(), 'Facility Admin')
+) AS v(username, pssword, employees, created_on, rights)
 WHERE NOT EXISTS (
     SELECT 1
     FROM clinician_app.users u
     WHERE u.username = v.username
+);
+
+INSERT INTO clinician_app.employeerights (employee, rights)
+SELECT v.employees, r.id
+FROM (VALUES
+    ('admin-arua-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1001, NOW(), 'Facility Admin'),
+    ('admin-entebbe-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1006, NOW(), 'Facility Admin'),
+    ('admin-fortportal-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1011, NOW(), 'Facility Admin'),
+    ('admin-gulu-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1016, NOW(), 'Facility Admin'),
+    ('admin-hoima-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1021, NOW(), 'Facility Admin'),
+    ('admin-jinja-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1026, NOW(), 'Facility Admin'),
+    ('admin-kabale-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1031, NOW(), 'Facility Admin'),
+    ('admin-kayunga-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1036, NOW(), 'Facility Admin'),
+    ('admin-lira-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1041, NOW(), 'Facility Admin'),
+    ('admin-masaka-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1046, NOW(), 'Facility Admin'),
+    ('admin-mbale-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1051, NOW(), 'Facility Admin'),
+    ('admin-mbarara-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1056, NOW(), 'Facility Admin'),
+    ('admin-moroto-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1061, NOW(), 'Facility Admin'),
+    ('admin-mubende-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1066, NOW(), 'Facility Admin'),
+    ('admin-soroti-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1071, NOW(), 'Facility Admin'),
+    ('admin-naguru-rrh', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3', 1076, NOW(), 'Facility Admin')
+) AS v(username, pssword, employees, created_on, rights)
+JOIN clinician_app.rights r ON r.rights = v.rights
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM clinician_app.employeerights er
+    WHERE er.employee = v.employees
 );
 
 INSERT INTO clinician_app.weeklyreport (

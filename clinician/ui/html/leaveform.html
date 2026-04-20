@@ -21,10 +21,10 @@ Office Leave
             <p>{{ if $form.IsEdit }}Update your pending office leave request before it is reviewed.{{ else }}Submit your office leave request with the dates and leave type you need. Medical officers submit requests under their own profile automatically.{{ end }}</p>
         </div>
 
-        {{ if hasRole . "user" }}
+        {{ if hasRole . "Staff" }}
         <div class="leave-summary">
             <div class="summary-pill">
-                <span>Medical Officer</span>
+                <span>{{ if $ses.Title }}{{ $ses.Title }}{{ else }}Staff Title{{ end }}</span>
                 <strong>{{ $ses.FName }} {{ $ses.LName }}</strong>
             </div>
             <div class="summary-pill">
@@ -38,9 +38,9 @@ Office Leave
         </div>
         {{ end }}
 
-        <form id="leaveForm" action="{{ if $form.ActionURL }}{{ $form.ActionURL }}{{ else if hasRole . "user" }}/leave/save{{ else }}/employee/leave/save{{ end }}" method="POST">
+        <form id="leaveForm" action="{{ if $form.ActionURL }}{{ $form.ActionURL }}{{ else if hasRole . "Staff" }}/leave/save{{ else }}/employee/leave/save{{ end }}" method="POST">
             <div class="leave-form-grid">
-                {{ if hasRole . "user" }}
+                {{ if hasRole . "Staff" }}
                 <input type="hidden" id="employee_id" name="employee_id" value="{{ $ses.EmpID }}">
                 {{ else }}
                 <div class="leave-field">
@@ -81,7 +81,7 @@ Office Leave
             </div>
 
             <div class="leave-actions mt-4">
-                {{ if hasRole . "user" }}
+                {{ if hasRole . "Staff" }}
                 <a href="/leave/history" class="btn btn-outline-secondary">My Leave History</a>
                 {{ else }}
                 <a href="/employee/list" class="btn btn-outline-secondary">Back to Employees</a>

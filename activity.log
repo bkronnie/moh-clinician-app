@@ -282,3 +282,203 @@ INFO 2026/04/19 19:04:52 utilities.go:60: Login successful
 INFO 2026/04/19 19:05:02 utilities.go:60: Logout successful
 ERROR 2026/04/19 19:05:07 utilities.go:65: Invalid username or password
 INFO 2026/04/19 19:05:15 utilities.go:60: Login successful
+INFO 2026/04/19 19:18:10 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 19:18:20 utilities.go:60: Login successful
+INFO 2026/04/19 19:18:34 utilities.go:60: Logout successful
+INFO 2026/04/19 19:18:39 utilities.go:60: Login successful
+INFO 2026/04/19 19:19:06 utilities.go:60: Logout successful
+INFO 2026/04/19 19:19:13 utilities.go:60: Login successful
+INFO 2026/04/19 19:19:21 utilities.go:60: Logout successful
+ERROR 2026/04/19 19:19:30 utilities.go:65: Invalid username or password
+INFO 2026/04/19 19:19:36 utilities.go:60: Login successful
+INFO 2026/04/19 19:23:48 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 19:24:06 utilities.go:60: Login successful
+INFO 2026/04/19 19:25:15 utilities.go:60: Logout successful
+INFO 2026/04/19 19:25:18 utilities.go:60: Login successful
+INFO 2026/04/19 19:25:40 utilities.go:60: Logout successful
+INFO 2026/04/19 19:25:45 utilities.go:60: Login successful
+INFO 2026/04/19 19:30:53 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 19:31:06 utilities.go:60: Login successful
+INFO 2026/04/19 19:31:16 utilities.go:60: Logout successful
+INFO 2026/04/19 19:31:21 utilities.go:60: Login successful
+INFO 2026/04/19 19:37:26 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 19:37:37 utilities.go:60: Login successful
+INFO 2026/04/19 19:39:18 utilities.go:60: Logout successful
+INFO 2026/04/19 19:39:22 utilities.go:60: Login successful
+INFO 2026/04/19 19:39:48 utilities.go:60: Logout successful
+INFO 2026/04/19 19:39:55 utilities.go:60: Login successful
+INFO 2026/04/19 19:40:40 utilities.go:60: Logout successful
+INFO 2026/04/19 19:40:46 utilities.go:60: Login successful
+INFO 2026/04/19 19:43:48 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 19:43:57 utilities.go:60: Login successful
+INFO 2026/04/19 19:45:19 utilities.go:60: Logout successful
+INFO 2026/04/19 19:45:27 utilities.go:60: Login successful
+INFO 2026/04/19 19:57:59 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/19 19:58:08 utilities.go:65: Invalid username or password
+INFO 2026/04/19 19:58:15 utilities.go:60: Login successful
+INFO 2026/04/19 20:02:34 utilities.go:60: Logout successful
+INFO 2026/04/19 20:02:37 utilities.go:60: Login successful
+INFO 2026/04/19 20:02:50 utilities.go:60: Logout successful
+INFO 2026/04/19 20:02:55 utilities.go:60: Login successful
+INFO 2026/04/19 20:08:46 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/19 20:08:54 utilities.go:65: Invalid username or password
+INFO 2026/04/19 20:08:59 utilities.go:60: Login successful
+INFO 2026/04/19 20:11:25 utilities.go:60: Logout successful
+INFO 2026/04/19 20:11:32 utilities.go:60: Login successful
+INFO 2026/04/19 20:13:30 utilities.go:60: Logout successful
+INFO 2026/04/19 20:13:44 utilities.go:60: Login successful
+INFO 2026/04/19 20:15:42 utilities.go:60: Logout successful
+INFO 2026/04/19 20:15:46 utilities.go:60: Login successful
+INFO 2026/04/19 20:23:31 utilities.go:60: Logout successful
+INFO 2026/04/19 20:23:42 utilities.go:60: Login successful
+INFO 2026/04/19 20:30:20 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/19 20:31:46 utilities.go:65: Invalid username or password
+INFO 2026/04/19 20:31:51 utilities.go:60: Login successful
+ERROR 2026/04/19 20:40:27 utilities.go:65: performance index migration: pq: could not create unique index "ux_weeklyreport_employee_start_stop"
+INFO 2026/04/19 20:40:27 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 20:40:41 utilities.go:60: Login successful
+INFO 2026/04/19 20:40:48 utilities.go:60: Logout successful
+ERROR 2026/04/19 20:41:11 utilities.go:65: Invalid username or password
+INFO 2026/04/19 20:41:28 utilities.go:60: Login successful
+ERROR 2026/04/19 20:45:34 utilities.go:65: performance index migration: pq: could not create unique index "ux_weeklyreport_employee_start_stop"
+INFO 2026/04/19 20:45:34 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/19 20:45:44 utilities.go:60: Login successful
+INFO 2026/04/19 20:46:29 utilities.go:60: Logout successful
+INFO 2026/04/19 20:46:40 utilities.go:60: Login successful
+INFO 2026/04/19 20:47:38 utilities.go:60: Logout successful
+INFO 2026/04/19 20:47:48 utilities.go:60: Login successful
+ERROR 2026/04/20 07:36:22 utilities.go:65: performance index migration: pq: could not create unique index "ux_weeklyreport_employee_start_stop"
+INFO 2026/04/20 07:36:22 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 07:36:41 utilities.go:60: Login successful
+INFO 2026/04/20 07:48:09 utilities.go:60: Logout successful
+INFO 2026/04/20 07:48:15 utilities.go:60: Login successful
+INFO 2026/04/20 07:52:30 utilities.go:60: Logout successful
+INFO 2026/04/20 07:52:35 utilities.go:60: Login successful
+INFO 2026/04/20 07:53:38 utilities.go:60: Logout successful
+INFO 2026/04/20 07:53:42 utilities.go:60: Login successful
+INFO 2026/04/20 08:00:58 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 08:01:07 utilities.go:60: Login successful
+INFO 2026/04/20 08:28:49 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 08:28:56 utilities.go:60: Login successful
+INFO 2026/04/20 08:33:42 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 08:33:51 utilities.go:60: Login successful
+INFO 2026/04/20 08:34:14 utilities.go:60: Logout successful
+INFO 2026/04/20 08:34:21 utilities.go:60: Login successful
+INFO 2026/04/20 08:34:40 utilities.go:60: Logout successful
+INFO 2026/04/20 08:34:53 utilities.go:60: Login successful
+INFO 2026/04/20 08:39:00 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 08:39:08 utilities.go:60: Login successful
+INFO 2026/04/20 08:42:22 utilities.go:60: Logout successful
+INFO 2026/04/20 08:43:15 utilities.go:60: Login successful
+INFO 2026/04/20 08:45:14 utilities.go:60: Logout successful
+INFO 2026/04/20 08:49:13 utilities.go:60: Login successful
+INFO 2026/04/20 08:49:30 utilities.go:60: Logout successful
+INFO 2026/04/20 08:49:37 utilities.go:60: Login successful
+INFO 2026/04/20 08:50:22 utilities.go:60: Logout successful
+INFO 2026/04/20 08:50:31 utilities.go:60: Login successful
+INFO 2026/04/20 08:52:53 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 08:53:00 utilities.go:60: Login successful
+INFO 2026/04/20 08:56:56 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 08:57:10 utilities.go:60: Login successful
+INFO 2026/04/20 09:00:06 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 09:00:15 utilities.go:60: Login successful
+INFO 2026/04/20 09:05:22 utilities.go:60: Logout successful
+INFO 2026/04/20 09:05:27 utilities.go:60: Login successful
+INFO 2026/04/20 09:12:02 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 09:12:12 utilities.go:60: Login successful
+INFO 2026/04/20 09:17:47 utilities.go:60: Logout successful
+INFO 2026/04/20 09:17:51 utilities.go:60: Login successful
+INFO 2026/04/20 09:19:01 utilities.go:60: Logout successful
+INFO 2026/04/20 09:19:07 utilities.go:60: Login successful
+INFO 2026/04/20 09:19:18 utilities.go:60: Logout successful
+ERROR 2026/04/20 09:19:21 utilities.go:65: Invalid username or password
+INFO 2026/04/20 09:19:27 utilities.go:60: Login successful
+INFO 2026/04/20 09:19:45 utilities.go:60: Logout successful
+INFO 2026/04/20 09:19:51 utilities.go:60: Login successful
+INFO 2026/04/20 09:20:41 utilities.go:60: Logout successful
+INFO 2026/04/20 09:20:48 utilities.go:60: Login successful
+INFO 2026/04/20 09:23:31 utilities.go:60: Logout successful
+INFO 2026/04/20 09:23:40 utilities.go:60: Login successful
+INFO 2026/04/20 09:24:09 utilities.go:60: Logout successful
+INFO 2026/04/20 09:24:14 utilities.go:60: Login successful
+INFO 2026/04/20 09:26:39 utilities.go:60: Logout successful
+INFO 2026/04/20 09:26:47 utilities.go:60: Login successful
+INFO 2026/04/20 09:40:29 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 09:40:37 utilities.go:60: Login successful
+INFO 2026/04/20 09:47:51 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 09:47:58 utilities.go:60: Login successful
+INFO 2026/04/20 09:48:11 utilities.go:60: Logout successful
+INFO 2026/04/20 09:48:18 utilities.go:60: Login successful
+INFO 2026/04/20 09:52:35 utilities.go:60: Logout successful
+INFO 2026/04/20 09:52:41 utilities.go:60: Login successful
+INFO 2026/04/20 09:53:42 utilities.go:60: Logout successful
+INFO 2026/04/20 09:53:46 utilities.go:60: Login successful
+INFO 2026/04/20 09:58:12 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 09:58:18 utilities.go:60: Login successful
+INFO 2026/04/20 09:58:27 utilities.go:60: Logout successful
+INFO 2026/04/20 09:58:32 utilities.go:60: Login successful
+INFO 2026/04/20 09:59:11 utilities.go:60: Logout successful
+INFO 2026/04/20 09:59:19 utilities.go:60: Login successful
+INFO 2026/04/20 09:59:27 utilities.go:60: Logout successful
+INFO 2026/04/20 09:59:33 utilities.go:60: Login successful
+INFO 2026/04/20 10:07:34 utilities.go:60: Logout successful
+INFO 2026/04/20 10:07:43 utilities.go:60: Login successful
+INFO 2026/04/20 10:22:53 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/20 10:23:04 utilities.go:65: Invalid username or password
+ERROR 2026/04/20 10:23:09 utilities.go:65: Invalid username or password
+ERROR 2026/04/20 10:23:20 utilities.go:65: Invalid username or password
+INFO 2026/04/20 10:26:22 utilities.go:60: Login successful
+INFO 2026/04/20 10:26:32 utilities.go:60: Logout successful
+INFO 2026/04/20 10:26:38 utilities.go:60: Login successful
+INFO 2026/04/20 10:26:52 utilities.go:60: Logout successful
+INFO 2026/04/20 10:27:00 utilities.go:60: Login successful
+INFO 2026/04/20 10:46:40 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 10:46:49 utilities.go:60: Login successful
+INFO 2026/04/20 10:46:53 utilities.go:60: Logout successful
+INFO 2026/04/20 10:47:00 utilities.go:60: Login successful
+INFO 2026/04/20 10:47:04 utilities.go:60: Logout successful
+INFO 2026/04/20 10:47:52 utilities.go:60: Login successful
+INFO 2026/04/20 10:48:00 utilities.go:60: Logout successful
+INFO 2026/04/20 10:48:07 utilities.go:60: Login successful
+INFO 2026/04/20 10:49:18 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 10:49:32 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 10:49:43 utilities.go:60: Login successful
+INFO 2026/04/20 10:56:41 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 10:56:48 utilities.go:60: Login successful
+INFO 2026/04/20 11:03:37 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 11:03:43 utilities.go:60: Login successful
+INFO 2026/04/20 11:07:10 utilities.go:60: Logout successful
+ERROR 2026/04/20 11:07:14 utilities.go:65: Invalid username or password
+INFO 2026/04/20 11:07:17 utilities.go:60: Login successful
+INFO 2026/04/20 11:10:32 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 11:10:44 utilities.go:60: Login successful
+INFO 2026/04/20 11:16:37 utilities.go:60: Logout successful
+INFO 2026/04/20 11:16:44 utilities.go:60: Login successful
+INFO 2026/04/20 11:16:58 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 11:17:08 utilities.go:60: Login successful
+INFO 2026/04/20 11:17:12 utilities.go:60: Logout successful
+INFO 2026/04/20 11:17:25 utilities.go:60: Login successful
+INFO 2026/04/20 11:22:16 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/20 11:22:25 utilities.go:65: Invalid username or password
+INFO 2026/04/20 11:22:29 utilities.go:60: Login successful
+INFO 2026/04/20 11:22:32 utilities.go:60: Logout successful
+INFO 2026/04/20 11:22:43 utilities.go:60: Login successful
+INFO 2026/04/20 11:25:38 utilities.go:60: Logout successful
+INFO 2026/04/20 11:25:44 utilities.go:60: Login successful
+INFO 2026/04/20 11:26:05 utilities.go:60: Logout successful
+INFO 2026/04/20 11:26:14 utilities.go:60: Login successful
+INFO 2026/04/20 11:30:32 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 11:30:40 utilities.go:60: Login successful
+INFO 2026/04/20 11:30:49 utilities.go:60: starting server on 0.0.0.0:8081
+INFO 2026/04/20 11:31:16 utilities.go:60: Login successful
+INFO 2026/04/20 11:31:26 utilities.go:60: Logout successful
+INFO 2026/04/20 11:31:32 utilities.go:60: Login successful
+INFO 2026/04/20 11:46:07 utilities.go:60: Logout successful
+INFO 2026/04/20 11:46:16 utilities.go:60: Login successful
+INFO 2026/04/20 11:46:25 utilities.go:60: Logout successful
+INFO 2026/04/20 11:46:34 utilities.go:60: Login successful
+INFO 2026/04/20 11:47:29 utilities.go:60: Logout successful
+INFO 2026/04/20 11:47:33 utilities.go:60: Login successful
+INFO 2026/04/20 12:48:04 utilities.go:60: starting server on 0.0.0.0:8081
+ERROR 2026/04/20 12:48:13 utilities.go:65: Invalid username or password
+INFO 2026/04/20 12:48:17 utilities.go:60: Login successful

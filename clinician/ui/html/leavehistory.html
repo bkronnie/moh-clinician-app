@@ -19,7 +19,7 @@ Leave History
             <h3 class="mb-0">Office leave applications</h3>
             <p>Review your previous leave requests and their current status.</p>
         </div>
-        {{ if hasRole . "user" }}
+        {{ if hasRole . "Staff" }}
         <div class="app-list-actions">
             <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
             <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
@@ -70,9 +70,12 @@ Leave History
                     <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Valid") (eq $status "Approved") }}valid{{ else if eq $status "Completed" }}completed{{ else if eq $status "Rejected" }}rejected{{ else if eq $status "Expired" }}expired{{ end }}">
                         {{ if .LeaveStatus.Valid }}{{ .LeaveStatus.String }}{{ else }}-{{ end }}
                     </span>
+                    {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) .ReviewedOn.Valid }}
+                    <span class="d-block text-muted small mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate .ReviewedOn.Time }}</span>
+                    {{ end }}
                 </div>
                 <div class="app-row-actions">
-                    {{ if and (hasRole $ "user") .LeaveStatus.Valid (eq .LeaveStatus.String "Pending") }}
+                    {{ if and (hasRole $ "Staff") .LeaveStatus.Valid (eq .LeaveStatus.String "Pending") }}
                     <a href="/leave/edit/{{ .ID }}" class="btn btn-sm btn-outline-primary">Edit</a>
                     <form action="/leave/delete/{{ .ID }}" method="POST" onsubmit="return confirm('Delete this pending leave application?');">
                         <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>

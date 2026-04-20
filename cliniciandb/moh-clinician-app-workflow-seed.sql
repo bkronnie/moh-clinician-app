@@ -85,15 +85,16 @@ WHERE  reviewed_on  IS NULL
 UPDATE clinician_app.staffleave sl SET
     approved_by = (
         SELECT u.id
-        FROM   clinician_app.users      u
-        JOIN   clinician_app.employees  ue ON ue.id = u.employees
+        FROM   clinician_app.users u
+        JOIN   clinician_app.employees ue ON ue.id = u.employees
+        JOIN   clinician_app.employeerights er ON er.employee = ue.id
+        JOIN   clinician_app.rights r ON r.id = er.rights
         WHERE  ue.facility = (
                    SELECT e.facility
                    FROM   clinician_app.employees e
                    WHERE  e.id = sl.employee_id
                )
-          AND  u.rights       = 'approver'
-          AND  u.access_scope = 'facility'
+          AND  r.rights = 'Facility Admin'
         ORDER  BY u.id
         LIMIT  1
     )

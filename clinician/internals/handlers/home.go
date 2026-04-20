@@ -19,11 +19,12 @@ import (
 )
 
 type DashboardKPIView struct {
-	Title string
-	Value int
-	Unit  string
-	Meta  string
-	Link  string
+	Title   string
+	Value   int
+	Unit    string
+	Meta    string
+	Link    string
+	Tooltip string
 }
 
 type DashboardTabView struct {
@@ -145,7 +146,9 @@ type HomeViewModel struct {
 	ClinicianAnalysis   []models.ClinicianAnalysisRow
 	TopFacilities       []models.FacilityPerformanceRow
 	AttentionFacilities []models.FacilityPerformanceRow
+	TopDepartments      []models.DepartmentAnalysisRow
 	PriorityDepartments []models.DepartmentAnalysisRow
+	TopClinicians       []models.ClinicianAnalysisRow
 	PriorityClinicians  []models.ClinicianAnalysisRow
 	DataEntryURL        string
 	LatestSubmission    string
@@ -234,6 +237,18 @@ func HandlerHome(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager)
 
 }
 
+// roleFromRights normalizes a stored rights label to a canonical access role name.
+func roleFromRights(rights string) string {
+	return utilities.NormalizeRoleKey(rights)
+}
+
+func hasEmployeeMapping(user *models.User) bool {
+	if user == nil {
+		return false
+	}
+	return user.Employees.Valid && user.Employees.Int64 > 0
+}
+
 func HandlerLoginOut(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	// Clear the session to log the user out
 	sessionManager.Destroy(c)
@@ -274,31 +289,49 @@ func SES_SET(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) (ut
 
 	ses.Email = user.Username
 	ses.EmpID = user.Employees.Int64
-	ses.Rights = user.Rights
+	roleID, roleName, err := models.UserRoleByID(c, db, user.ID)
+	if err != nil {
+		return ses, err
+	}
+	ses.Right = roleID
+	ses.Rights = roleName
 	ses.UserID = int64(user.ID)
+
+	if !hasEmployeeMapping(user) {
+		log.Printf("SES_SET: user %d has no employee mapping; continuing with role-only session", user.ID)
+		return ses, nil
+	}
 
 	emp, err := models.EmployeeByID(c, db, int(user.Employees.Int64))
 	if err != nil {
-		return ses, err
+		log.Printf("SES_SET: failed to load employee profile for user %d (employee_id=%d): %v", user.ID, user.Employees.Int64, err)
+		return ses, nil
 	}
 
 	ses.FName = emp.Fname.String
 	ses.LName = emp.Lname.String
+	ses.Title = emp.EmpTitle.String
 
-	hf, err := models.FacilityByID(c, db, int(emp.EmpFacility))
-	if err != nil {
-		return ses, err
+	// National users can legitimately have no facility/department assignment.
+	// Keep session construction resilient so role-based navigation still renders.
+	if emp.EmpFacility > 0 {
+		hf, hfErr := models.FacilityByID(c, db, int(emp.EmpFacility))
+		if hfErr != nil {
+			log.Printf("SES_SET: failed to resolve facility for employee %d (facility_id=%d): %v", emp.EmpID, emp.EmpFacility, hfErr)
+		} else {
+			ses.HFName = hf.FacilityName
+			ses.HFID = int64(hf.FacilityID)
+		}
 	}
 
-	ses.HFName = hf.FacilityName
-	ses.HFID = int64(hf.FacilityID)
-
-	hd, err := models.DepartmentByID(c, db, int(emp.EmpDepartment))
-	if err != nil {
-		return ses, err
+	if emp.EmpDepartment > 0 {
+		hd, hdErr := models.DepartmentByID(c, db, int(emp.EmpDepartment))
+		if hdErr != nil {
+			log.Printf("SES_SET: failed to resolve department for employee %d (department_id=%d): %v", emp.EmpID, emp.EmpDepartment, hdErr)
+		} else {
+			ses.HDID = int64(hd.DeptID)
+		}
 	}
-
-	ses.HDID = int64(hd.DeptID)
 
 	return ses, nil
 
@@ -310,7 +343,8 @@ func Get_Session_Data(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 		return nil
 	}
 
-	data := GetPageData("your flash message")
+	flash := sessionManager.PopString(c.Request.Context(), "flash")
+	data := GetPageData(flash)
 
 	ses, er := SES_SET(c, db, sessionManager)
 	if er != nil {
@@ -329,16 +363,29 @@ func Get_Session_Data(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 		}
 
 		// Load notification counts by role
-		switch strings.ToLower(strings.TrimSpace(ses.Rights)) {
-		case "approver":
+		switch roleFromRights(ses.Rights) {
+		case utilities.RoleFacilityAdmin:
 			data.NotifPendingLeave, _ = models.GetPendingLeaveCount(ctx, db, ses.HFID)
 			data.NotifPendingReports, _ = models.GetPendingReportCount(ctx, db, ses.HFID)
-		case "admin":
+			missingReports, _ := models.GetClinicianMissingRequiredReportsCount(ctx, db, int(ses.EmpID))
+			data.NotifMyDataEntry = missingReports
+			if missingReports > 0 {
+				data.NotifMyDataState = "overdue"
+			} else {
+				data.NotifMyDataState = "current"
+			}
+		case utilities.RoleNationalAdmin:
 			data.NotifPendingReports, _ = models.GetPendingReportCount(ctx, db, 0)
-		case "user":
+		case utilities.RoleStaff:
 			data.NotifMyLeave, _ = models.GetMyRecentLeaveUpdates(ctx, db, ses.EmpID)
 			data.NotifMyReports, _ = models.GetMyRecentReportUpdates(ctx, db, ses.EmpID)
-			data.NotifMyDataEntry, _ = models.GetMyDataEntryReminderCount(ctx, db, ses.EmpID)
+			missingReports, _ := models.GetClinicianMissingRequiredReportsCount(ctx, db, int(ses.EmpID))
+			data.NotifMyDataEntry = missingReports
+			if missingReports > 0 {
+				data.NotifMyDataState = "overdue"
+			} else {
+				data.NotifMyDataState = "current"
+			}
 		}
 	}
 
@@ -355,10 +402,10 @@ func buildHomeViewModel(c *gin.Context, db *sql.DB, ses utilities.SessionDetails
 	selectedWeek, hasWeek := parseOptionalIntQuery(c, "week")
 	activeTab := strings.TrimSpace(c.Query("tab"))
 
-	switch ses.Rights {
-	case "admin":
+	switch roleFromRights(ses.Rights) {
+	case utilities.RoleNationalAdmin:
 		return buildNationalHome(c, db, selectedFacility, selectedDepartment, selectedEmployee, selectedYear, hasYear, selectedMonth, hasMonth, selectedWeek, hasWeek, activeTab)
-	case "approver":
+	case utilities.RoleFacilityAdmin:
 		return buildFacilityManagerHome(c, db, int(ses.HFID), ses.HFName, selectedDepartment, selectedEmployee, selectedYear, hasYear, selectedMonth, hasMonth, selectedWeek, hasWeek, activeTab)
 	default:
 		return buildClinicianHome(c, db, int(ses.EmpID), ses.HFName, selectedYear, selectedMonth, selectedWeek, activeTab)
@@ -405,7 +452,7 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 	}
 
 	view := HomeViewModel{
-		Role:               "admin",
+		Role:               utilities.RoleNationalAdmin,
 		ScopeTitle:         "National Reporting Dashboard",
 		ScopeSubtitle:      "Track national reporting performance across facilities using the latest reporting period stored in the database, then narrow the view with year, month, week, and facility filters.",
 		FilterSummary:      fmt.Sprintf("%s | Scope: %s", selectedWeekLabel, scopeSuffix),
@@ -481,19 +528,21 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 	view.TopFacilities = topFacilityPerformers(snapshot.FacilityPerformance, 3)
 	view.AttentionFacilities = facilitiesNeedingSupport(snapshot.FacilityPerformance, 3)
 
-	if selectedFacilityID > 0 {
-		departmentAnalysis, err := models.GetFacilityDepartmentAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
-		if err != nil {
-			return HomeViewModel{}, err
-		}
-		view.DepartmentAnalysis = departmentAnalysis
-
-		clinicianAnalysis, err := models.GetFacilityClinicianAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
-		if err != nil {
-			return HomeViewModel{}, err
-		}
-		view.ClinicianAnalysis = clinicianAnalysis
+	departmentAnalysis, err := models.GetNationalDepartmentAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
+	if err != nil {
+		return HomeViewModel{}, err
 	}
+	view.DepartmentAnalysis = departmentAnalysis
+	view.TopDepartments = topDepartments(departmentAnalysis, 5)
+	view.PriorityDepartments = priorityDepartments(departmentAnalysis, 5)
+
+	clinicianAnalysis, err := models.GetNationalClinicianAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+	view.ClinicianAnalysis = clinicianAnalysis
+	view.TopClinicians = topClinicians(clinicianAnalysis, 8)
+	view.PriorityClinicians = priorityClinicians(clinicianAnalysis, 8)
 
 	trendPoints, err := models.GetScopeTrendPoints(c.Request.Context(), db, 0, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, selectedYear, selectedMonth, 0)
 	if err != nil {
@@ -511,7 +560,7 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 	}
 	if len(view.DepartmentAnalysis) > 0 {
 		view.OverviewCharts = append(view.OverviewCharts,
-			buildDepartmentWorkloadChart("Department Workload Comparison", "Compare patient reviews and ward rounds between departments for the selected facility drill-down.", view.DepartmentAnalysis),
+			buildDepartmentWorkloadChart("Department Workload Comparison", "Compare patient reviews and ward rounds between departments in the current national scope.", view.DepartmentAnalysis),
 		)
 	}
 
@@ -574,7 +623,7 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 	}
 
 	view := HomeViewModel{
-		Role:               "approver",
+		Role:               utilities.RoleFacilityAdmin,
 		ScopeTitle:         fmt.Sprintf("%s Facility Dashboard", facilityName),
 		ScopeSubtitle:      "Monitor department performance, staff activity, and review queues for the current facility scope.",
 		FilterSummary:      fmt.Sprintf("%s | Scope: %s", selectedWeekLabel, scopeLabel),
@@ -640,29 +689,20 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 		return HomeViewModel{}, err
 	}
 
-	entryStatus := "Not entered"
-	if snapshot.WeeksEntered > 0 {
-		entryStatus = "Entered"
+	missingRequiredReports, err := models.GetClinicianMissingRequiredReportsCount(c.Request.Context(), db, employeeID)
+	if err != nil {
+		return HomeViewModel{}, err
 	}
 
-	submissionStatus := "Not submitted"
-	if snapshot.SelectedWeek == 0 {
-		switch {
-		case snapshot.WeeksEntered == 0:
-			submissionStatus = "Not submitted"
-		case snapshot.WeeksSubmitted == snapshot.WeeksEntered:
-			submissionStatus = "Submitted"
-		default:
-			submissionStatus = "Partially submitted"
-		}
-	} else if snapshot.SelectedWeekSubmitted {
-		submissionStatus = "Submitted"
-	} else if snapshot.WeeksEntered > 0 {
-		submissionStatus = "Saved as draft"
+	entryStatus := "Current"
+	entryTone := "stat-success"
+	if missingRequiredReports > 0 {
+		entryStatus = "Overdue"
+		entryTone = "stat-warning"
 	}
 
 	view := HomeViewModel{
-		Role:              "user",
+		Role:              utilities.RoleStaff,
 		ScopeTitle:        "My Dashboard",
 		ScopeSubtitle:     "Review your clinical activity, reporting progress, and trends using year, month, and week filters.",
 		FilterSummary:     snapshot.SelectedWeekLabel,
@@ -739,8 +779,8 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 	}
 
 	view.Stats = []map[string]interface{}{
-		{"Title": "Entry Status", "Value": entryStatus, "Tone": "stat-info"},
-		{"Title": "Submission Status", "Value": submissionStatus, "Tone": "stat-warning"},
+		{"Title": "Entry Status", "Value": entryStatus, "Tone": entryTone},
+		{"Title": "Missing Required Reports", "Value": missingRequiredReports, "Tone": entryTone},
 		{"Title": "Attendance Rate", "Value": fmt.Sprintf("%d%%", snapshot.AttendanceRate), "Tone": "stat-success"},
 		{"Title": "Submission Progress", "Value": fmt.Sprintf("%d%%", snapshot.SubmissionProgress), "Tone": "stat-primary"},
 	}
@@ -751,7 +791,7 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 			buildClinicianActivityChart("Attendance and Ward Rounds Trend", "Track working days against ward rounds to spot consistency over time.", snapshot.RecentWeeks),
 		)
 	}
-	view.LatestSubmission = fmt.Sprintf("%s: %s", snapshot.SelectedWeekLabel, submissionStatus)
+	view.LatestSubmission = fmt.Sprintf("%s: %s", snapshot.SelectedWeekLabel, entryStatus)
 
 	_ = facilityName
 
@@ -774,7 +814,7 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 	}
 
 	switch view.Role {
-	case "user":
+	case utilities.RoleStaff:
 		view.IdentityTitle = "Medical Officer Profile"
 		view.IdentityName = view.OfficerName
 		view.IdentityBadges = []DashboardBadgeView{
@@ -819,7 +859,7 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 		view.DetailSections = append(view.DetailSections,
 			withDetailTab(buildClinicianBenchmarkSection(*view), "benchmarks", "Benchmarks"),
 		)
-	case "admin":
+	case utilities.RoleNationalAdmin:
 		view.FilterTitle = "National Filters"
 		view.FilterHint = "National dashboards default to the latest reporting year, month, and week in the database."
 		view.FilterFields = []DashboardFilterFieldView{
@@ -875,15 +915,19 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 		)
 		if len(view.DepartmentAnalysis) > 0 {
 			view.DetailSections = append(view.DetailSections,
-				withDetailTab(buildDepartmentAnalysisSection("Department Comparison", "Department reporting, workload, and attendance indicators for the selected facility scope.", view.DepartmentAnalysis), "departments", "Departments"),
+				withDetailTab(buildDepartmentAnalysisSection("Top Performing Departments", "Departments leading national reporting and workload output in the current scope.", view.TopDepartments), "departments", "Departments"),
+				withDetailTab(buildDepartmentAnalysisSection("Departments Requiring Follow-up", "Departments with weaker reporting or higher pending submission gaps in the current scope.", view.PriorityDepartments), "departments", "Departments"),
+				withDetailTab(buildDepartmentAnalysisSection("Department Comparison", "Nationwide department reporting, workload, and attendance indicators for the selected scope.", view.DepartmentAnalysis), "departments", "Departments"),
 			)
 		}
 		if len(view.ClinicianAnalysis) > 0 {
 			view.DetailSections = append(view.DetailSections,
+				withDetailTab(buildClinicianAnalysisSection("Top Performing Staff Nationwide", "Staff leading reporting quality and workload output in the current national scope.", view.TopClinicians), "clinicians", "Clinicians"),
+				withDetailTab(buildClinicianAnalysisSection("Staff Requiring Follow-up", "Staff whose reporting status or leave status requires follow-up in the current national scope.", view.PriorityClinicians), "clinicians", "Clinicians"),
 				withDetailTab(buildClinicianAnalysisSection("Clinician Drill-down", "Clinician-level reporting and workload indicators for the current drill-down selection.", view.ClinicianAnalysis), "clinicians", "Clinicians"),
 			)
 		}
-	case "approver":
+	case utilities.RoleFacilityAdmin:
 		view.FilterTitle = "Facility Filters"
 		view.FilterHint = "Facility dashboards refresh automatically and can be narrowed to a department or an individual employee."
 		view.FilterFields = []DashboardFilterFieldView{
@@ -935,7 +979,102 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 	}
 
 	populateDashboardTabs(view)
+	applyKPIDrilldowns(view)
 	view.ClearFiltersURL = buildDashboardClearURL(*view)
+}
+
+func applyKPIDrilldowns(view *HomeViewModel) {
+	facilitiesURL := dashboardTabURLForID(*view, "facilities")
+	departmentsURL := dashboardTabURLForID(*view, "departments")
+	cliniciansURL := dashboardTabURLForID(*view, "clinicians")
+	staffURL := dashboardTabURLForID(*view, "staff")
+	activityURL := dashboardTabURLForID(*view, "activity")
+	benchmarksURL := dashboardTabURLForID(*view, "benchmarks")
+
+	for i := range view.KPIs {
+		kpi := &view.KPIs[i]
+
+		switch view.Role {
+		case utilities.RoleNationalAdmin:
+			switch kpi.Title {
+			case "National Reporting Rate", "Facilities in Scope", "Missing Submissions":
+				kpi.Link = facilitiesURL
+				kpi.Tooltip = "Open facility performance table"
+			case "Clinicians in Scope":
+				kpi.Link = cliniciansURL
+				kpi.Tooltip = "Open nationwide clinician drill-down table"
+			case "Reports Entered", "Reports Submitted":
+				kpi.Link = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all")
+				kpi.Tooltip = "Open report submissions table"
+			case "Pending Approval":
+				kpi.Link = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending")
+				kpi.Tooltip = "Open pending approval submissions"
+			}
+		case utilities.RoleFacilityAdmin:
+			switch kpi.Title {
+			case "Reports Entered", "Reports Submitted":
+				kpi.Link = buildReportSubmissionsURL(0, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all")
+				kpi.Tooltip = "Open facility report submissions table"
+			case "Pending Submission", "Ward Rounds", "Patients Reviewed", "Procedures":
+				kpi.Link = departmentsURL
+				kpi.Tooltip = "Open department analysis table"
+			case "Pending Report Approvals":
+				kpi.Link = buildReportSubmissionsURL(0, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending")
+				kpi.Tooltip = "Open pending report approvals"
+			case "Pending Leave Requests":
+				kpi.Link = buildFacilityLeaveReviewURL("pending")
+				kpi.Tooltip = "Open pending leave requests table"
+			}
+		default:
+			switch kpi.Title {
+			case "Total Reports":
+				kpi.Link = buildReportHistoryPeriodFilterQuery("all", view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
+				kpi.Tooltip = "Open my report history"
+			case "Submitted":
+				kpi.Link = buildReportHistoryPeriodFilterQuery("submitted", view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
+				kpi.Tooltip = "Open submitted reports"
+			case "Approved":
+				kpi.Link = buildReportHistoryPeriodFilterQuery("approved", view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
+				kpi.Tooltip = "Open approved reports"
+			case "Declined":
+				kpi.Link = buildReportHistoryPeriodFilterQuery("declined", view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
+				kpi.Tooltip = "Open declined reports"
+			case "Days Worked", "Ward Rounds", "Patients Reviewed", "Procedures":
+				kpi.Link = activityURL
+				kpi.Tooltip = "Open activity breakdown table"
+			}
+		}
+
+		if kpi.Link == "" {
+			if view.Role == utilities.RoleNationalAdmin && departmentsURL != "" {
+				kpi.Link = departmentsURL
+			} else if view.Role == utilities.RoleFacilityAdmin && staffURL != "" {
+				kpi.Link = staffURL
+			} else if view.Role == utilities.RoleStaff && benchmarksURL != "" {
+				kpi.Link = benchmarksURL
+			}
+		}
+
+		if strings.TrimSpace(kpi.Tooltip) == "" {
+			if strings.TrimSpace(kpi.Link) != "" {
+				kpi.Tooltip = "Click to view detailed table for this KPI"
+			} else {
+				kpi.Tooltip = "Metric for the current dashboard filter scope"
+			}
+		}
+	}
+}
+
+func dashboardTabURLForID(view HomeViewModel, tabID string) string {
+	for _, tab := range view.Tabs {
+		if tab.ID == tabID {
+			return tab.URL
+		}
+	}
+	if tabID == "" {
+		return ""
+	}
+	return buildDashboardTabURL(view, tabID)
 }
 
 func withSummaryTab(section DashboardSummarySectionView, tabID string, tabLabel string) DashboardSummarySectionView {
@@ -1006,7 +1145,7 @@ func buildDashboardClearURL(view HomeViewModel) string {
 	resetView.SelectedWeek = 0
 	resetView.SelectedDepartment = 0
 	resetView.SelectedEmployee = 0
-	if view.Role == "admin" {
+	if view.Role == utilities.RoleNationalAdmin {
 		resetView.SelectedFacility = 0
 	}
 	if resetView.ActiveTab == "" {
@@ -1361,7 +1500,7 @@ func buildDepartmentAnalysisSection(title string, subtitle string, rows []models
 
 		section.Rows = append(section.Rows, DashboardDetailRowView{
 			Title:    row.DepartmentName,
-			Subtitle: fmt.Sprintf("%d clinicians tracked this week", row.Clinicians),
+			Subtitle: departmentSubtitle(row),
 			Badges:   []DashboardBadgeView{{Text: fmt.Sprintf("%d%% reporting rate", row.ReportingRate), Tone: tone}},
 			Metrics: []DashboardMetricView{
 				{Label: "Reports Entered", Value: strconv.Itoa(row.ReportsEntered)},
@@ -1409,6 +1548,9 @@ func buildClinicianAnalysisSection(title string, subtitle string, rows []models.
 		if row.DepartmentName != "" {
 			subtitleText += " - " + row.DepartmentName
 		}
+		if row.FacilityName != "" {
+			subtitleText += " - " + row.FacilityName
+		}
 
 		section.Rows = append(section.Rows, DashboardDetailRowView{
 			Title:    row.EmployeeName,
@@ -1429,6 +1571,14 @@ func buildClinicianAnalysisSection(title string, subtitle string, rows []models.
 	}
 
 	return section
+}
+
+func departmentSubtitle(row models.DepartmentAnalysisRow) string {
+	parts := []string{fmt.Sprintf("%d clinicians tracked", row.Clinicians)}
+	if row.FacilityName != "" {
+		parts = append(parts, row.FacilityName)
+	}
+	return strings.Join(parts, " - ")
 }
 
 func cappedProgress(value, target int) int {
@@ -1551,6 +1701,31 @@ func priorityDepartments(rows []models.DepartmentAnalysisRow, limit int) []model
 	return cloned
 }
 
+func topDepartments(rows []models.DepartmentAnalysisRow, limit int) []models.DepartmentAnalysisRow {
+	if len(rows) == 0 || limit <= 0 {
+		return nil
+	}
+
+	cloned := append([]models.DepartmentAnalysisRow(nil), rows...)
+	sort.SliceStable(cloned, func(i, j int) bool {
+		if cloned[i].ReportingRate != cloned[j].ReportingRate {
+			return cloned[i].ReportingRate > cloned[j].ReportingRate
+		}
+		if cloned[i].ReportsSubmitted != cloned[j].ReportsSubmitted {
+			return cloned[i].ReportsSubmitted > cloned[j].ReportsSubmitted
+		}
+		if cloned[i].PatientsReviewed != cloned[j].PatientsReviewed {
+			return cloned[i].PatientsReviewed > cloned[j].PatientsReviewed
+		}
+		return cloned[i].DepartmentName < cloned[j].DepartmentName
+	})
+
+	if len(cloned) > limit {
+		cloned = cloned[:limit]
+	}
+	return cloned
+}
+
 func priorityClinicians(rows []models.ClinicianAnalysisRow, limit int) []models.ClinicianAnalysisRow {
 	if len(rows) == 0 || limit <= 0 {
 		return nil
@@ -1565,6 +1740,42 @@ func priorityClinicians(rows []models.ClinicianAnalysisRow, limit int) []models.
 		}
 		if cloned[i].PatientsReviewed != cloned[j].PatientsReviewed {
 			return cloned[i].PatientsReviewed < cloned[j].PatientsReviewed
+		}
+		return cloned[i].EmployeeName < cloned[j].EmployeeName
+	})
+
+	if len(cloned) > limit {
+		cloned = cloned[:limit]
+	}
+	return cloned
+}
+
+func topClinicians(rows []models.ClinicianAnalysisRow, limit int) []models.ClinicianAnalysisRow {
+	if len(rows) == 0 || limit <= 0 {
+		return nil
+	}
+
+	cloned := append([]models.ClinicianAnalysisRow(nil), rows...)
+	sort.SliceStable(cloned, func(i, j int) bool {
+		leftApproved := 0
+		if cloned[i].SubmissionStatus == "Approved" {
+			leftApproved = 1
+		}
+		rightApproved := 0
+		if cloned[j].SubmissionStatus == "Approved" {
+			rightApproved = 1
+		}
+		if leftApproved != rightApproved {
+			return leftApproved > rightApproved
+		}
+		if cloned[i].ReportsSubmitted != cloned[j].ReportsSubmitted {
+			return cloned[i].ReportsSubmitted > cloned[j].ReportsSubmitted
+		}
+		if cloned[i].PatientsReviewed != cloned[j].PatientsReviewed {
+			return cloned[i].PatientsReviewed > cloned[j].PatientsReviewed
+		}
+		if cloned[i].Procedures != cloned[j].Procedures {
+			return cloned[i].Procedures > cloned[j].Procedures
 		}
 		return cloned[i].EmployeeName < cloned[j].EmployeeName
 	})

@@ -342,7 +342,79 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	return row, nil
 }
 
-func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employeeID int64, start, stop time.Time, values map[string]int64, daysWorked string) (bool, error) {
+func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID int64, weekStart time.Time, weekStop time.Time) (*ClinicianReportHistoryRow, error) {
+	const sqlstr = `
+		SELECT
+			w.id,
+			w.employee,
+			w.department,
+			w.hospital,
+			w.start,
+			w.stop,
+			w.created_on,
+			COALESCE(w.submit_status, ''),
+			COALESCE(w.report_status, ''),
+			w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+			w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests,
+			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
+			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
+			COALESCE(w.days_worked, ''),
+			w.submitted_on
+		FROM clinician_app.weeklyreport w
+		WHERE w.employee = $1
+			AND w.start::date = $2::date
+			AND w.stop::date = $3::date
+		ORDER BY w.id DESC
+		LIMIT 1
+	`
+
+	row := &ClinicianReportHistoryRow{}
+	var submitStatusText string
+	var reportStatusText string
+	var daysWorkedText string
+	err := db.QueryRowContext(ctx, sqlstr, employeeID, weekStart, weekStop).Scan(
+		&row.ReportID,
+		&row.EmployeeID,
+		&row.DepartmentID,
+		&row.FacilityID,
+		&row.WeekStart,
+		&row.WeekStop,
+		&row.EnteredOn,
+		&submitStatusText,
+		&reportStatusText,
+		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn04, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
+		&row.Qn11, &row.Qn12, &row.Qn13, &row.Qn14, &row.Qn15, &row.Qn16, &row.Qn17, &row.Qn18, &row.Qn19, &row.Qn20,
+		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
+		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
+		&daysWorkedText,
+		&row.SubmittedOn,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if submitStatusText != "" {
+		row.SubmitStatus = sql.NullString{String: submitStatusText, Valid: true}
+	}
+	if reportStatusText != "" {
+		row.ReportStatus = sql.NullString{String: reportStatusText, Valid: true}
+	}
+	if daysWorkedText != "" {
+		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
+	}
+	if row.ReportStatus.Valid && (row.ReportStatus.String == "Rejected" || row.ReportStatus.String == "Declined") {
+		row.HistoryStatus = "declined"
+	} else if row.SubmitStatus.Valid && row.SubmitStatus.String == "Submitted" {
+		row.HistoryStatus = "submitted"
+	} else {
+		row.HistoryStatus = "draft"
+	}
+	row.Actionable = row.HistoryStatus == "draft" || row.HistoryStatus == "declined"
+
+	return row, nil
+}
+
+func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employeeID int64, start, stop time.Time, values map[string]sql.NullInt64, daysWorked string) (bool, error) {
 	const sqlstr = `
 		UPDATE clinician_app.weeklyreport SET
 			start = $1,
@@ -362,15 +434,23 @@ func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 			AND COALESCE(report_status, '') <> 'Approved'
 	`
 
+	nullableValue := func(key string) interface{} {
+		value, ok := values[key]
+		if !ok || !value.Valid {
+			return nil
+		}
+		return value.Int64
+	}
+
 	result, err := db.ExecContext(
 		ctx,
 		sqlstr,
 		start,
 		stop,
-		values["attendance"], values["ward_rounds"], values["patients_reviewed"], values["theatre_days"], values["elective"], values["emergency"], values["postmortems"], values["OPD_clinics"], values["OPD_patients"], values["anc_patients"],
-		values["teaching_rounds"], values["students_taught"], values["mortality_reviews"], values["maternal"], values["perinatal"], values["surgical"], values["medical"], values["paed"], values["labs_requests"], values["imaging_requests"],
-		values["lab_investigations"], values["BS"], values["HIV"], values["malaria"], values["TB"], values["CBC"], values["chemistry"], values["hematology"], values["urinalysis"], values["gram_stain"],
-		values["culture"], values["microbiology"], values["sensitivity_tests"], values["diagnostics"], values["xrays"], values["ct_scans"], values["obstetrics_scans"], values["abdominal_scans"],
+		nullableValue("attendance"), nullableValue("ward_rounds"), nullableValue("patients_reviewed"), nullableValue("theatre_days"), nullableValue("elective"), nullableValue("emergency"), nullableValue("postmortems"), nullableValue("OPD_clinics"), nullableValue("OPD_patients"), nullableValue("anc_patients"),
+		nullableValue("teaching_rounds"), nullableValue("students_taught"), nullableValue("mortality_reviews"), nullableValue("maternal"), nullableValue("perinatal"), nullableValue("surgical"), nullableValue("medical"), nullableValue("paed"), nullableValue("labs_requests"), nullableValue("imaging_requests"),
+		nullableValue("lab_investigations"), nullableValue("BS"), nullableValue("HIV"), nullableValue("malaria"), nullableValue("TB"), nullableValue("CBC"), nullableValue("chemistry"), nullableValue("hematology"), nullableValue("urinalysis"), nullableValue("gram_stain"),
+		nullableValue("culture"), nullableValue("microbiology"), nullableValue("sensitivity_tests"), nullableValue("diagnostics"), nullableValue("xrays"), nullableValue("ct_scans"), nullableValue("obstetrics_scans"), nullableValue("abdominal_scans"),
 		daysWorked,
 		time.Now(),
 		reportID,

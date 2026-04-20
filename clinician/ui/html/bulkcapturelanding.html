@@ -15,33 +15,49 @@
 {{ end }}
 
 {{ define "content" }}
-<form id="bulkCaptureForm" method="post" action="/reports/zave">
-    
-    <div class="form-group row">
-        <label for="department" class="col-sm-2 col-form-label">Select Department:</label>
-        <div class="col-sm-4">
-            <select id="department" name="department" class="form-control form-control-sm">
-                <option value="">-- Select Department --</option>
+<form id="bulkCaptureForm" method="post" action="/reports/zave" class="app-list-panel">
+    <div class="app-list-toolbar">
+        <p>Load staff by department and week, enter all values in one table, then save once.</p>
+        <div class="app-list-actions">
+            <a href="/reports/bulk" class="btn btn-outline-secondary btn-sm">Open Staff List View</a>
+        </div>
+    </div>
+
+    <div class="submissions-filters">
+        <div class="filter-field">
+            <label for="department">Department</label>
+            <select id="department" name="department">
+                <option value="">All departments (all facility staff)</option>
                 {{ range .departments }}
                 <option value="{{ .DeptID }}">{{ .DepartmentName.String }}</option>
                 {{ end }}
             </select>
         </div>
-        <div class="col-sm-2">
-            <button type="button" id="loadData" class="btn btn-sm btn-primary">Load</button>
+        <div class="filter-field">
+            <label for="weekSelector">Week</label>
+            <select id="weekSelector" name="week_selector">
+                {{ range .weekOptions }}
+                <option value="{{ .StartDate }}|{{ .EndDate }}" data-start="{{ .StartDate }}" data-end="{{ .EndDate }}" {{ if eq .StartDate $.weekStart }}selected{{ end }}>{{ .Label }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="start">Start Date</label>
+            <input type="date" id="start" name="start" value="{{ .weekStart }}" readonly required>
+        </div>
+        <div class="filter-field">
+            <label for="stop">End Date</label>
+            <input type="date" id="stop" name="stop" value="{{ .weekEnd }}" readonly required>
+        </div>
+        <div class="filter-field">
+            <label>&nbsp;</label>
+            <button type="button" id="loadData" class="btn btn-primary btn-block">Load Staff</button>
         </div>
     </div>
 
-    <!-- Date Pickers at the Top -->
-    <div class="data-entry-row">
-        <label for="start">Start Date</label>
-        <input type="date" id="start" name="start" class="form-control form-control-sm" required>
-        
-        <label for="stop">Stop Date</label>
-        <input type="date" id="stop" name="stop" class="form-control form-control-sm" required>
-    </div>
+    <p id="bulkWeekLabel" class="app-list-note">Selected reporting period: {{ .weekLabel }}</p>
 
-    <div id="table-container" class="div1">
+    <div id="table-container" class="app-table-scroll mt-3">
         <table id="staffTable" class="table table-hover table-bordered">
             <thead class="thead-light">
                 <tr id="dynamicHeaders">
@@ -50,15 +66,18 @@
                     <th>Title</th>
                 </tr>
             </thead>
-            <tbody>
-                <!-- Rows will be dynamically populated -->
+            <tbody id="bulkTableBody">
+                <tr>
+                    <td colspan="3" class="text-center text-muted">Select a department and click Load Staff.</td>
+                </tr>
             </tbody>
         </table>
-    </div><br>
-    <div class="form-group row">
+    </div>
+
+    <div class="form-group row mt-3">
         <div class="col-sm-12 text-center">
-            <a href="javascript:history.back()" class="btn btn-secondary btn-sm">Back</a>            
-            <button class="btn btn-success btn-sm" type="submit">Submit</button>
+            <a href="/reports/bulk" class="btn btn-secondary btn-sm">Back</a>
+            <button id="bulkSaveButton" class="btn btn-success btn-sm" type="submit" disabled>Save All Entries</button>
         </div>
     </div>
 </form>
@@ -66,108 +85,99 @@
 {{end}}
 
 {{ define "extraJS" }}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // Event listener for the "Load" button
-    $('#loadData').click(function() {
-        const deptID = $('#department').val(); // Get selected department ID
-        if (deptID) {
-            // Perform AJAX GET request to fetch department data
-            $.ajax({
-                url: '/reports/entry',
-                method: 'GET',
-                data: { departmentID: deptID },
-                success: function(response) {
-                    // Destructure the response data
-                    const { staff, dataPoints } = response;
+(() => {
+    const loadButton = document.getElementById('loadData');
+    const saveButton = document.getElementById('bulkSaveButton');
+    const weekSelector = document.getElementById('weekSelector');
+    const startInput = document.getElementById('start');
+    const stopInput = document.getElementById('stop');
+    const departmentInput = document.getElementById('department');
+    const headersRow = document.getElementById('dynamicHeaders');
+    const body = document.getElementById('bulkTableBody');
+    const weekLabel = document.getElementById('bulkWeekLabel');
 
-                    // Check if staff array is empty
-                    if (!staff || staff.length === 0) {
-                        const headersLength = dataPoints.length + 3; // Adjust for dynamic columns
-                        $('#staffTable tbody').html(`
-                            <tr>
-                                <td colspan="${headersLength}" class="text-center">
-                                    No available records for this department.
-                                </td>
-                            </tr>
-                        `);
-                        return;
-                    }
+    const updateSelectedWeekDates = () => {
+        const selected = weekSelector.options[weekSelector.selectedIndex];
+        if (!selected) {
+            return;
+        }
+        const start = selected.getAttribute('data-start') || '';
+        const end = selected.getAttribute('data-end') || '';
+        startInput.value = start;
+        stopInput.value = end;
+        weekLabel.textContent = `Selected reporting period: ${selected.textContent}`;
+    };
 
-                    // Parse dataPoints if it is a JSON string
-                    let parsedDataPoints = [];
-                    if (typeof dataPoints[0] === 'string') {
-                        parsedDataPoints = JSON.parse(dataPoints[0]);
-                    } else {
-                        parsedDataPoints = dataPoints;
-                    }
+    const renderEmpty = (message, columnCount) => {
+        body.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-muted">${message}</td></tr>`;
+        saveButton.disabled = true;
+    };
 
-                    // Transform the data points: Split, capitalize, and join
-                    const formattedPoints = parsedDataPoints.map(point => {
-                        return point
-                            .split('_') // Split on underscores
-                            .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
-                            .join(' '); // Join back into a string
-                    });
+    const renderTable = (staff, dataPoints) => {
+        let headers = '<th>SN</th><th>Staff Name</th><th>Title</th>';
+        dataPoints.forEach((point) => {
+            headers += `<th>${point.label}</th>`;
+        });
+        headersRow.innerHTML = headers;
 
-                    console.log("Formatted data points:", formattedPoints); // Log formatted data points
+        if (!staff || staff.length === 0) {
+            renderEmpty('No active staff records found for the selected department and week.', dataPoints.length + 3);
+            return;
+        }
 
-                    // Generate dynamic table headers
-                    let headers = `
-                        <th>SN</th>
-                        <th>Staff Name</th>
-                        <th>Title</th>                        
-                    `;
-                    formattedPoints.forEach(point => {
-                        headers += `<th>${point}</th>`;
-                    });
-                    $('#dynamicHeaders').html(headers); // Update table headers
-
-                    // Check if staff data is available
-                    if (staff.length > 0) {
-                        // Populate table rows with staff data
-                        let tableBody = '';
-                        staff.forEach((member, index) => {
-                            tableBody += `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${member.firstname.Valid ? member.firstname.String : "N/A"} ${member.lastname.Valid ? member.lastname.String : "N/A"}</td>
-                                    <td>${member.employeetitle.Valid ? member.employeetitle.String : "N/A"}</td>
-                            `;
-                            parsedDataPoints.forEach(point => {
-                                const inputName = `input[${member.employeeid}][${point}]`; // Use backticks for template literals
-                                tableBody += `
-                                    <td>
-                                        <input size="1" type="text"
-                                            name="${inputName}" 
-                                            class="form-control form-control-sm" />
-                                    </td>
-                                `;
-                            });
-                            tableBody += `</tr>`;
-                        });
-
-                        $('#staffTable tbody').html(tableBody); // Update table body
-                    } else {
-                        // Display message if no data is available
-                        $('#staffTable tbody').html(`
-                            <tr>
-                                <td colspan="${parsedDataPoints.length + 3}" class="text-center">
-                                    No available records for this department.
-                                </td>
-                            </tr>
-                        `);
-                    }
-                },
-                error: function(err) {
-                    console.error("AJAX error:", err);
-                    alert('Error loading data. Please try again.');
-                }
+        let rows = '';
+        staff.forEach((member, index) => {
+            const title = (member.title || '').trim() || 'Not set';
+            rows += `<tr><td>${index + 1}</td><td>${member.name}</td><td>${title}</td>`;
+            dataPoints.forEach((point) => {
+                rows += `<td><input type="number" min="0" step="1" name="input[${member.employeeID}][${point.key}]" class="form-control form-control-sm" /></td>`;
             });
-        } else {
-            alert('Please select a department.'); // Handle no department selection
+            rows += '</tr>';
+        });
+        body.innerHTML = rows;
+        saveButton.disabled = false;
+    };
+
+    loadButton.addEventListener('click', async () => {
+        const departmentID = (departmentInput.value || '').trim();
+        const weekStart = startInput.value;
+        const weekEnd = stopInput.value;
+
+        if (!weekStart || !weekEnd) {
+            alert('Select a reporting week first.');
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            if (departmentID) {
+                params.set('departmentID', departmentID);
+            }
+            params.set('week_start', weekStart);
+            params.set('week_end', weekEnd);
+            const url = `/reports/entry?${params.toString()}`;
+            const response = await fetch(url, { method: 'GET' });
+            if (!response.ok) {
+                throw new Error('Failed to load staff data.');
+            }
+            const payload = await response.json();
+            const staff = Array.isArray(payload.staff) ? payload.staff : [];
+            const dataPoints = Array.isArray(payload.dataPoints) ? payload.dataPoints : [];
+            if (dataPoints.length === 0) {
+                renderEmpty('No data points are configured for this department.', 3);
+                headersRow.innerHTML = '<th>SN</th><th>Staff Name</th><th>Title</th>';
+                return;
+            }
+            renderTable(staff, dataPoints);
+        } catch (error) {
+            renderEmpty('Error loading data. Please try again.', 3);
         }
     });
+
+    weekSelector.addEventListener('change', updateSelectedWeekDates);
+    updateSelectedWeekDates();
+})();
 </script>
 
 {{ end }}

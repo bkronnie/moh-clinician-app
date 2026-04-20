@@ -165,7 +165,7 @@ func CreateClinicianSelfRegistration(ctx context.Context, db *sql.DB, input Clin
 	if err := tx.QueryRowContext(ctx, `
 		SELECT id
 		FROM clinician_app.rights
-		WHERE rights = 'user'
+		WHERE rights = 'Staff'
 		LIMIT 1
 	`).Scan(&rightsID); err != nil {
 		return result, err
@@ -180,9 +180,9 @@ func CreateClinicianSelfRegistration(ctx context.Context, db *sql.DB, input Clin
 
 	if err := tx.QueryRowContext(ctx, `
 		INSERT INTO clinician_app.users (
-			username, pssword, employees, created_by, created_on, rights, access_scope
+			username, pssword, employees, created_by, created_on
 		) VALUES (
-			$1, $2, $3, $4, $5, 'user', 'individual'
+			$1, $2, $3, $4, $5
 		)
 		RETURNING id
 	`, input.Email, input.PasswordHash, result.EmployeeID, result.EmployeeID, now).Scan(&result.UserID); err != nil {
@@ -241,7 +241,7 @@ func CreateInitialAdminAccount(ctx context.Context, db *sql.DB, firstName, lastN
 	if err := tx.QueryRowContext(ctx, `
 		SELECT id
 		FROM clinician_app.rights
-		WHERE rights = 'admin'
+		WHERE rights = 'National Admin'
 		LIMIT 1
 	`).Scan(&rightsID); err != nil {
 		return err
@@ -256,9 +256,9 @@ func CreateInitialAdminAccount(ctx context.Context, db *sql.DB, firstName, lastN
 
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO clinician_app.users (
-			username, pssword, employees, created_by, created_on, rights, access_scope
+			username, pssword, employees, created_by, created_on
 		) VALUES (
-			$1, $2, $3, $4, $5, 'admin', 'national'
+			$1, $2, $3, $4, $5
 		)
 	`, email, passwordHash, employeeID, employeeID, now); err != nil {
 		return err

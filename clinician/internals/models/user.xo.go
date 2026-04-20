@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
+	"strings"
 )
 
 // User represents a row from 'clinician_app.users'.
@@ -15,11 +15,40 @@ type User struct {
 	Username  string        `json:"username"`   // username
 	Pssword   string        `json:"pssword"`    // pssword
 	Employees sql.NullInt64 `json:"employees"`  // employees
-	Rights    string        `json:"rights"`     // rights
+	Rights    sql.NullInt64 `json:"rights"`     // joined from employeerights.rights
 	CreatedBy sql.NullInt64 `json:"created_by"` // created_by
 	CreatedOn sql.NullTime  `json:"created_on"` // created_on
 	// xo fields
 	_exists, _deleted bool
+}
+
+const userSelectWithRights = `SELECT ` +
+	`u.id, u.username, u.pssword, u.employees, latest_right.rights, u.created_by, u.created_on ` +
+	`FROM clinician_app.users u ` +
+	`LEFT JOIN LATERAL (` +
+	`	SELECT er.rights ` +
+	`	FROM clinician_app.employeerights er ` +
+	`	WHERE er.employee = u.employees ` +
+	`	ORDER BY er.id DESC ` +
+	`	LIMIT 1` +
+	`) latest_right ON true `
+
+func normalizePasswordForWrite(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if len(trimmed) == 40 {
+		isHex := true
+		for _, ch := range trimmed {
+			if (ch < '0' || ch > '9') && (ch < 'a' || ch > 'f') && (ch < 'A' || ch > 'F') {
+				isHex = false
+				break
+			}
+		}
+		if isHex {
+			return strings.ToLower(trimmed)
+		}
+	}
+
+	return Encrypt(raw)
 }
 
 // Exists returns true when the [User] exists in the database.
@@ -43,13 +72,14 @@ func (u *User) Insert(ctx context.Context, db DB) error {
 	}
 	// insert (primary key generated and returned by database)
 	const sqlstr = `INSERT INTO clinician_app.users (` +
-		`username, pssword, employees, rights, created_by, created_on` +
+		`username, pssword, employees, created_by, created_on` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6` +
+		`$1, $2, $3, $4, $5` +
 		`) RETURNING id`
 	// run
-	logf(sqlstr, u.Username, Encrypt(u.Pssword), u.Employees, u.Rights, u.CreatedBy, u.CreatedOn)
-	if err := db.QueryRowContext(ctx, sqlstr, u.Username, u.Pssword, u.Employees, u.Rights, u.CreatedBy, u.CreatedOn).Scan(&u.ID); err != nil {
+	storedPassword := normalizePasswordForWrite(u.Pssword)
+	logf(sqlstr, u.Username, storedPassword, u.Employees, u.CreatedBy, u.CreatedOn)
+	if err := db.QueryRowContext(ctx, sqlstr, u.Username, storedPassword, u.Employees, u.CreatedBy, u.CreatedOn).Scan(&u.ID); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -67,11 +97,12 @@ func (u *User) Update(ctx context.Context, db DB) error {
 	}
 	// update with composite primary key
 	const sqlstr = `UPDATE clinician_app.users SET ` +
-		`username = $1, pssword = $2, employees = $3, rights = $4, created_by = $5, created_on = $6 ` +
-		`WHERE id = $7`
+		`username = $1, pssword = $2, employees = $3, created_by = $4, created_on = $5 ` +
+		`WHERE id = $6`
 	// run
-	logf(sqlstr, u.Username, u.Pssword, u.Employees, u.Rights, u.CreatedBy, u.CreatedOn, u.ID)
-	if _, err := db.ExecContext(ctx, sqlstr, u.Username, u.Pssword, u.Employees, u.Rights, u.CreatedBy, u.CreatedOn, u.ID); err != nil {
+	storedPassword := normalizePasswordForWrite(u.Pssword)
+	logf(sqlstr, u.Username, storedPassword, u.Employees, u.CreatedBy, u.CreatedOn, u.ID)
+	if _, err := db.ExecContext(ctx, sqlstr, u.Username, storedPassword, u.Employees, u.CreatedBy, u.CreatedOn, u.ID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -93,16 +124,17 @@ func (u *User) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO clinician_app.users (` +
-		`id, username, pssword, employees, rights, created_by, created_on` +
+		`id, username, pssword, employees, created_by, created_on` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6, $7` +
+		`$1, $2, $3, $4, $5, $6` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`username = EXCLUDED.username, pssword = EXCLUDED.pssword, employees = EXCLUDED.employees, rights = EXCLUDED.rights, created_by = EXCLUDED.created_by, created_on = EXCLUDED.created_on `
+		`username = EXCLUDED.username, pssword = EXCLUDED.pssword, employees = EXCLUDED.employees, created_by = EXCLUDED.created_by, created_on = EXCLUDED.created_on `
 	// run
-	logf(sqlstr, u.ID, u.Username, Encrypt(u.Pssword), u.Employees, u.Rights, u.CreatedBy, u.CreatedOn)
-	if _, err := db.ExecContext(ctx, sqlstr, u.ID, u.Username, u.Pssword, u.Employees, u.Rights, u.CreatedBy, u.CreatedOn); err != nil {
+	storedPassword := normalizePasswordForWrite(u.Pssword)
+	logf(sqlstr, u.ID, u.Username, storedPassword, u.Employees, u.CreatedBy, u.CreatedOn)
+	if _, err := db.ExecContext(ctx, sqlstr, u.ID, u.Username, storedPassword, u.Employees, u.CreatedBy, u.CreatedOn); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -136,10 +168,7 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 // Generated from index 'users_pkey'.
 func UserByID(ctx context.Context, db DB, id int) (*User, error) {
 	// query
-	const sqlstr = `SELECT ` +
-		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM clinician_app.users ` +
-		`WHERE id = $1`
+	const sqlstr = userSelectWithRights + `WHERE u.id = $1`
 	// run
 	logf(sqlstr, id)
 	u := User{
@@ -151,12 +180,36 @@ func UserByID(ctx context.Context, db DB, id int) (*User, error) {
 	return &u, nil
 }
 
+func UserRoleByID(ctx context.Context, db DB, userID int) (int64, string, error) {
+	const sqlstr = `SELECT er.rights, COALESCE(r.rights, '')
+		FROM clinician_app.users u
+		JOIN clinician_app.employeerights er ON er.employee = u.employees
+		JOIN clinician_app.rights r ON r.id = er.rights
+		WHERE u.id = $1
+		ORDER BY er.id DESC
+		LIMIT 1`
+
+	logf(sqlstr, userID)
+	var roleID int64
+	var roleName string
+	if err := db.QueryRowContext(ctx, sqlstr, userID).Scan(&roleID, &roleName); err != nil {
+		return 0, "", logerror(err)
+	}
+
+	return roleID, roleName, nil
+}
+
+func UserRoleNameByID(ctx context.Context, db DB, userID int) (string, error) {
+	_, roleName, err := UserRoleByID(ctx, db, userID)
+	if err != nil {
+		return "", err
+	}
+	return roleName, nil
+}
+
 func UserByEmail(ctx context.Context, db DB, email string) (*User, error) {
 	// query
-	const sqlstr = `SELECT ` +
-		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM clinician_app.users ` +
-		`WHERE username = $1`
+	const sqlstr = userSelectWithRights + `WHERE u.username = $1`
 	// run
 	logf(sqlstr, email)
 	u := User{
@@ -170,10 +223,7 @@ func UserByEmail(ctx context.Context, db DB, email string) (*User, error) {
 
 func UserByEmailPass(ctx context.Context, db DB, email string, pass string) (*User, error) {
 	// query
-	const sqlstr = `SELECT ` +
-		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM clinician_app.users ` +
-		`WHERE username = $1 AND pssword = $2`
+	const sqlstr = userSelectWithRights + `WHERE u.username = $1 AND u.pssword = $2`
 	// run
 
 	zepass := Encrypt(pass)
@@ -198,12 +248,10 @@ func Users(ctx context.Context, db DB, flt string, start int, cnt int) ([]*User,
 
 	lmt := ""
 	if cnt > 0 {
-		lmt = " LIMIT " + strconv.Itoa(start) + " " + strconv.Itoa(cnt)
+		lmt = fmt.Sprintf(" LIMIT %d OFFSET %d", cnt, start)
 	}
 
-	sqlstr = `SELECT ` +
-		`id, username, pssword, employees, rights, created_by, created_on ` +
-		`FROM clinician_app.users ` + whereString + lmt
+	sqlstr = userSelectWithRights + whereString + lmt
 
 	rows, err := db.QueryContext(ctx, sqlstr)
 	if err != nil {

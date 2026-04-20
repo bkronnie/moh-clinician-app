@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -237,6 +238,171 @@ func GetReportDataElementDisplayMap(ctx context.Context, db DB) (map[string]stri
 	return labels, nil
 }
 
+func GetReportDataElementColumnMap(ctx context.Context, db DB) (map[string]string, error) {
+	items, err := ListReportDataElements(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	columns := map[string]string{}
+	for _, item := range items {
+		if !item.IsActive {
+			continue
+		}
+		columns[item.ElementKey] = item.ColumnName
+	}
+	return columns, nil
+}
+
+func GetDepartmentRoleDataPoints(ctx context.Context, db DB, departmentID int64) ([]string, error) {
+	var payload []byte
+	err := db.QueryRowContext(ctx, `
+		SELECT data_points::text
+		FROM clinician_app.department_roles
+		WHERE dept_id = $1
+		ORDER BY CASE WHEN LOWER(COALESCE(role_name, '')) = 'default' THEN 0 ELSE 1 END, role_id ASC
+		LIMIT 1
+	`, departmentID).Scan(&payload)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	points := []string{}
+	if err := json.Unmarshal(payload, &points); err != nil {
+		return nil, err
+	}
+
+	result := make([]string, 0, len(points))
+	seen := map[string]struct{}{}
+	for _, point := range points {
+		point = strings.TrimSpace(point)
+		if point == "" {
+			continue
+		}
+		if _, ok := seen[point]; ok {
+			continue
+		}
+		seen[point] = struct{}{}
+		result = append(result, point)
+	}
+
+	return result, nil
+}
+
+func GetWeeklyReportValuesByElementKeys(ctx context.Context, db DB, reportID int, keys []string) (map[string]int64, error) {
+	if reportID <= 0 || len(keys) == 0 {
+		return map[string]int64{}, nil
+	}
+
+	columnByKey, err := GetReportDataElementColumnMap(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	type selectedColumn struct {
+		key    string
+		column string
+	}
+	selected := make([]selectedColumn, 0, len(keys))
+	for _, key := range keys {
+		column, ok := columnByKey[key]
+		if !ok || !reportIdentifierPattern.MatchString(column) {
+			continue
+		}
+		selected = append(selected, selectedColumn{key: key, column: column})
+	}
+	if len(selected) == 0 {
+		return map[string]int64{}, nil
+	}
+
+	selectCols := make([]string, 0, len(selected))
+	for _, item := range selected {
+		selectCols = append(selectCols, item.column)
+	}
+
+	query := `SELECT ` + strings.Join(selectCols, ", ") + ` FROM clinician_app.weeklyreport WHERE id = $1`
+
+	scanTargets := make([]interface{}, len(selected))
+	rawValues := make([]sql.NullInt64, len(selected))
+	for i := range rawValues {
+		scanTargets[i] = &rawValues[i]
+	}
+
+	if err := db.QueryRowContext(ctx, query, reportID).Scan(scanTargets...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return map[string]int64{}, nil
+		}
+		return nil, err
+	}
+
+	result := map[string]int64{}
+	for i, item := range selected {
+		if rawValues[i].Valid {
+			result[item.key] = rawValues[i].Int64
+		}
+	}
+
+	return result, nil
+}
+
+func UpdateWeeklyReportValuesByElementKeys(ctx context.Context, db DB, reportID int, employeeID int64, values map[string]sql.NullInt64) error {
+	if reportID <= 0 || len(values) == 0 {
+		return nil
+	}
+
+	columnByKey, err := GetReportDataElementColumnMap(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		if _, ok := columnByKey[key]; ok {
+			keys = append(keys, key)
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	sort.Strings(keys)
+
+	setParts := make([]string, 0, len(keys)+1)
+	args := make([]interface{}, 0, len(keys)+2)
+	argPos := 1
+	for _, key := range keys {
+		column := columnByKey[key]
+		if !reportIdentifierPattern.MatchString(column) {
+			continue
+		}
+		setParts = append(setParts, column+" = $"+strconv.Itoa(argPos))
+		if values[key].Valid {
+			args = append(args, values[key].Int64)
+		} else {
+			args = append(args, nil)
+		}
+		argPos++
+	}
+	if len(setParts) == 0 {
+		return nil
+	}
+	setParts = append(setParts, "last_updated_on = NOW()")
+
+	where := " WHERE id = $" + strconv.Itoa(argPos)
+	args = append(args, reportID)
+	argPos++
+	if employeeID > 0 {
+		where += " AND employee = $" + strconv.Itoa(argPos)
+		args = append(args, employeeID)
+	}
+
+	query := "UPDATE clinician_app.weeklyreport SET " + strings.Join(setParts, ", ") + where
+	_, err = db.ExecContext(ctx, query, args...)
+	return err
+}
+
 func SaveReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64, elementKey string, columnName string, displayName string) error {
 	elementKey = strings.TrimSpace(elementKey)
 	columnName = normalizeReportIdentifier(columnName)
@@ -325,6 +491,16 @@ func SaveReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64, a
 		newColumn = columnName
 	}
 
+	if current.ElementKey != newKey {
+		deps, err := reportDataElementDependencies(ctx, tx, current.ElementKey, current.ColumnName)
+		if err != nil {
+			return err
+		}
+		if deps.DepartmentRoleRefs > 0 {
+			return fmt.Errorf("cannot rename element key; referenced by %d department role mapping(s)", deps.DepartmentRoleRefs)
+		}
+	}
+
 	if current.ColumnName != newColumn {
 		if _, err := tx.ExecContext(ctx, `ALTER TABLE clinician_app.weeklyreport RENAME COLUMN `+current.ColumnName+` TO `+newColumn); err != nil {
 			return err
@@ -353,6 +529,11 @@ func SaveReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64, a
 }
 
 func DeleteReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64) error {
+	// Backward-compatible behavior: delete endpoint now deactivates by default.
+	return SetReportDataElementActive(ctx, db, actorUserID, actorEmployeeID, id, false)
+}
+
+func SetReportDataElementActive(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64, active bool) error {
 	if id <= 0 {
 		return errors.New("invalid data element id")
 	}
@@ -383,7 +564,114 @@ func DeleteReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64,
 	}
 
 	if current.IsCore {
-		return errors.New("core data elements cannot be deleted")
+		if !active {
+			return errors.New("core data elements cannot be deactivated")
+		}
+		return nil
+	}
+
+	if current.IsActive == active {
+		return nil
+	}
+
+	deps, err := reportDataElementDependencies(ctx, tx, current.ElementKey, current.ColumnName)
+	if err != nil {
+		return err
+	}
+
+	if !active && deps.DepartmentRoleRefs > 0 {
+		return fmt.Errorf("cannot deactivate data element; referenced by %d department role mapping(s)", deps.DepartmentRoleRefs)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE clinician_app.report_data_elements
+		SET is_active = $1, updated_on = NOW()
+		WHERE id = $2
+	`, active, id); err != nil {
+		return err
+	}
+
+	action := "deactivate"
+	summary := "Report data element deactivated"
+	if active {
+		action = "activate"
+		summary = "Report data element activated"
+	}
+
+	prevSnapshot := map[string]interface{}{
+		"id":                    current.ID,
+		"key":                   current.ElementKey,
+		"column":                current.ColumnName,
+		"display_name":          current.DisplayName,
+		"is_active":             current.IsActive,
+		"department_role_refs":  deps.DepartmentRoleRefs,
+		"report_rows_with_data": deps.ReportRowsWithData,
+	}
+	newSnapshot := map[string]interface{}{
+		"id":                    current.ID,
+		"key":                   current.ElementKey,
+		"column":                current.ColumnName,
+		"display_name":          current.DisplayName,
+		"is_active":             active,
+		"department_role_refs":  deps.DepartmentRoleRefs,
+		"report_rows_with_data": deps.ReportRowsWithData,
+	}
+	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "report_data_element", id, action, summary, prevSnapshot, newSnapshot); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func PurgeReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64, guard string) error {
+	if id <= 0 {
+		return errors.New("invalid data element id")
+	}
+	if strings.ToUpper(strings.TrimSpace(guard)) != "PURGE" {
+		return errors.New("invalid purge guard; type PURGE to confirm")
+	}
+
+	if err := EnsureCustomizationAuditSchema(ctx, db); err != nil {
+		return err
+	}
+	if err := EnsureReportDataElementSchema(ctx, db); err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var current ReportDataElement
+	if err := tx.QueryRowContext(ctx, `
+		SELECT id, position, element_key, column_name, display_name, is_core, is_active
+		FROM clinician_app.report_data_elements
+		WHERE id = $1
+	`, id).Scan(&current.ID, &current.Position, &current.ElementKey, &current.ColumnName, &current.DisplayName, &current.IsCore, &current.IsActive); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("data element not found")
+		}
+		return err
+	}
+
+	if current.IsCore {
+		return errors.New("core data elements cannot be permanently deleted")
+	}
+	if current.IsActive {
+		return errors.New("data element must be deactivated before permanent deletion")
+	}
+
+	deps, err := reportDataElementDependencies(ctx, tx, current.ElementKey, current.ColumnName)
+	if err != nil {
+		return err
+	}
+	if deps.DepartmentRoleRefs > 0 {
+		return fmt.Errorf("cannot purge data element; referenced by %d department role mapping(s)", deps.DepartmentRoleRefs)
+	}
+	if deps.ReportRowsWithData > 0 {
+		return fmt.Errorf("cannot purge data element; %d weekly report row(s) still contain values", deps.ReportRowsWithData)
 	}
 
 	if _, err := tx.ExecContext(ctx, `ALTER TABLE clinician_app.weeklyreport DROP COLUMN IF EXISTS `+current.ColumnName); err != nil {
@@ -394,8 +682,16 @@ func DeleteReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64,
 		return err
 	}
 
-	prevSnapshot := map[string]interface{}{"id": current.ID, "key": current.ElementKey, "column": current.ColumnName, "display_name": current.DisplayName}
-	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "report_data_element", id, "delete", "Report data element deleted", prevSnapshot, map[string]interface{}{}); err != nil {
+	prevSnapshot := map[string]interface{}{
+		"id":                    current.ID,
+		"key":                   current.ElementKey,
+		"column":                current.ColumnName,
+		"display_name":          current.DisplayName,
+		"is_active":             current.IsActive,
+		"department_role_refs":  deps.DepartmentRoleRefs,
+		"report_rows_with_data": deps.ReportRowsWithData,
+	}
+	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "report_data_element", id, "purge", "Report data element permanently deleted", prevSnapshot, map[string]interface{}{}); err != nil {
 		return err
 	}
 
@@ -421,6 +717,37 @@ func DeleteReportDataElement(ctx context.Context, db *sql.DB, actorUserID int64,
 	}
 
 	return tx.Commit()
+}
+
+type reportDataElementDependencyStats struct {
+	DepartmentRoleRefs int
+	ReportRowsWithData int
+}
+
+func reportDataElementDependencies(ctx context.Context, db DB, elementKey string, columnName string) (reportDataElementDependencyStats, error) {
+	stats := reportDataElementDependencyStats{}
+
+	if err := db.QueryRowContext(ctx, `
+		SELECT COUNT(1)
+		FROM clinician_app.department_roles
+		WHERE data_points ? $1
+	`, elementKey).Scan(&stats.DepartmentRoleRefs); err != nil {
+		return stats, err
+	}
+
+	if !reportIdentifierPattern.MatchString(columnName) {
+		return stats, errors.New("invalid report data element column name")
+	}
+	query := fmt.Sprintf(`
+		SELECT COUNT(1)
+		FROM clinician_app.weeklyreport
+		WHERE COALESCE(%s, 0) <> 0
+	`, columnName)
+	if err := db.QueryRowContext(ctx, query).Scan(&stats.ReportRowsWithData); err != nil {
+		return stats, err
+	}
+
+	return stats, nil
 }
 
 func normalizeReportIdentifier(value string) string {

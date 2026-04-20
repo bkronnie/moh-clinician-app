@@ -62,7 +62,7 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 	}
 
 	managerOrAdmin := v.Group("/")
-	managerOrAdmin.Use(middleware.RequireRoles(db, sessionManager, "admin", "approver"))
+	managerOrAdmin.Use(middleware.RequireRoles(db, sessionManager, "National Admin", "Facility Admin"))
 	{
 		managerOrAdmin.GET("/entry", func(c *gin.Context) { handlers.HandlerBulkCaptureForm2(c, db, sessionManager) })
 		managerOrAdmin.GET("/export/:i", func(c *gin.Context) { handlers.HandlerReportExport(c, db, sessionManager) })
@@ -84,7 +84,7 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 	}
 
 	approverOnly := v.Group("/")
-	approverOnly.Use(middleware.RequireRoles(db, sessionManager, "approver"))
+	approverOnly.Use(middleware.RequireRoles(db, sessionManager, "Facility Admin"))
 	{
 		approverOnly.GET("/bulk", func(c *gin.Context) { handlers.HandlerBulkCaptureList(c, db, sessionManager) })
 		approverOnly.POST("/approve", func(c *gin.Context) { handlers.HandlerReportApprove(c, db, sessionManager) })
@@ -102,7 +102,7 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 
 func RouteFacilities(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/facilities")
-	v.Use(middleware.RequireRoles(db, sessionManager, "admin"))
+	v.Use(middleware.RequireRoles(db, sessionManager, "National Admin"))
 	{
 		v.GET("/new/:i", func(c *gin.Context) { handlers.HandlerFacilityForm(c, db, sessionManager) })
 		v.POST("/save", func(c *gin.Context) { handlers.HandlerFacilitySave(c, db, sessionManager) })
@@ -114,7 +114,7 @@ func RouteFacilities(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Session
 
 func RouteDepartment(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/department")
-	v.Use(middleware.RequireRoles(db, sessionManager, "admin"))
+	v.Use(middleware.RequireRoles(db, sessionManager, "National Admin"))
 	{
 		v.GET("/new/:i", func(c *gin.Context) { handlers.HandlerDepartmentForm(c, db, sessionManager) })
 		v.POST("/save", func(c *gin.Context) { handlers.HandlerDepartmentSave(c, db, sessionManager) })
@@ -126,7 +126,7 @@ func RouteDepartment(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Session
 
 func RouteCustomization(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/customization")
-	v.Use(middleware.RequireRoles(db, sessionManager, "admin"))
+	v.Use(middleware.RequireRoles(db, sessionManager, "National Admin"))
 	{
 		v.GET("", func(c *gin.Context) { handlers.HandlerCustomization(c, db, sessionManager) })
 		v.GET("/", func(c *gin.Context) { handlers.HandlerCustomization(c, db, sessionManager) })
@@ -145,7 +145,7 @@ func RouteCustomization(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Sess
 
 func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/employee")
-	v.Use(middleware.RequireRoles(db, sessionManager, "admin", "approver"))
+	v.Use(middleware.RequireRoles(db, sessionManager, "National Admin", "Facility Admin"))
 	{
 		v.GET("/new", func(c *gin.Context) { handlers.HandlerEmployeeForm(c, db, sessionManager) })
 		v.GET("/edit/:id", func(c *gin.Context) { handlers.HandlerEmployeeEdit(c, db, sessionManager) })
@@ -165,7 +165,7 @@ func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionM
 func RouteLeave(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
 	v := r.Group("/leave")
 	userOnly := v.Group("/")
-	userOnly.Use(middleware.RequireRoles(db, sessionManager, "user"))
+	userOnly.Use(middleware.RequireRoles(db, sessionManager, "Staff"))
 	{
 		userOnly.GET("/form", func(c *gin.Context) { handlers.HandlerEmployeeLeaveForm(c, db, sessionManager) })
 		userOnly.POST("/save", func(c *gin.Context) { handlers.HandlerEmployeeLeaveSave(c, db, sessionManager) })
@@ -177,7 +177,7 @@ func RouteLeave(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManag
 	}
 
 	approverOnly := v.Group("/")
-	approverOnly.Use(middleware.RequireRoles(db, sessionManager, "approver"))
+	approverOnly.Use(middleware.RequireRoles(db, sessionManager, "Facility Admin"))
 	{
 		approverOnly.GET("/review", func(c *gin.Context) { handlers.HandlerFacilityLeaveReview(c, db, sessionManager) })
 		approverOnly.GET("/review/export", func(c *gin.Context) { handlers.HandlerFacilityLeaveReviewExport(c, db, sessionManager) })

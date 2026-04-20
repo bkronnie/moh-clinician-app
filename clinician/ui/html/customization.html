@@ -20,7 +20,7 @@
 
 .customization-grid-elements .app-list-grid-header,
 .customization-grid-elements .app-list-grid-row {
-    grid-template-columns: minmax(80px, 0.45fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(240px, 1.5fr) minmax(130px, 0.7fr);
+    grid-template-columns: minmax(70px, 0.4fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(230px, 1.4fr) minmax(100px, 0.65fr) minmax(240px, 1.3fr);
 }
 
 .customization-actions {
@@ -207,7 +207,7 @@
                         </form>
                     </div>
                 </div>
-                <small class="form-text text-muted mb-3">Core access roles (admin, approver, user) cannot be renamed or deleted.</small>
+                <small class="form-text text-muted mb-3">Core access roles (National Admin, Facility Admin, Staff) cannot be renamed or deleted.</small>
 
                 <div class="app-list-grid customization-grid-2">
                     <div class="app-list-grid-header">
@@ -305,7 +305,7 @@
                         </form>
                     </div>
                 </div>
-                <small class="form-text text-muted mb-3">Core data elements are protected from key/column edits and deletion. Updating display names applies to the data entry UI labels.</small>
+                <small class="form-text text-muted mb-3">Governance mode is active: deactivate first, then permanently delete only after typing PURGE and clearing dependencies.</small>
 
                 <div class="app-list-grid customization-grid-elements">
                     <div class="app-list-grid-header">
@@ -313,6 +313,7 @@
                         <div>Element Key</div>
                         <div>Column Name</div>
                         <div>Display Name</div>
+                        <div>Status</div>
                         <div>Actions</div>
                     </div>
                     {{ if $view.DataElements }}
@@ -320,6 +321,7 @@
                         <form method="post" action="/customization/data-element/save" class="app-list-grid-row">
                             <input type="hidden" name="id" value="{{ .ID }}">
                             <input type="hidden" name="tab" value="data-elements">
+                            <input type="hidden" name="guard" value="">
                             <div class="app-list-cell">{{ .Position }}</div>
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="element_key" value="{{ .ElementKey }}" {{ if .IsCore }}readonly{{ end }} required>
@@ -330,9 +332,17 @@
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="display_name" value="{{ .DisplayName }}" required>
                             </div>
+                            <div class="app-list-cell">{{ if .IsActive }}Active{{ else }}Inactive{{ end }}</div>
                             <div class="app-row-actions customization-actions">
                                 <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/data-element/delete/{{ .ID }}" onclick="return confirm('Delete this data element and drop its column from weekly reports?');" {{ if .IsCore }}disabled{{ end }}>Delete</button>
+                                {{ if not .IsCore }}
+                                    {{ if .IsActive }}
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" name="action_mode" value="deactivate" formaction="/customization/data-element/delete/{{ .ID }}" onclick="return confirm('Deactivate this data element? It will stop appearing in data entry.');">Deactivate</button>
+                                    {{ else }}
+                                    <button type="submit" class="btn btn-sm btn-outline-success" name="action_mode" value="activate" formaction="/customization/data-element/delete/{{ .ID }}">Activate</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" name="action_mode" value="purge" formaction="/customization/data-element/delete/{{ .ID }}" onclick="var token = prompt('Type PURGE to permanently drop this column and metadata.'); if (token === null) { return false; } this.form.guard.value = token; return true;">Purge</button>
+                                    {{ end }}
+                                {{ end }}
                             </div>
                         </form>
                         {{ end }}
@@ -365,6 +375,30 @@
                     <div class="app-list-empty">No customization changes have been recorded yet.</div>
                     {{ end }}
                 </div>
+                {{ if gt $view.HistoryPages 1 }}
+                <div class="d-flex align-items-center justify-content-between mt-3">
+                    <small class="text-muted">Page {{ $view.HistoryPage }} of {{ $view.HistoryPages }} ({{ $view.HistoryTotal }} records)</small>
+                    <nav aria-label="Customization history pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {{ if not $view.HistoryPrev }}disabled{{ end }}">
+                                {{ if $view.HistoryPrev }}
+                                <a class="page-link" href="{{ $view.HistoryPrev }}">Previous</a>
+                                {{ else }}
+                                <span class="page-link">Previous</span>
+                                {{ end }}
+                            </li>
+                            <li class="page-item disabled"><span class="page-link">{{ $view.HistoryPage }}</span></li>
+                            <li class="page-item {{ if not $view.HistoryNext }}disabled{{ end }}">
+                                {{ if $view.HistoryNext }}
+                                <a class="page-link" href="{{ $view.HistoryNext }}">Next</a>
+                                {{ else }}
+                                <span class="page-link">Next</span>
+                                {{ end }}
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {{ end }}
             </div>
         </div>
     </div>

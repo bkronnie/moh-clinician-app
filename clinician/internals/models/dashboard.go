@@ -37,6 +37,7 @@ type DepartmentProgressRow struct {
 type DepartmentAnalysisRow struct {
 	DepartmentID      int
 	DepartmentName    string
+	FacilityName      string
 	Clinicians        int
 	ReportsEntered    int
 	ReportsSubmitted  int
@@ -55,6 +56,7 @@ type ClinicianAnalysisRow struct {
 	EmployeeName      string
 	Title             string
 	DepartmentName    string
+	FacilityName      string
 	ReportsEntered    int
 	ReportsSubmitted  int
 	AttendanceRecords int
@@ -1157,6 +1159,7 @@ func GetFacilityDepartmentAnalysisByRange(ctx context.Context, db *sql.DB, facil
 		SELECT
 			db.department_id,
 			db.department_name,
+			'' AS facility_name,
 			db.clinicians,
 			COALESCE(rs.reports_entered, 0) AS reports_entered,
 			COALESCE(rs.reports_submitted, 0) AS reports_submitted,
@@ -1184,6 +1187,120 @@ func GetFacilityDepartmentAnalysisByRange(ctx context.Context, db *sql.DB, facil
 		if err := rows.Scan(
 			&row.DepartmentID,
 			&row.DepartmentName,
+			&row.FacilityName,
+			&row.Clinicians,
+			&row.ReportsEntered,
+			&row.ReportsSubmitted,
+			&row.AttendanceRecords,
+			&row.WardRounds,
+			&row.PatientsReviewed,
+			&row.Procedures,
+		); err != nil {
+			return nil, err
+		}
+
+		row.ReportingRate = percentageInt(row.ReportsSubmitted, row.Clinicians)
+		row.PendingReports = row.Clinicians - row.ReportsSubmitted
+		if row.PendingReports < 0 {
+			row.PendingReports = 0
+		}
+		row.AvgPatients = averageInt(row.PatientsReviewed, row.ReportsEntered)
+		row.AvgProcedures = averageInt(row.Procedures, row.ReportsEntered)
+		items = append(items, row)
+	}
+
+	return items, rows.Err()
+}
+
+func GetNationalDepartmentAnalysisByRange(ctx context.Context, db *sql.DB, facilityID int, departmentID int, employeeID int, periodStart time.Time, periodEnd time.Time) ([]DepartmentAnalysisRow, error) {
+	const sqlstr = `
+		WITH employee_scope AS (
+			SELECT
+				e.id,
+				e.department,
+				e.facility
+			FROM clinician_app.employees e
+			WHERE ($1 = 0 OR e.facility = $1)
+				AND ($2 = 0 OR e.department = $2)
+				AND ($3 = 0 OR e.id = $3)
+		),
+		department_base AS (
+			SELECT
+				d.id AS department_id,
+				COALESCE(d.d_name, '') AS department_name,
+				es.facility AS facility_id,
+				COALESCE(f.f_name, '') AS facility_name,
+				COUNT(DISTINCT es.id) AS clinicians
+			FROM employee_scope es
+			JOIN clinician_app.departments d ON d.id = es.department
+			JOIN clinician_app.facilities f ON f.id = es.facility
+			GROUP BY d.id, d.d_name, es.facility, f.f_name
+		),
+		report_stats AS (
+			SELECT
+				w.hospital AS facility_id,
+				w.department AS department_id,
+				COUNT(DISTINCT w.employee) AS reports_entered,
+				COUNT(DISTINCT CASE WHEN COALESCE(w.submit_status, '') = 'Submitted' THEN w.employee END) AS reports_submitted,
+				COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+				COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
+			FROM clinician_app.weeklyreport w
+			JOIN employee_scope es ON es.id = w.employee
+			WHERE w.start BETWEEN $4 AND $5
+			GROUP BY w.hospital, w.department
+		),
+		attendance_stats AS (
+			SELECT
+				a.facility_id,
+				a.department_id,
+				COUNT(*) AS attendance_records
+			FROM clinician_app.attendance_records a
+			JOIN employee_scope es ON es.id = a.specialist_id
+			WHERE a.attendance_date BETWEEN $4 AND $5
+			GROUP BY a.facility_id, a.department_id
+		),
+		round_stats AS (
+			SELECT
+				w.facility_id,
+				w.department_id,
+				COUNT(*) AS ward_rounds
+			FROM clinician_app.ward_rounds w
+			JOIN employee_scope es ON es.id = w.specialist_id
+			WHERE w.round_date BETWEEN $4 AND $5
+			GROUP BY w.facility_id, w.department_id
+		)
+		SELECT
+			db.department_id,
+			db.department_name,
+			db.facility_name,
+			db.clinicians,
+			COALESCE(rs.reports_entered, 0) AS reports_entered,
+			COALESCE(rs.reports_submitted, 0) AS reports_submitted,
+			COALESCE(att.attendance_records, 0) AS attendance_records,
+			COALESCE(rnd.ward_rounds, 0) AS ward_rounds,
+			COALESCE(rs.patients_reviewed, 0) AS patients_reviewed,
+			COALESCE(rs.procedures, 0) AS procedures
+		FROM department_base db
+		LEFT JOIN report_stats rs ON rs.department_id = db.department_id AND rs.facility_id = db.facility_id
+		LEFT JOIN attendance_stats att ON att.department_id = db.department_id AND att.facility_id = db.facility_id
+		LEFT JOIN round_stats rnd ON rnd.department_id = db.department_id AND rnd.facility_id = db.facility_id
+		WHERE db.clinicians > 0
+		ORDER BY db.facility_name, db.department_name
+	`
+
+	rows, err := db.QueryContext(ctx, sqlstr, facilityID, departmentID, employeeID, periodStart, periodEnd)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []DepartmentAnalysisRow{}
+	for rows.Next() {
+		var row DepartmentAnalysisRow
+		if err := rows.Scan(
+			&row.DepartmentID,
+			&row.DepartmentName,
+			&row.FacilityName,
 			&row.Clinicians,
 			&row.ReportsEntered,
 			&row.ReportsSubmitted,
@@ -1264,6 +1381,7 @@ func GetFacilityClinicianAnalysis(ctx context.Context, db *sql.DB, facilityID in
 			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS employee_name,
 			COALESCE(st.title, '') AS title_name,
 			COALESCE(d.d_name, '') AS department_name,
+			'' AS facility_name,
 			COALESCE(rs.reports_entered, 0) AS reports_entered,
 			COALESCE(rs.reports_submitted, 0) AS reports_submitted,
 			COALESCE(att.attendance_records, 0) AS attendance_records,
@@ -1309,6 +1427,131 @@ func GetFacilityClinicianAnalysis(ctx context.Context, db *sql.DB, facilityID in
 			&row.EmployeeName,
 			&row.Title,
 			&row.DepartmentName,
+			&row.FacilityName,
+			&row.ReportsEntered,
+			&row.ReportsSubmitted,
+			&row.AttendanceRecords,
+			&row.WardRounds,
+			&row.PatientsReviewed,
+			&row.Procedures,
+			&row.SubmissionStatus,
+			&row.LeaveStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, row)
+	}
+
+	return items, rows.Err()
+}
+
+func GetNationalClinicianAnalysisByRange(ctx context.Context, db *sql.DB, facilityID int, departmentID int, employeeID int, periodStart time.Time, periodEnd time.Time) ([]ClinicianAnalysisRow, error) {
+	const sqlstr = `
+		WITH employee_scope AS (
+			SELECT
+				e.id,
+				e.department,
+				e.facility
+			FROM clinician_app.employees e
+			WHERE ($1 = 0 OR e.facility = $1)
+				AND ($2 = 0 OR e.department = $2)
+				AND ($3 = 0 OR e.id = $3)
+		),
+		report_stats AS (
+			SELECT
+				w.employee AS employee_id,
+				COUNT(*) AS reports_entered,
+				COUNT(*) FILTER (WHERE COALESCE(w.submit_status, '') = 'Submitted') AS reports_submitted,
+				MAX(COALESCE(w.submit_status, '')) AS submit_status,
+				MAX(COALESCE(w.report_status, '')) AS report_status,
+				COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0) AS patients_reviewed,
+				COALESCE(SUM(COALESCE(w.elective, 0)), 0) + COALESCE(SUM(COALESCE(w.emergency, 0)), 0) AS procedures
+			FROM clinician_app.weeklyreport w
+			JOIN employee_scope es ON es.id = w.employee
+			WHERE w.start BETWEEN $4 AND $5
+			GROUP BY w.employee
+		),
+		attendance_stats AS (
+			SELECT
+				a.specialist_id AS employee_id,
+				COUNT(*) AS attendance_records
+			FROM clinician_app.attendance_records a
+			JOIN employee_scope es ON es.id = a.specialist_id
+			WHERE a.attendance_date BETWEEN $4 AND $5
+			GROUP BY a.specialist_id
+		),
+		round_stats AS (
+			SELECT
+				w.specialist_id AS employee_id,
+				COUNT(*) AS ward_rounds
+			FROM clinician_app.ward_rounds w
+			JOIN employee_scope es ON es.id = w.specialist_id
+			WHERE w.round_date BETWEEN $4 AND $5
+			GROUP BY w.specialist_id
+		),
+		latest_leave AS (
+			SELECT DISTINCT ON (s.employee_id)
+				s.employee_id,
+				COALESCE(s.leave_status, '') AS leave_status,
+				s.start_date,
+				s.end_date,
+				s.return_date
+			FROM clinician_app.staffleave s
+			JOIN employee_scope es ON es.id = s.employee_id
+			ORDER BY s.employee_id, s.created_on DESC, s.leave_id DESC
+		)
+		SELECT
+			e.id,
+			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS employee_name,
+			COALESCE(st.title, '') AS title_name,
+			COALESCE(d.d_name, '') AS department_name,
+			COALESCE(f.f_name, '') AS facility_name,
+			COALESCE(rs.reports_entered, 0) AS reports_entered,
+			COALESCE(rs.reports_submitted, 0) AS reports_submitted,
+			COALESCE(att.attendance_records, 0) AS attendance_records,
+			COALESCE(rnd.ward_rounds, 0) AS ward_rounds,
+			COALESCE(rs.patients_reviewed, 0) AS patients_reviewed,
+			COALESCE(rs.procedures, 0) AS procedures,
+			CASE
+				WHEN COALESCE(rs.report_status, '') = 'Approved' THEN 'Approved'
+				WHEN COALESCE(rs.report_status, '') IN ('Rejected', 'Declined') THEN 'Declined'
+				WHEN COALESCE(rs.submit_status, '') = 'Submitted' THEN 'Submitted'
+				WHEN COALESCE(rs.reports_entered, 0) > 0 THEN 'Draft'
+				ELSE 'Not Entered'
+			END AS submission_status,
+			CASE
+				WHEN COALESCE(ll.leave_status, '') IN ('Valid', 'Approved')
+					AND CURRENT_DATE BETWEEN COALESCE(ll.start_date, CURRENT_DATE) AND COALESCE(ll.return_date, ll.end_date, CURRENT_DATE)
+				THEN 'On Leave'
+				ELSE 'Active'
+			END AS leave_status
+		FROM clinician_app.employees e
+		JOIN employee_scope es ON es.id = e.id
+		LEFT JOIN clinician_app.departments d ON d.id = e.department
+		LEFT JOIN clinician_app.facilities f ON f.id = e.facility
+		LEFT JOIN clinician_app.specialist_titles st ON st.id = e.title
+		LEFT JOIN report_stats rs ON rs.employee_id = e.id
+		LEFT JOIN attendance_stats att ON att.employee_id = e.id
+		LEFT JOIN round_stats rnd ON rnd.employee_id = e.id
+		LEFT JOIN latest_leave ll ON ll.employee_id = e.id
+		ORDER BY f.f_name, d.d_name, employee_name
+	`
+
+	rows, err := db.QueryContext(ctx, sqlstr, facilityID, departmentID, employeeID, periodStart, periodEnd)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []ClinicianAnalysisRow{}
+	for rows.Next() {
+		var row ClinicianAnalysisRow
+		if err := rows.Scan(
+			&row.EmployeeID,
+			&row.EmployeeName,
+			&row.Title,
+			&row.DepartmentName,
+			&row.FacilityName,
 			&row.ReportsEntered,
 			&row.ReportsSubmitted,
 			&row.AttendanceRecords,
@@ -1501,6 +1744,130 @@ func GetScopeTrendPoints(ctx context.Context, db *sql.DB, scopeFacilityID int, f
 	}
 
 	return items, rows.Err()
+}
+
+func GetClinicianMissingRequiredReportsCount(ctx context.Context, db *sql.DB, employeeID int) (int, error) {
+	const sqlstr = `
+		WITH employee_window AS (
+			SELECT
+				date_trunc('week', COALESCE(e.created_on, CURRENT_DATE::timestamp))::date AS start_week,
+				date_trunc('week', CURRENT_DATE)::date AS end_week
+			FROM clinician_app.employees e
+			WHERE e.id = $1
+		),
+		required_weeks AS (
+			SELECT gs::date AS week_start
+			FROM employee_window ew,
+				generate_series(ew.start_week, ew.end_week, INTERVAL '7 days') gs
+		),
+		on_leave_weeks AS (
+			SELECT DISTINCT rw.week_start
+			FROM required_weeks rw
+			JOIN clinician_app.staffleave sl
+				ON sl.employee_id = $1
+			WHERE COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+				AND sl.start_date::date <= (rw.week_start + INTERVAL '6 days')::date
+				AND COALESCE(sl.return_date::date, sl.end_date::date) >= rw.week_start
+		),
+		reported_weeks AS (
+			SELECT DISTINCT w.start::date AS week_start
+			FROM clinician_app.weeklyreport w
+			WHERE w.employee = $1
+		)
+		SELECT COUNT(1)
+		FROM required_weeks rw
+		LEFT JOIN on_leave_weeks olw ON olw.week_start = rw.week_start
+		LEFT JOIN reported_weeks rep ON rep.week_start = rw.week_start
+		WHERE olw.week_start IS NULL
+			AND rep.week_start IS NULL
+	`
+
+	var missing int
+	err := db.QueryRowContext(ctx, sqlstr, employeeID).Scan(&missing)
+	if err != nil {
+		return 0, err
+	}
+	if missing < 0 {
+		return 0, nil
+	}
+	return missing, nil
+}
+
+func GetClinicianPendingEntryWeeks(ctx context.Context, db *sql.DB, employeeID int) ([]ClinicianWeekOption, error) {
+	const sqlstr = `
+		WITH last_submitted AS (
+			SELECT MAX(w.start)::date AS week_start
+			FROM clinician_app.weeklyreport w
+			WHERE w.employee = $1
+				AND COALESCE(w.submit_status, '') = 'Submitted'
+		),
+		employee_window AS (
+			SELECT date_trunc('week', COALESCE(e.created_on, CURRENT_DATE::timestamp))::date AS created_week
+			FROM clinician_app.employees e
+			WHERE e.id = $1
+		),
+		bounds AS (
+			SELECT
+				COALESCE(
+					(SELECT (ls.week_start + INTERVAL '7 days')::date FROM last_submitted ls WHERE ls.week_start IS NOT NULL),
+					(SELECT ew.created_week FROM employee_window ew)
+				) AS start_week,
+				(date_trunc('week', CURRENT_DATE)::date - INTERVAL '7 days')::date AS end_week
+		),
+		candidate_weeks AS (
+			SELECT gs::date AS week_start
+			FROM bounds b,
+				generate_series(b.start_week, b.end_week, INTERVAL '7 days') gs
+			WHERE b.start_week IS NOT NULL
+				AND b.start_week <= b.end_week
+		),
+		on_leave_weeks AS (
+			SELECT DISTINCT cw.week_start
+			FROM candidate_weeks cw
+			JOIN clinician_app.staffleave sl ON sl.employee_id = $1
+			WHERE COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+				AND sl.start_date::date <= (cw.week_start + INTERVAL '6 days')::date
+				AND COALESCE(sl.return_date::date, sl.end_date::date) >= cw.week_start
+		),
+		submitted_weeks AS (
+			SELECT DISTINCT w.start::date AS week_start
+			FROM clinician_app.weeklyreport w
+			WHERE w.employee = $1
+				AND COALESCE(w.submit_status, '') = 'Submitted'
+		)
+		SELECT cw.week_start
+		FROM candidate_weeks cw
+		LEFT JOIN on_leave_weeks olw ON olw.week_start = cw.week_start
+		LEFT JOIN submitted_weeks sw ON sw.week_start = cw.week_start
+		WHERE olw.week_start IS NULL
+			AND sw.week_start IS NULL
+		ORDER BY cw.week_start DESC
+	`
+
+	rows, err := db.QueryContext(ctx, sqlstr, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	weeks := make([]ClinicianWeekOption, 0)
+	for rows.Next() {
+		var weekStart time.Time
+		if err := rows.Scan(&weekStart); err != nil {
+			return nil, err
+		}
+		weekStop := weekStart.AddDate(0, 0, 6)
+		yearVal, weekVal := weekStart.ISOWeek()
+		weeks = append(weeks, ClinicianWeekOption{
+			Year:      yearVal,
+			Week:      weekVal,
+			StartDate: weekStart.Format("2006-01-02"),
+			EndDate:   weekStop.Format("2006-01-02"),
+			Label:     fmt.Sprintf("Week %02d (%s - %s)", weekVal, weekStart.Format("02 Jan 2006"), weekStop.Format("02 Jan 2006")),
+		})
+	}
+
+	return weeks, rows.Err()
 }
 
 func percentageInt(numerator int, denominator int) int {
