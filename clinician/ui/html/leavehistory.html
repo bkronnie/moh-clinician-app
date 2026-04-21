@@ -29,7 +29,7 @@ Leave History
         <div class="app-list-actions">
             <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
             <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
-            <a href="/employee/list" class="btn btn-outline-secondary">Back to Employees</a>
+            <a href="{{ .Form.BackURL }}" class="btn btn-outline-secondary">Back to Employees</a>
         </div>
         {{ end }}
     </div>
@@ -67,8 +67,8 @@ Leave History
                     <span>Submitted on</span>
                 </div>
                 <div>
-                    <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Valid") (eq $status "Approved") }}valid{{ else if eq $status "Completed" }}completed{{ else if eq $status "Rejected" }}rejected{{ else if eq $status "Expired" }}expired{{ end }}">
-                        {{ if .LeaveStatus.Valid }}{{ .LeaveStatus.String }}{{ else }}-{{ end }}
+                    <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Valid") (eq $status "Approved") }}valid{{ else if or (eq $status "Completed") (eq $status "Expired") }}completed{{ else if eq $status "Rejected" }}rejected{{ end }}">
+                        {{ if eq $status "Expired" }}Completed{{ else if .LeaveStatus.Valid }}{{ .LeaveStatus.String }}{{ else }}-{{ end }}
                     </span>
                     {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) .ReviewedOn.Valid }}
                     <span class="d-block text-muted small mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate .ReviewedOn.Time }}</span>

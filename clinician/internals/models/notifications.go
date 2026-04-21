@@ -12,6 +12,15 @@ func EnsureLeaveSchema(ctx context.Context, db *sql.DB) error {
 		ALTER TABLE clinician_app.staffleave
 		ADD COLUMN IF NOT EXISTS reviewed_on TIMESTAMP
 	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.ExecContext(ctx, `
+		UPDATE clinician_app.staffleave
+		SET leave_status = 'Completed'
+		WHERE leave_status = 'Expired'
+	`)
 	return err
 }
 
@@ -42,9 +51,16 @@ func EnsureWeeklyReportSchema(ctx context.Context, db *sql.DB) error {
 // by dashboard, report review, leave review, and role data lookups.
 func EnsurePerformanceIndexes(ctx context.Context, db *sql.DB) error {
 	statements := []string{
+		`CREATE EXTENSION IF NOT EXISTS btree_gist`,
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON clinician_app.weeklyreport(hospital, start, submit_status, report_status)`,
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON clinician_app.weeklyreport(employee, start, submit_status, report_status)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS ux_weeklyreport_employee_start_stop ON clinician_app.weeklyreport(employee, start, stop) WHERE employee IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL`,
+		`DROP INDEX IF EXISTS clinician_app.ux_weeklyreport_employee_start_stop`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS ux_weeklyreport_employee_hospital_start ON clinician_app.weeklyreport(employee, hospital, start) WHERE employee IS NOT NULL AND hospital IS NOT NULL AND start IS NOT NULL`,
+		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_stop_7_days`,
+		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_stop_6_days`,
+		`ALTER TABLE clinician_app.weeklyreport ADD CONSTRAINT ck_weeklyreport_start_stop_6_days CHECK (start IS NULL OR stop IS NULL OR stop = start + INTERVAL '6 days') NOT VALID`,
+		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ex_weeklyreport_employee_hospital_no_overlap`,
+		`ALTER TABLE clinician_app.weeklyreport ADD CONSTRAINT ex_weeklyreport_employee_hospital_no_overlap EXCLUDE USING gist (employee WITH =, hospital WITH =, daterange(start, stop, '[]') WITH &&) WHERE (employee IS NOT NULL AND hospital IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL)`,
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_week_review_flow ON clinician_app.weeklyreport(hospital, start, facility_review_status, national_submission_status, national_review_status)`,
 		`CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON clinician_app.staffleave(employee_id, leave_status, start_date, end_date)`,
 		`CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON clinician_app.staffleave(leave_status, start_date, end_date)`,
@@ -66,13 +82,22 @@ func EnsureCustomizationSchema(ctx context.Context, db *sql.DB) error {
 	return EnsureCustomizationAuditSchema(ctx, db)
 }
 
-// ExpireOldLeave marks approved/valid leaves whose end_date is before today as 'Expired'.
+// ExpireOldLeave marks approved/valid leaves whose end_date is before today as 'Completed'.
 // Pass facilityID = 0 to expire across all facilities.
 func ExpireOldLeave(ctx context.Context, db DB, facilityID int64) error {
+	// Keep the terminal leave status canonical.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE clinician_app.staffleave
+		SET leave_status = 'Completed'
+		WHERE leave_status = 'Expired'
+	`); err != nil {
+		return err
+	}
+
 	if facilityID > 0 {
 		_, err := db.ExecContext(ctx, `
 			UPDATE clinician_app.staffleave sl
-			SET leave_status = 'Expired'
+			SET leave_status = 'Completed'
 			FROM clinician_app.employees e
 			WHERE sl.employee_id = e.id
 			  AND sl.leave_status IN ('Approved', 'Valid')
@@ -83,7 +108,7 @@ func ExpireOldLeave(ctx context.Context, db DB, facilityID int64) error {
 	}
 	_, err := db.ExecContext(ctx, `
 		UPDATE clinician_app.staffleave
-		SET leave_status = 'Expired'
+		SET leave_status = 'Completed'
 		WHERE leave_status IN ('Approved', 'Valid')
 		  AND end_date < CURRENT_DATE
 	`)

@@ -20,6 +20,8 @@ import (
 type ReportSubmissionsView struct {
 	Role               string
 	ViewMode           string
+	Mode               string
+	ShowWeekSummary    bool
 	ScopeTitle         string
 	ScopeSubtitle      string
 	FilterSummary      string
@@ -37,6 +39,7 @@ type ReportSubmissionsView struct {
 	AvailableWeeks     []models.ClinicianWeekOption
 	Rows               []*models.ReportSubmissionListRow
 	FacilityRows       []*models.FacilitySubmissionSummaryRow
+	WeekRows           []*ReportSubmissionWeekSummaryRow
 	CurrentURL         string
 	AllURL             string
 	SubmittedURL       string
@@ -53,12 +56,18 @@ type ReportSubmissionsView struct {
 	PendingCount       int
 	ClearFiltersURL    string
 	FacilityModeURL    string
+	BackToWeeksURL     string
 	Page               int
 	PageSize           int
 	TotalRows          int
 	TotalPages         int
 	PrevPageURL        string
 	NextPageURL        string
+}
+
+type ReportSubmissionWeekSummaryRow struct {
+	Summary      *models.FacilitySubmissionSummaryRow
+	DrilldownURL string
 }
 
 func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities.SessionDetails, paginate bool) (ReportSubmissionsView, error) {
@@ -68,10 +77,12 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 	requestedMonth, hasMonth := parseOptionalIntQuery(c, "month")
 	requestedWeek, hasWeek := parseOptionalIntQuery(c, "week")
 	selectedStatus := normalizeReportSubmissionStatus(c.Query("status"))
-	if roleFromRights(sesDetails.Rights) != utilities.RoleStaff && selectedStatus == "draft" {
+	viewMode := normalizeReportSubmissionViewMode(roleFromRights(sesDetails.Rights), c.Query("view"))
+	requestedMode := normalizeReportSubmissionMode(roleFromRights(sesDetails.Rights), c.Query("mode"))
+	allowDraftFilter := roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && requestedMode != "reports"
+	if roleFromRights(sesDetails.Rights) != utilities.RoleStaff && !allowDraftFilter && selectedStatus == "draft" {
 		selectedStatus = "all"
 	}
-	viewMode := normalizeReportSubmissionViewMode(roleFromRights(sesDetails.Rights), c.Query("view"))
 
 	selectedYear, selectedMonth, selectedWeek, availableYears, availableMonths, availableWeeks, selectedWeekLabel, err := resolveReportSubmissionPeriod(c, db, requestedYear, hasYear, requestedMonth, hasMonth, requestedWeek, hasWeek)
 	if err != nil {
@@ -86,6 +97,8 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 	view := ReportSubmissionsView{
 		Role:              roleFromRights(sesDetails.Rights),
 		ViewMode:          viewMode,
+		Mode:              requestedMode,
+		ShowWeekSummary:   roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && requestedMode != "reports",
 		SelectedStatus:    selectedStatus,
 		SelectedYear:      selectedYear,
 		SelectedMonth:     selectedMonth,
@@ -145,7 +158,26 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		view.SelectedDepartment = requestedDepartment
 	}
 
-	if roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && viewMode == "facility" {
+	if roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && view.ShowWeekSummary {
+		view.PageSize = 0
+		view.Page = 1
+		weekRows, err := models.GetFacilityWeeklySubmissionSummaries(c.Request.Context(), db, int(sesDetails.HFID), view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+		if err != nil {
+			return ReportSubmissionsView{}, err
+		}
+		view.FacilityRows = weekRows
+		view.TotalRows = len(weekRows)
+		for _, row := range weekRows {
+			if row == nil {
+				continue
+			}
+			if row.PendingCount > 0 {
+				view.PendingCount += row.PendingCount
+			}
+			drilldownURL := buildFacilityWeekDrilldownURL(view.SelectedFacility, view.SelectedDepartment, selectedStatus, row)
+			view.WeekRows = append(view.WeekRows, &ReportSubmissionWeekSummaryRow{Summary: row, DrilldownURL: drilldownURL})
+		}
+	} else if roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && viewMode == "facility" {
 		view.PageSize = 0
 		view.Page = 1
 		facilityRows, err := models.GetFacilitySubmissionSummaries(c.Request.Context(), db, view.SelectedFacility, selectedStatus, selectedYear, selectedMonth, selectedWeek)
@@ -179,17 +211,18 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		}
 	}
 
-	view.CurrentURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode, view.Page)
-	view.AllURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all", view.ViewMode, 1)
-	view.SubmittedURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "submitted", view.ViewMode, 1)
-	view.PendingURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending", view.ViewMode, 1)
-	view.ApprovedURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "approved", view.ViewMode, 1)
-	view.DeclinedURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "declined", view.ViewMode, 1)
-	view.DraftURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "draft", view.ViewMode, 1)
+	view.CurrentURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode, view.Mode, view.Page)
+	view.AllURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all", view.ViewMode, view.Mode, 1)
+	view.SubmittedURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "submitted", view.ViewMode, view.Mode, 1)
+	view.PendingURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending", view.ViewMode, view.Mode, 1)
+	view.ApprovedURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "approved", view.ViewMode, view.Mode, 1)
+	view.DeclinedURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "declined", view.ViewMode, view.Mode, 1)
+	view.DraftURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "draft", view.ViewMode, view.Mode, 1)
 	view.ExportCSVURL = buildReportSubmissionsExportURLWithView("csv", view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode)
 	view.ExportPDFURL = buildReportSubmissionsExportURLWithView("pdf", view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode)
-	view.ClearFiltersURL = buildReportSubmissionsURLWithViewAndPage(0, 0, 0, 0, 0, "all", view.ViewMode, 1)
+	view.ClearFiltersURL = buildReportSubmissionsURLWithModeAndPage(0, 0, 0, 0, 0, "all", view.ViewMode, view.Mode, 1)
 	view.FacilityModeURL = buildReportSubmissionsURLWithViewAndPage(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, "facility", 1)
+	view.BackToWeeksURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, 0, view.SelectedStatus, view.ViewMode, "weeks", 1)
 	view.SubmitAllURL = "/reports/analysis/submit-all"
 	view.FilterSummary = reportSubmissionFilterSummary(roleFromRights(sesDetails.Rights), selectedStatus, selectedWeekLabel)
 
@@ -206,10 +239,10 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 			view.Page = view.TotalPages
 		}
 		if view.Page > 1 {
-			view.PrevPageURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode, view.Page-1)
+			view.PrevPageURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode, view.Mode, view.Page-1)
 		}
 		if view.Page < view.TotalPages {
-			view.NextPageURL = buildReportSubmissionsURLWithViewAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode, view.Page+1)
+			view.NextPageURL = buildReportSubmissionsURLWithModeAndPage(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, view.SelectedStatus, view.ViewMode, view.Mode, view.Page+1)
 		}
 	}
 
@@ -613,6 +646,16 @@ func HandlerReportSubmissionDecline(c *gin.Context, db *sql.DB, sessionManager *
 }
 
 func buildReportSubmissionsURL(facilityID int, departmentID int, year int, month int, week int, status string) string {
+	if year < 0 {
+		year = 0
+	}
+	if month < 0 {
+		month = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
 	params := []string{}
 	if facilityID > 0 {
 		params = append(params, fmt.Sprintf("facility=%d", facilityID))
@@ -620,15 +663,10 @@ func buildReportSubmissionsURL(facilityID int, departmentID int, year int, month
 	if departmentID > 0 {
 		params = append(params, fmt.Sprintf("department=%d", departmentID))
 	}
-	if year > 0 {
-		params = append(params, fmt.Sprintf("year=%d", year))
-	}
-	if month > 0 {
-		params = append(params, fmt.Sprintf("month=%d", month))
-	}
-	if week > 0 {
-		params = append(params, fmt.Sprintf("week=%d", week))
-	}
+	// Preserve explicit period scope (including 0 = all) so KPI links and list totals stay aligned.
+	params = append(params, fmt.Sprintf("year=%d", year))
+	params = append(params, fmt.Sprintf("month=%d", month))
+	params = append(params, fmt.Sprintf("week=%d", week))
 	if status != "" && status != "all" {
 		params = append(params, "status="+status)
 	}
@@ -660,7 +698,52 @@ func buildReportSubmissionsURLWithViewAndPage(facilityID int, departmentID int, 
 	return base + fmt.Sprintf("?page=%d", page)
 }
 
+func buildReportSubmissionsURLWithModeAndPage(facilityID int, departmentID int, year int, month int, week int, status string, view string, mode string, page int) string {
+	base := buildReportSubmissionsURLWithViewAndPage(facilityID, departmentID, year, month, week, status, view, page)
+	trimmed := strings.TrimSpace(strings.ToLower(mode))
+	if trimmed == "" || trimmed == "weeks" {
+		trimmed = ""
+	}
+	if trimmed == "" {
+		return base
+	}
+	if strings.Contains(base, "?") {
+		return base + "&mode=" + trimmed
+	}
+	return base + "?mode=" + trimmed
+}
+
+func buildFacilityWeekDrilldownURL(facilityID int, departmentID int, status string, row *models.FacilitySubmissionSummaryRow) string {
+	if row == nil || !row.WeekStart.Valid {
+		return buildReportSubmissionsURLWithModeAndPage(facilityID, departmentID, 0, 0, 0, status, "staff", "reports", 1)
+	}
+	year, week := row.WeekStart.Time.ISOWeek()
+	month := int(row.WeekStart.Time.Month())
+	return buildReportSubmissionsURLWithModeAndPage(facilityID, departmentID, year, month, week, status, "staff", "reports", 1)
+}
+
+func normalizeReportSubmissionMode(role string, value string) string {
+	if role != utilities.RoleFacilityAdmin {
+		return "reports"
+	}
+	trimmed := strings.ToLower(strings.TrimSpace(value))
+	if trimmed == "reports" {
+		return "reports"
+	}
+	return "weeks"
+}
+
 func buildReportSubmissionsExportURL(format string, facilityID int, departmentID int, year int, month int, week int, status string) string {
+	if year < 0 {
+		year = 0
+	}
+	if month < 0 {
+		month = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
 	params := []string{}
 	if facilityID > 0 {
 		params = append(params, fmt.Sprintf("facility=%d", facilityID))
@@ -668,15 +751,9 @@ func buildReportSubmissionsExportURL(format string, facilityID int, departmentID
 	if departmentID > 0 {
 		params = append(params, fmt.Sprintf("department=%d", departmentID))
 	}
-	if year > 0 {
-		params = append(params, fmt.Sprintf("year=%d", year))
-	}
-	if month > 0 {
-		params = append(params, fmt.Sprintf("month=%d", month))
-	}
-	if week > 0 {
-		params = append(params, fmt.Sprintf("week=%d", week))
-	}
+	params = append(params, fmt.Sprintf("year=%d", year))
+	params = append(params, fmt.Sprintf("month=%d", month))
+	params = append(params, fmt.Sprintf("week=%d", week))
 	if status != "" && status != "all" {
 		params = append(params, "status="+status)
 	}

@@ -55,7 +55,7 @@
                         <span>Expected return</span>
                     </div>
                     <div class="app-row-actions">
-                        <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-primary">Leave History</a>
+                        <a href="/employee/{{ $employee.EmpID }}/leave/history?return_to={{ urlquery "/employee/leave/staffonleave" }}" class="btn btn-sm btn-outline-primary">Leave History</a>
                     </div>
                 </div>
                 {{ end }}

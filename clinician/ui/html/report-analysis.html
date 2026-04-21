@@ -82,7 +82,7 @@
 
     <div class="app-list-panel">
         <div class="app-list-toolbar">
-            <p>{{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
+            <p>{{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}{{ len .Form.WeekRows }} reporting week{{ if ne (len .Form.WeekRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
             <div class="app-list-actions">
                 {{ if and .Form.CanSubmitAll (gt .Form.SelectedYear 0) (gt .Form.SelectedWeek 0) }}
                 <form method="post" action="{{ .Form.SubmitAllURL }}" onsubmit="return confirm('Submit all eligible staff reports for this facility and week?');">
@@ -110,6 +110,9 @@
             <a href="{{ .Form.AllURL }}" class="nav-link {{ if eq .Form.SelectedStatus "all" }}active{{ end }}">All</a>
             {{ if eq .Form.Role "Staff" }}
             <a href="{{ .Form.SubmittedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "submitted" }}active{{ end }}">Submitted</a>
+            {{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}
+            <a href="{{ .Form.DraftURL }}" class="nav-link {{ if eq .Form.SelectedStatus "draft" }}active{{ end }}">Draft</a>
+            <a href="{{ .Form.SubmittedURL }}" class="nav-link {{ if or (eq .Form.SelectedStatus "submitted") (eq .Form.SelectedStatus "pending") }}active{{ end }}">Submitted</a>
             {{ else }}
             <a href="{{ .Form.PendingURL }}" class="nav-link {{ if eq .Form.SelectedStatus "pending" }}active{{ end }}">Pending</a>
             {{ end }}
@@ -126,7 +129,69 @@
         </div>
         {{ end }}
 
-        {{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}
+        {{ if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}
+        <div class="app-list-grid report-submissions-grid report-submissions-facility-grid">
+            <div class="app-list-grid-header">
+                <div>Week</div>
+                <div>On Duty</div>
+                <div>On Leave</div>
+                <div>Submitted</div>
+                <div>Missing</div>
+                <div>Status</div>
+                <div>Actions</div>
+            </div>
+            {{ if .Form.WeekRows }}
+                {{ range .Form.WeekRows }}
+                <div class="app-list-grid-row">
+                    <div class="app-list-cell">
+                        <strong>
+                            {{ if and .Summary.WeekStart.Valid .Summary.WeekStop.Valid }}
+                            {{ .Summary.WeekStart.Time.Format "02 Jan 2006" }} - {{ .Summary.WeekStop.Time.Format "02 Jan 2006" }}
+                            {{ else }}
+                            -
+                            {{ end }}
+                        </strong>
+                        <span>Reporting week</span>
+                    </div>
+                    <div class="app-list-cell"><strong>{{ .Summary.OnDutyCount }}</strong></div>
+                    <div class="app-list-cell"><strong>{{ .Summary.OnLeaveCount }}</strong></div>
+                    <div class="app-list-cell">
+                        <strong>{{ .Summary.SubmittedCount }}</strong>
+                        <span>Submitted {{ if .Summary.SubmittedOn.Valid }}{{ humanDate .Summary.SubmittedOn.Time }}{{ else }}-{{ end }}</span>
+                    </div>
+                    <div class="app-list-cell"><strong>{{ .Summary.MissingCount }}</strong></div>
+                    <div>
+                        <span class="status-chip {{ if eq .Summary.ApprovalStatus "Approved" }}approved{{ else if eq .Summary.ApprovalStatus "Declined" }}declined{{ else if eq .Summary.ApprovalStatus "Submitted" }}submitted{{ else }}draft{{ end }}">{{ .Summary.ApprovalStatus }}</span>
+                        {{ if and .Summary.StatusOn.Valid (ne .Summary.ApprovalStatus "Draft") }}
+                        <span class="d-block text-muted small mt-1">
+                            {{ if eq .Summary.ApprovalStatus "Submitted" }}Submitted to national{{ else if eq .Summary.ApprovalStatus "Approved" }}Approved at national{{ else }}Declined at national{{ end }} on {{ humanDate .Summary.StatusOn.Time }}{{ if .Summary.StatusBy }} by {{ .Summary.StatusBy }}{{ end }}
+                        </span>
+                        {{ else if eq .Summary.ApprovalStatus "Draft" }}
+                        <span class="d-block text-muted small mt-1">Awaiting facility weekly submission to national review.</span>
+                        {{ end }}
+                    </div>
+                    <div class="app-row-actions">
+                        <a class="btn btn-sm btn-outline-primary" href="{{ .DrilldownURL }}">Open Reports</a>
+                        {{ if and .Summary.WeekStart.Valid (eq .Summary.ApprovalStatus "Draft") }}
+                        {{ $weekYear := index (.Summary.WeekStart.Time.ISOWeek) 0 }}
+                        {{ $weekNumber := index (.Summary.WeekStart.Time.ISOWeek) 1 }}
+                        <form method="post" action="{{ $.Form.SubmitAllURL }}" onsubmit="return confirm('Submit this weekly facility report to national review?');">
+                            <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                            <input type="hidden" name="year" value="{{ $weekYear }}">
+                            <input type="hidden" name="month" value="{{ .Summary.WeekStart.Time.Month }}">
+                            <input type="hidden" name="week" value="{{ $weekNumber }}">
+                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                            <button class="btn btn-sm btn-outline-success" type="submit">Submit Weekly Report</button>
+                        </form>
+                        {{ end }}
+                    </div>
+                </div>
+                {{ end }}
+            {{ else }}
+            <div class="app-list-empty">No weekly submissions were found for the selected filters.</div>
+            {{ end }}
+        </div>
+        {{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}
         <div class="app-list-grid report-submissions-grid report-submissions-facility-grid">
             <div class="app-list-grid-header">
                 <div>Facility</div>
@@ -193,6 +258,11 @@
             {{ end }}
         </div>
         {{ else }}
+        {{ if and (eq .Form.Role "Facility Admin") (eq .Form.Mode "reports") }}
+        <div class="mb-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.BackToWeeksURL }}">Back To Weekly Summary</a>
+        </div>
+        {{ end }}
         <div class="app-list-grid report-submissions-grid">
             <div class="app-list-grid-header">
                 <div>Staff</div>

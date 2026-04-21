@@ -529,10 +529,16 @@ func PendingLeaveByID(ctx context.Context, db DB, leaveID int, employeeID int64)
 	return leave, nil
 }
 
-func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filterStatus string) ([]*FacilityLeaveReviewRow, error) {
+func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, departmentID int64, year int, month int, week int, filterStatus string) ([]*FacilityLeaveReviewRow, error) {
 	// Draft leave requests (empty or explicit Draft status) are visible only in the creator's own history.
-	whereClause := `WHERE e.facility = $1 AND COALESCE(a.leave_status, '') NOT IN ('', 'Draft')`
-	args := []interface{}{facilityID}
+	whereClause := `
+		WHERE e.facility = $1
+			AND ($2 = 0 OR e.department = $2)
+			AND ($3 = 0 OR EXTRACT(YEAR FROM a.created_on) = $3)
+			AND ($4 = 0 OR EXTRACT(MONTH FROM a.created_on) = $4)
+			AND ($5 = 0 OR EXTRACT(WEEK FROM a.created_on) = $5)
+			AND COALESCE(a.leave_status, '') NOT IN ('', 'Draft')`
+	args := []interface{}{facilityID, departmentID, year, month, week}
 
 	switch filterStatus {
 	case "pending":
@@ -541,8 +547,8 @@ func GetFacilityLeaveReview(ctx context.Context, db DB, facilityID int64, filter
 		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Approved', 'Valid')`
 	case "declined":
 		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Rejected', 'Declined')`
-	case "expired":
-		whereClause += ` AND COALESCE(a.leave_status, '') = 'Expired'`
+	case "completed", "expired":
+		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Completed', 'Expired')`
 	case "on_leave":
 		whereClause += ` AND COALESCE(a.leave_status, '') IN ('Approved', 'Valid') AND a.start_date::date <= CURRENT_DATE AND a.end_date::date >= CURRENT_DATE`
 	default:
@@ -657,7 +663,7 @@ func DeclineFacilityLeave(ctx context.Context, db DB, leaveID int, facilityID in
 	return rowsAffected > 0, nil
 }
 
-func GetFacilityLeaveReviewSummary(ctx context.Context, db DB, facilityID int64) (FacilityLeaveReviewSummary, error) {
+func GetFacilityLeaveReviewSummary(ctx context.Context, db DB, facilityID int64, departmentID int64, year int, month int, week int) (FacilityLeaveReviewSummary, error) {
 	var summary FacilityLeaveReviewSummary
 
 	const sqlstr = `
@@ -674,9 +680,14 @@ func GetFacilityLeaveReviewSummary(ctx context.Context, db DB, facilityID int64)
 		FROM clinician_app.staffleave a
 		JOIN clinician_app.employees e ON e.id = a.employee_id
 		WHERE e.facility = $1
+			AND ($2 = 0 OR e.department = $2)
+			AND ($3 = 0 OR EXTRACT(YEAR FROM a.created_on) = $3)
+			AND ($4 = 0 OR EXTRACT(MONTH FROM a.created_on) = $4)
+			AND ($5 = 0 OR EXTRACT(WEEK FROM a.created_on) = $5)
+			AND COALESCE(a.leave_status, '') NOT IN ('', 'Draft')
 	`
 
-	err := db.QueryRowContext(ctx, sqlstr, facilityID).Scan(
+	err := db.QueryRowContext(ctx, sqlstr, facilityID, departmentID, year, month, week).Scan(
 		&summary.PendingLeaves,
 		&summary.ApprovedLeaves,
 		&summary.DeclinedLeaves,

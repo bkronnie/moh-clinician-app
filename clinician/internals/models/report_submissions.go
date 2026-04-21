@@ -46,6 +46,8 @@ type FacilitySubmissionSummaryRow struct {
 	PendingCount    int
 	MissingCount    int
 	SubmittedOn     sql.NullTime
+	StatusOn        sql.NullTime
+	StatusBy        string
 	ApprovalStatus  string
 	SubmissionState string
 	CanApprove      bool
@@ -1075,6 +1077,238 @@ func GetFacilitySubmissionSummaries(ctx context.Context, db *sql.DB, facilityID 
 				}
 			case "draft":
 				if item.SubmissionState != "Incomplete" {
+					continue
+				}
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	return items, rows.Err()
+}
+
+func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facilityID int, departmentID int, selectedStatus string, year int, month int, week int) ([]*FacilitySubmissionSummaryRow, error) {
+	if facilityID <= 0 {
+		return []*FacilitySubmissionSummaryRow{}, nil
+	}
+
+	weekWhereParts := []string{"w.hospital = $1"}
+	args := []interface{}{facilityID}
+	argPos := 2
+
+	if departmentID > 0 {
+		weekWhereParts = append(weekWhereParts, fmt.Sprintf("w.department = $%d", argPos))
+		args = append(args, departmentID)
+		argPos++
+	}
+	if year > 0 {
+		weekWhereParts = append(weekWhereParts, fmt.Sprintf("EXTRACT(ISOYEAR FROM w.start) = $%d", argPos))
+		args = append(args, year)
+		argPos++
+	}
+	if month > 0 {
+		weekWhereParts = append(weekWhereParts, fmt.Sprintf("EXTRACT(MONTH FROM w.start) = $%d", argPos))
+		args = append(args, month)
+		argPos++
+	}
+	if week > 0 {
+		weekWhereParts = append(weekWhereParts, fmt.Sprintf("EXTRACT(WEEK FROM w.start) = $%d", argPos))
+		args = append(args, week)
+		argPos++
+	}
+
+	employeeWhereParts := []string{"e.facility = $1"}
+	if departmentID > 0 {
+		employeeWhereParts = append(employeeWhereParts, fmt.Sprintf("e.department = $%d", 2))
+	}
+
+	weekWhereClause := "WHERE " + strings.Join(weekWhereParts, " AND ")
+	employeeWhereClause := "WHERE " + strings.Join(employeeWhereParts, " AND ")
+
+	query := `
+		WITH facility_weeks AS (
+			SELECT DISTINCT w.hospital AS facility_id, w.start::date AS week_start, w.stop::date AS week_stop
+			FROM clinician_app.weeklyreport w
+			` + weekWhereClause + `
+		), on_leave AS (
+			SELECT fw.facility_id, fw.week_start, COUNT(DISTINCT e.id) AS on_leave_count
+			FROM facility_weeks fw
+			JOIN clinician_app.employees e ON e.facility = fw.facility_id
+			JOIN clinician_app.staffleave sl ON sl.employee_id = e.id
+			WHERE COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+			  AND sl.start_date::date <= fw.week_stop
+			  AND sl.end_date::date >= fw.week_start
+			  ` + strings.Replace(employeeWhereClause, "WHERE ", "AND ", 1) + `
+			GROUP BY fw.facility_id, fw.week_start
+		), on_duty AS (
+			SELECT fw.facility_id, fw.week_start, COUNT(DISTINCT e.id) AS on_duty_count
+			FROM facility_weeks fw
+			JOIN clinician_app.employees e ON e.facility = fw.facility_id
+			LEFT JOIN clinician_app.staffleave sl
+			  ON sl.employee_id = e.id
+			 AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+			 AND sl.start_date::date <= fw.week_stop
+			 AND sl.end_date::date >= fw.week_start
+			WHERE sl.employee_id IS NULL
+			  ` + strings.Replace(employeeWhereClause, "WHERE ", "AND ", 1) + `
+			GROUP BY fw.facility_id, fw.week_start
+		), submissions AS (
+			SELECT
+				w.hospital AS facility_id,
+				w.start::date AS week_start,
+				COUNT(*) FILTER (WHERE COALESCE(w.submit_status, '') = 'Submitted') AS submitted_count,
+				COUNT(*) FILTER (WHERE COALESCE(w.report_status, '') = 'Approved') AS approved_count,
+				COUNT(*) FILTER (WHERE COALESCE(w.report_status, '') IN ('Rejected', 'Declined')) AS declined_count,
+				COUNT(*) FILTER (
+					WHERE COALESCE(w.submit_status, '') = 'Submitted'
+					  AND COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+				) AS pending_count,
+				MAX(CASE WHEN COALESCE(w.submit_status, '') = 'Submitted' THEN COALESCE(w.submitted_on, w.last_updated_on, w.created_on) END) AS submitted_on,
+				COUNT(*) FILTER (WHERE COALESCE(w.national_submission_status, '') = 'Submitted') AS national_submitted_count,
+				COUNT(*) FILTER (WHERE COALESCE(w.national_review_status, '') = 'Approved') AS national_approved_count,
+				COUNT(*) FILTER (WHERE COALESCE(w.national_review_status, '') IN ('Rejected', 'Declined')) AS national_declined_count
+			FROM clinician_app.weeklyreport w
+			` + weekWhereClause + `
+			GROUP BY w.hospital, w.start
+		), national_submit_events AS (
+			SELECT DISTINCT ON (w.hospital, w.start::date)
+				w.hospital AS facility_id,
+				w.start::date AS week_start,
+				COALESCE(w.national_submitted_on, w.last_updated_on, w.created_on) AS submitted_on,
+				TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS submitted_by
+			FROM clinician_app.weeklyreport w
+			LEFT JOIN clinician_app.employees e ON e.id = w.national_submitted_by
+			` + weekWhereClause + `
+			  AND COALESCE(w.national_submission_status, '') = 'Submitted'
+			ORDER BY w.hospital, w.start::date, COALESCE(w.national_submitted_on, w.last_updated_on, w.created_on) DESC, w.id DESC
+		), national_review_events AS (
+			SELECT DISTINCT ON (w.hospital, w.start::date)
+				w.hospital AS facility_id,
+				w.start::date AS week_start,
+				COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) AS reviewed_on,
+				TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS reviewed_by
+			FROM clinician_app.weeklyreport w
+			LEFT JOIN clinician_app.employees e ON e.id = w.national_reviewed_by
+			` + weekWhereClause + `
+			  AND COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined')
+			ORDER BY w.hospital, w.start::date, COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) DESC, w.id DESC
+		)
+		SELECT
+			fw.facility_id,
+			COALESCE(f.f_name, '') AS facility_name,
+			fw.week_start,
+			fw.week_stop,
+			COALESCE(od.on_duty_count, 0) AS on_duty_count,
+			COALESCE(ol.on_leave_count, 0) AS on_leave_count,
+			COALESCE(s.submitted_count, 0) AS submitted_count,
+			COALESCE(s.approved_count, 0) AS approved_count,
+			COALESCE(s.declined_count, 0) AS declined_count,
+			COALESCE(s.pending_count, 0) AS pending_count,
+			GREATEST(COALESCE(od.on_duty_count, 0) + COALESCE(ol.on_leave_count, 0) - COALESCE(s.submitted_count, 0), 0) AS missing_count,
+			s.submitted_on,
+			COALESCE(s.national_submitted_count, 0) AS national_submitted_count,
+			COALESCE(s.national_approved_count, 0) AS national_approved_count,
+			COALESCE(s.national_declined_count, 0) AS national_declined_count,
+			nse.submitted_on AS national_submitted_on,
+			COALESCE(nse.submitted_by, '') AS national_submitted_by,
+			nre.reviewed_on AS national_reviewed_on,
+			COALESCE(nre.reviewed_by, '') AS national_reviewed_by
+		FROM facility_weeks fw
+		LEFT JOIN clinician_app.facilities f ON f.id = fw.facility_id
+		LEFT JOIN on_duty od ON od.facility_id = fw.facility_id AND od.week_start = fw.week_start
+		LEFT JOIN on_leave ol ON ol.facility_id = fw.facility_id AND ol.week_start = fw.week_start
+		LEFT JOIN submissions s ON s.facility_id = fw.facility_id AND s.week_start = fw.week_start
+		LEFT JOIN national_submit_events nse ON nse.facility_id = fw.facility_id AND nse.week_start = fw.week_start
+		LEFT JOIN national_review_events nre ON nre.facility_id = fw.facility_id AND nre.week_start = fw.week_start
+		ORDER BY fw.week_start DESC
+	`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []*FacilitySubmissionSummaryRow{}
+	for rows.Next() {
+		item := &FacilitySubmissionSummaryRow{}
+		var nationalSubmittedCount int
+		var nationalApprovedCount int
+		var nationalDeclinedCount int
+		var nationalSubmittedOn sql.NullTime
+		var nationalSubmittedBy string
+		var nationalReviewedOn sql.NullTime
+		var nationalReviewedBy string
+		if err := rows.Scan(
+			&item.FacilityID,
+			&item.FacilityName,
+			&item.WeekStart,
+			&item.WeekStop,
+			&item.OnDutyCount,
+			&item.OnLeaveCount,
+			&item.SubmittedCount,
+			&item.ApprovedCount,
+			&item.DeclinedCount,
+			&item.PendingCount,
+			&item.MissingCount,
+			&item.SubmittedOn,
+			&nationalSubmittedCount,
+			&nationalApprovedCount,
+			&nationalDeclinedCount,
+			&nationalSubmittedOn,
+			&nationalSubmittedBy,
+			&nationalReviewedOn,
+			&nationalReviewedBy,
+		); err != nil {
+			return nil, err
+		}
+
+		switch {
+		case nationalApprovedCount > 0:
+			item.ApprovalStatus = "Approved"
+			item.StatusOn = nationalReviewedOn
+			item.StatusBy = strings.TrimSpace(nationalReviewedBy)
+		case nationalDeclinedCount > 0:
+			item.ApprovalStatus = "Declined"
+			item.StatusOn = nationalReviewedOn
+			item.StatusBy = strings.TrimSpace(nationalReviewedBy)
+		case nationalSubmittedCount > 0:
+			item.ApprovalStatus = "Submitted"
+			item.StatusOn = nationalSubmittedOn
+			item.StatusBy = strings.TrimSpace(nationalSubmittedBy)
+		default:
+			item.ApprovalStatus = "Draft"
+		}
+
+		if item.MissingCount > 0 || item.SubmittedCount == 0 {
+			item.SubmissionState = "Incomplete"
+		} else {
+			item.SubmissionState = "Complete"
+		}
+
+		item.CanApprove = item.PendingCount > 0
+
+		if selectedStatus != "all" {
+			switch selectedStatus {
+			case "pending":
+				if item.ApprovalStatus != "Submitted" {
+					continue
+				}
+			case "submitted":
+				if item.ApprovalStatus != "Submitted" {
+					continue
+				}
+			case "approved":
+				if item.ApprovalStatus != "Approved" {
+					continue
+				}
+			case "declined":
+				if item.ApprovalStatus != "Declined" {
+					continue
+				}
+			case "draft":
+				if item.ApprovalStatus != "Draft" {
 					continue
 				}
 			}

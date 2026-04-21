@@ -92,6 +92,12 @@ func Run() error {
 		return err
 	}
 
+	if drift, details, err := models.CheckCanonicalRightsDrift(context.Background(), db); err != nil {
+		utilities.Warning("canonical rights drift check failed:", err)
+	} else if drift {
+		utilities.Warning("canonical rights drift detected:", strings.Join(details, "; "))
+	}
+
 	if err := models.EnsureLeaveSchema(context.Background(), db); err != nil {
 		utilities.Danger("leave schema migration:", err)
 		// Non-fatal: the column may already exist or the table may be differently structured

@@ -27,6 +27,7 @@ type LeaveHistoryView struct {
 	Rows         []*models.LeaveHistory
 	ExportCSVURL string
 	ExportPDFURL string
+	BackURL      string
 }
 
 type FacilityLeaveReviewView struct {
@@ -43,6 +44,7 @@ type FacilityLeaveReviewView struct {
 
 type EmployeePageView struct {
 	ActiveTab          string
+	CurrentURL         string
 	DashboardURL       string
 	ListURL            string
 	OnDutyURL          string
@@ -310,6 +312,7 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 
 	view := EmployeePageView{
 		ActiveTab:          activeTab,
+		CurrentURL:         buildEmployeeTabURL(activeTab, selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		DashboardURL:       buildEmployeeTabURL("dashboard", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		ListURL:            buildEmployeeTabURL("list", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		OnDutyURL:          buildEmployeeTabURL("on_duty", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
@@ -675,6 +678,7 @@ func HandlerEmployeeLeaveHistory(c *gin.Context, db *sql.DB, sessionManager *scs
 
 	employeeID := int(sesDetails.EmpID)
 	employeeIDStr := strings.TrimSpace(c.Param("id"))
+	backURL := sanitizeEmployeeListURL(c.Query("return_to"))
 	if employeeIDStr != "" {
 		parsedEmployeeID, err := strconv.Atoi(employeeIDStr)
 		if err != nil {
@@ -707,6 +711,7 @@ func HandlerEmployeeLeaveHistory(c *gin.Context, db *sql.DB, sessionManager *scs
 		Rows:         leaveHistory,
 		ExportCSVURL: buildLeaveHistoryExportURL("csv", employeeID, employeeIDStr != ""),
 		ExportPDFURL: buildLeaveHistoryExportURL("pdf", employeeID, employeeIDStr != ""),
+		BackURL:      backURL,
 	}
 
 	sessionData.Form = view
@@ -820,8 +825,21 @@ func HandlerFacilityLeaveReview(c *gin.Context, db *sql.DB, sessionManager *scs.
 	default:
 		filterStatus = "pending"
 	}
+	selectedDepartment, _ := parseOptionalIntQuery(c, "department")
+	selectedYear, _ := parseOptionalIntQuery(c, "year")
+	selectedMonth, _ := parseOptionalIntQuery(c, "month")
+	selectedWeek, _ := parseOptionalIntQuery(c, "week")
 
-	rows, err := models.GetFacilityLeaveReview(c.Request.Context(), db, sesDetails.HFID, filterStatus)
+	rows, err := models.GetFacilityLeaveReview(
+		c.Request.Context(),
+		db,
+		sesDetails.HFID,
+		int64(selectedDepartment),
+		selectedYear,
+		selectedMonth,
+		selectedWeek,
+		filterStatus,
+	)
 	if err != nil {
 		log.Printf("Error retrieving facility leave review data: %v", err)
 		c.String(http.StatusInternalServerError, "Error retrieving leave requests")
@@ -832,12 +850,12 @@ func HandlerFacilityLeaveReview(c *gin.Context, db *sql.DB, sessionManager *scs.
 		Rows:         rows,
 		FilterStatus: filterStatus,
 		FilterTitle:  facilityLeaveReviewFilterTitle(filterStatus),
-		AllURL:       buildFacilityLeaveReviewURL("all"),
-		PendingURL:   buildFacilityLeaveReviewURL("pending"),
-		OnLeaveURL:   buildFacilityLeaveReviewURL("on_leave"),
-		CurrentURL:   buildFacilityLeaveReviewURL(filterStatus),
-		ExportCSVURL: buildFacilityLeaveReviewExportURL("csv", filterStatus),
-		ExportPDFURL: buildFacilityLeaveReviewExportURL("pdf", filterStatus),
+		AllURL:       buildFacilityLeaveReviewURL("all", selectedDepartment, selectedYear, selectedMonth, selectedWeek),
+		PendingURL:   buildFacilityLeaveReviewURL("pending", selectedDepartment, selectedYear, selectedMonth, selectedWeek),
+		OnLeaveURL:   buildFacilityLeaveReviewURL("on_leave", selectedDepartment, selectedYear, selectedMonth, selectedWeek),
+		CurrentURL:   buildFacilityLeaveReviewURL(filterStatus, selectedDepartment, selectedYear, selectedMonth, selectedWeek),
+		ExportCSVURL: buildFacilityLeaveReviewExportURL("csv", filterStatus, selectedDepartment, selectedYear, selectedMonth, selectedWeek),
+		ExportPDFURL: buildFacilityLeaveReviewExportURL("pdf", filterStatus, selectedDepartment, selectedYear, selectedMonth, selectedWeek),
 	}
 
 	utilities.GenerateHTML(c, sessionData, "base", "facility-leave-review")
@@ -868,8 +886,21 @@ func HandlerFacilityLeaveReviewExport(c *gin.Context, db *sql.DB, sessionManager
 	default:
 		filterStatus = "pending"
 	}
+	selectedDepartment, _ := parseOptionalIntQuery(c, "department")
+	selectedYear, _ := parseOptionalIntQuery(c, "year")
+	selectedMonth, _ := parseOptionalIntQuery(c, "month")
+	selectedWeek, _ := parseOptionalIntQuery(c, "week")
 
-	rows, err := models.GetFacilityLeaveReview(c.Request.Context(), db, sesDetails.HFID, filterStatus)
+	rows, err := models.GetFacilityLeaveReview(
+		c.Request.Context(),
+		db,
+		sesDetails.HFID,
+		int64(selectedDepartment),
+		selectedYear,
+		selectedMonth,
+		selectedWeek,
+		filterStatus,
+	)
 	if err != nil {
 		log.Printf("Error exporting facility leave review: %v", err)
 		c.String(http.StatusInternalServerError, "Error exporting leave requests")
@@ -968,14 +999,31 @@ func handleFacilityLeaveDecision(c *gin.Context, db *sql.DB, sessionManager *scs
 	c.Redirect(http.StatusFound, sanitizeFacilityLeaveReviewURL(c.PostForm("return_to")))
 }
 
-func buildFacilityLeaveReviewURL(status string) string {
-	if status == "" {
+func buildFacilityLeaveReviewURL(status string, departmentID int, year int, month int, week int) string {
+	if year < 0 {
+		year = 0
+	}
+	if month < 0 {
+		month = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	params := []string{}
+	if status != "" && status != "pending" {
+		params = append(params, "status="+status)
+	}
+	if departmentID > 0 {
+		params = append(params, fmt.Sprintf("department=%d", departmentID))
+	}
+	params = append(params, fmt.Sprintf("year=%d", year))
+	params = append(params, fmt.Sprintf("month=%d", month))
+	params = append(params, fmt.Sprintf("week=%d", week))
+	if len(params) == 0 {
 		return "/leave/review"
 	}
-	if status == "all" {
-		return "/leave/review?status=all"
-	}
-	return "/leave/review?status=" + status
+	return "/leave/review?" + strings.Join(params, "&")
 }
 
 func buildLeaveHistoryExportURL(format string, employeeID int, isEmployeeRoute bool) string {
@@ -989,7 +1037,17 @@ func buildLeaveHistoryExportURL(format string, employeeID int, isEmployeeRoute b
 	return base + "?format=" + format
 }
 
-func buildFacilityLeaveReviewExportURL(format, status string) string {
+func buildFacilityLeaveReviewExportURL(format, status string, departmentID int, year int, month int, week int) string {
+	if year < 0 {
+		year = 0
+	}
+	if month < 0 {
+		month = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
 	params := []string{}
 	if format != "" {
 		params = append(params, "format="+format)
@@ -997,6 +1055,12 @@ func buildFacilityLeaveReviewExportURL(format, status string) string {
 	if status != "" && status != "pending" {
 		params = append(params, "status="+status)
 	}
+	if departmentID > 0 {
+		params = append(params, fmt.Sprintf("department=%d", departmentID))
+	}
+	params = append(params, fmt.Sprintf("year=%d", year))
+	params = append(params, fmt.Sprintf("month=%d", month))
+	params = append(params, fmt.Sprintf("week=%d", week))
 	if len(params) == 0 {
 		return "/leave/review/export"
 	}
@@ -1056,9 +1120,21 @@ func exportLeaveStatus(value sql.NullString) string {
 		return "Approved"
 	case "Rejected":
 		return "Declined"
+	case "Expired":
+		return "Completed"
 	default:
 		return value.String
 	}
+}
+
+func sanitizeEmployeeListURL(value string) string {
+	if value == "" {
+		return "/employee/list"
+	}
+	if strings.HasPrefix(value, "/employee/list") || strings.HasPrefix(value, "/employee/leave/staffonleave") {
+		return value
+	}
+	return "/employee/list"
 }
 
 func exportLeaveType(value sql.NullString) string {

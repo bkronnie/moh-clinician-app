@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 clinician_app
 clinician/web.exe
 
@@ -14,6 +16,7 @@ log/
 
 # Go cache and coverage
 .gocache/
+.gotmp/
 coverage.out
 
 # Temporary and backup files
@@ -22,7 +25,12 @@ coverage.out
 *.bak
 *.swp
 *.swo
+.tmp_*
+tmp_*
 
 # OS and editor files
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/settings.json
+.vscode/*.code-workspace

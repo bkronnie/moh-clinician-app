@@ -395,9 +395,27 @@ CREATE INDEX IF NOT EXISTS idx_staffleave_employee_id ON public.staffleave(emplo
 CREATE INDEX IF NOT EXISTS idx_staffleave_employee_status_dates ON public.staffleave(employee_id, leave_status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_staffleave_status_dates ON public.staffleave(leave_status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start ON public.weeklyreport(employee, start);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_weeklyreport_employee_start_stop
-ON public.weeklyreport(employee, start, stop)
-WHERE employee IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_weeklyreport_employee_hospital_start
+ON public.weeklyreport(employee, hospital, start)
+WHERE employee IS NOT NULL AND hospital IS NOT NULL AND start IS NOT NULL;
+ALTER TABLE public.weeklyreport
+    DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_stop_7_days;
+ALTER TABLE public.weeklyreport
+    DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_stop_6_days;
+ALTER TABLE public.weeklyreport
+    ADD CONSTRAINT ck_weeklyreport_start_stop_6_days
+    CHECK (start IS NULL OR stop IS NULL OR stop = start + INTERVAL '6 days');
+ALTER TABLE public.weeklyreport
+    DROP CONSTRAINT IF EXISTS ex_weeklyreport_employee_hospital_no_overlap;
+ALTER TABLE public.weeklyreport
+    ADD CONSTRAINT ex_weeklyreport_employee_hospital_no_overlap
+    EXCLUDE USING gist (
+        employee WITH =,
+        hospital WITH =,
+        daterange(start, stop, '[]') WITH &&
+    )
+    WHERE (employee IS NOT NULL AND hospital IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_dept_start ON public.weeklyreport(hospital, department, start);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_hospital_start_status ON public.weeklyreport(hospital, start, submit_status, report_status);
 CREATE INDEX IF NOT EXISTS idx_weeklyreport_employee_start_status ON public.weeklyreport(employee, start, submit_status, report_status);

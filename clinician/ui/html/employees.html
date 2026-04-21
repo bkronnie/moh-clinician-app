@@ -160,7 +160,7 @@ Staff Management
                 <form method="post" action="/employee/delete/{{ $employee.EmpID }}" class="inline-form" onsubmit="return confirm('Delete this employee?');">
                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                 </form>
-                <a href="/employee/{{ $employee.EmpID }}/leave/history" class="btn btn-sm btn-outline-secondary">Leave History</a>
+                <a href="/employee/{{ $employee.EmpID }}/leave/history?return_to={{ urlquery $.Form.CurrentURL }}" class="btn btn-sm btn-outline-secondary">Leave History</a>
             </div>
         </div>
         {{ end }}

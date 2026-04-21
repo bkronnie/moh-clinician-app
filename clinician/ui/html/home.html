@@ -140,14 +140,18 @@
             <div class="dashboard-section dashboard-chart">
                 <div class="section-title">{{ .Title }}</div>
                 {{ if .Subtitle }}<p class="chart-subtitle">{{ .Subtitle }}</p>{{ end }}
-                <canvas
-                    id="{{ .ID }}"
-                    class="dashboard-chart-canvas"
-                    data-labels='{{ toJSON .Labels }}'
-                    data-series-a='{{ toJSON .SeriesA }}'
-                    data-series-b='{{ toJSON .SeriesB }}'
-                    data-series-a-label='{{ .SeriesALabel }}'
-                    data-series-b-label='{{ .SeriesBLabel }}'></canvas>
+                <div class="chart-component" data-component="dashboard-chart">
+                    <div class="chart-insights" data-chart-insights></div>
+                    <canvas
+                        id="{{ .ID }}"
+                        class="dashboard-chart-canvas"
+                        data-chart-type='{{ .ChartType }}'
+                        data-labels='{{ toJSON .Labels }}'
+                        data-series-a='{{ toJSON .SeriesA }}'
+                        data-series-b='{{ toJSON .SeriesB }}'
+                        data-series-a-label='{{ .SeriesALabel }}'
+                        data-series-b-label='{{ .SeriesBLabel }}'></canvas>
+                </div>
             </div>
             {{ end }}
         </div>
@@ -235,9 +239,26 @@
 {{ define "extraJS" }}
 <script>
 (() => {
+    const toolbarToggle = document.getElementById('dashboardToolbarToggle');
+    const toolbarSection = document.getElementById('dashboardToolbarSection');
+    const toolbarStorageKey = 'dashboard-toolbar-open';
+
+    const persistToolbarState = () => {
+        if (!toolbarSection) {
+            return;
+        }
+        localStorage.setItem(toolbarStorageKey, toolbarSection.classList.contains('show') ? 'true' : 'false');
+    };
+
     document.querySelectorAll('.dashboard-auto-submit').forEach((form) => {
         form.querySelectorAll('select').forEach((select) => {
-            select.addEventListener('change', () => form.requestSubmit());
+            select.addEventListener('change', () => {
+                // Keep filter panel state when auto-submitting on filter changes.
+                if (toolbarSection && toolbarSection.classList.contains('show')) {
+                    localStorage.setItem(toolbarStorageKey, 'true');
+                }
+                form.requestSubmit();
+            });
             select.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
@@ -245,10 +266,6 @@
             });
         });
     });
-
-    const toolbarToggle = document.getElementById('dashboardToolbarToggle');
-    const toolbarSection = document.getElementById('dashboardToolbarSection');
-    const toolbarStorageKey = 'dashboard-toolbar-open';
 
     if (toolbarToggle && toolbarSection) {
         const updateToolbarText = (open) => {
@@ -276,6 +293,14 @@
             updateToolbarText(false);
             localStorage.setItem(toolbarStorageKey, 'false');
         });
+
+        toolbarToggle.addEventListener('click', () => {
+            // Persist intent immediately; collapse event will confirm final state.
+            const opening = !toolbarSection.classList.contains('show');
+            localStorage.setItem(toolbarStorageKey, opening ? 'true' : 'false');
+        });
+
+        window.addEventListener('beforeunload', persistToolbarState);
     }
 
     const wrapLabel = (ctx, text, maxWidth, maxLines) => {
@@ -287,17 +312,15 @@
         const tokens = raw.split(/\s+/);
         const lines = [];
         let current = '';
-
         tokens.forEach((token) => {
             const next = current ? `${current} ${token}` : token;
             if (ctx.measureText(next).width <= maxWidth || !current) {
                 current = next;
-                return;
+            } else {
+                lines.push(current);
+                current = token;
             }
-            lines.push(current);
-            current = token;
         });
-
         if (current) {
             lines.push(current);
         }
@@ -315,96 +338,250 @@
         return clipped;
     };
 
-    const drawChart = (canvas) => {
-        const labels = JSON.parse(canvas.dataset.labels || '[]');
-        const seriesA = JSON.parse(canvas.dataset.seriesA || '[]');
-        const seriesB = JSON.parse(canvas.dataset.seriesB || '[]');
-        if (!labels.length) return;
+    class DashboardChartComponent {
+        constructor(root) {
+            this.root = root;
+            this.canvas = root.querySelector('.dashboard-chart-canvas');
+            this.insightHost = root.querySelector('[data-chart-insights]');
+            this.ctx = this.canvas.getContext('2d');
 
-        const seriesALabel = canvas.dataset.seriesALabel || 'Series A';
-        const seriesBLabel = canvas.dataset.seriesBLabel || 'Series B';
-        const ctx = canvas.getContext('2d');
-        const parent = canvas.parentElement;
-        const width = parent.clientWidth || 900;
-        ctx.font = '12px Segoe UI, sans-serif';
+            this.labels = this.parseArray(this.canvas.dataset.labels);
+            this.seriesA = this.parseArray(this.canvas.dataset.seriesA);
+            this.seriesB = this.parseArray(this.canvas.dataset.seriesB);
+            this.seriesALabel = this.canvas.dataset.seriesALabel || 'Series A';
+            this.seriesBLabel = this.canvas.dataset.seriesBLabel || 'Series B';
+            const configuredType = String(this.canvas.dataset.chartType || 'bar').toLowerCase();
+            const fixedType = configuredType === 'line' || configuredType === 'area' ? configuredType : 'bar';
 
-        const preliminaryGroupWidth = Math.max((width - 72) / Math.max(labels.length, 1), 48);
-        const wrappedLabels = labels.map((label) => wrapLabel(ctx, label, Math.max(preliminaryGroupWidth - 8, 44), 3));
-        const maxLabelLines = wrappedLabels.reduce((max, lines) => Math.max(max, lines.length), 1);
-        const height = 300 + Math.max(0, maxLabelLines-1) * 16;
-        canvas.width = width;
-        canvas.height = height;
-
-        const padding = { top: 28, right: 24, bottom: 54 + maxLabelLines * 14, left: 44 };
-        const plotWidth = width - padding.left - padding.right;
-        const plotHeight = height - padding.top - padding.bottom;
-        const maxValue = Math.max(1, ...seriesA, ...seriesB);
-        const steps = 4;
-
-        ctx.clearRect(0, 0, width, height);
-        ctx.font = '12px Segoe UI, sans-serif';
-        ctx.fillStyle = '#58727a';
-        ctx.strokeStyle = '#d9e8ec';
-
-        for (let i = 0; i <= steps; i++) {
-            const y = padding.top + (plotHeight / steps) * i;
-            ctx.beginPath();
-            ctx.moveTo(padding.left, y);
-            ctx.lineTo(width - padding.right, y);
-            ctx.stroke();
-
-            const value = Math.round(maxValue - (maxValue / steps) * i);
-            ctx.fillText(String(value), 8, y + 4);
+            this.state = {
+                type: fixedType,
+                showA: true,
+                showB: this.seriesB.some((value) => value !== 0)
+            };
+            this.syncControls();
+            this.render();
         }
 
-        const groupWidth = plotWidth / Math.max(labels.length, 1);
-        const barWidth = Math.min(18, groupWidth / 3);
+        parseArray(raw) {
+            try {
+                const parsed = JSON.parse(raw || '[]');
+                if (!Array.isArray(parsed)) {
+                    return [];
+                }
+                return parsed.map((value) => Number(value) || 0);
+            } catch (_) {
+                return [];
+            }
+        }
 
-        labels.forEach((label, index) => {
-            const baseX = padding.left + index * groupWidth + groupWidth / 2;
-            const aHeight = (seriesA[index] || 0) / maxValue * plotHeight;
-            const bHeight = (seriesB[index] || 0) / maxValue * plotHeight;
+        syncControls() {
+            return;
+        }
 
-            ctx.fillStyle = '#156b7a';
-            ctx.fillRect(baseX - barWidth - 4, padding.top + plotHeight - aHeight, barWidth, aHeight);
+        getPlottedSeries() {
+            const plotted = [];
+            if (this.state.showA) {
+                plotted.push({ label: this.seriesALabel, data: this.seriesA, color: '#156b7a', fill: 'rgba(21, 107, 122, 0.22)' });
+            }
+            if (this.state.showB) {
+                plotted.push({ label: this.seriesBLabel || 'Series B', data: this.seriesB, color: '#73b7c2', fill: 'rgba(115, 183, 194, 0.24)' });
+            }
+            if (!plotted.length) {
+                plotted.push({ label: this.seriesALabel, data: this.seriesA, color: '#156b7a', fill: 'rgba(21, 107, 122, 0.22)' });
+            }
+            if (!this.state.normalize) {
+                return plotted;
+            }
 
-            ctx.fillStyle = '#73b7c2';
-            ctx.fillRect(baseX + 4, padding.top + plotHeight - bHeight, barWidth, bHeight);
+            return plotted;
+        }
 
-            ctx.fillStyle = '#204650';
-            ctx.textAlign = 'center';
-            const lines = wrappedLabels[index];
-            lines.forEach((line, lineIndex) => {
-                ctx.fillText(line, baseX, padding.top + plotHeight + 18 + lineIndex * 14);
+        buildInsights(plottedSeries) {
+            if (!this.insightHost) {
+                return;
+            }
+            const insights = [];
+            plottedSeries.forEach((series) => {
+                const total = series.data.reduce((sum, value) => sum + value, 0);
+                const maxValue = Math.max(0, ...series.data);
+                const maxIndex = series.data.findIndex((value) => value === maxValue);
+                const maxLabel = maxIndex >= 0 ? this.labels[maxIndex] : '-';
+                insights.push(`<span class="chart-insight-pill"><strong>${series.label}:</strong> Total ${total} | Peak ${maxValue} (${maxLabel})</span>`);
             });
-        });
 
-        const legendY = 12;
-        ctx.fillStyle = '#156b7a';
-        ctx.fillRect(padding.left, legendY, 12, 12);
-        ctx.fillStyle = '#204650';
-        ctx.fillText(seriesALabel, padding.left + 18, legendY + 10);
+            if (plottedSeries.length >= 2) {
+                const sumA = plottedSeries[0].data.reduce((sum, value) => sum + value, 0);
+                const sumB = plottedSeries[1].data.reduce((sum, value) => sum + value, 0);
+                const dominance = sumA >= sumB ? plottedSeries[0].label : plottedSeries[1].label;
+                insights.push(`<span class="chart-insight-pill chart-insight-accent"><strong>Lead:</strong> ${dominance}</span>`);
+            }
 
-        if (seriesBLabel) {
-            ctx.fillStyle = '#73b7c2';
-            ctx.fillRect(padding.left + 140, legendY, 12, 12);
-            ctx.fillStyle = '#204650';
-            ctx.fillText(seriesBLabel, padding.left + 158, legendY + 10);
+            this.insightHost.innerHTML = insights.join('');
         }
+
+        drawAxes(maxValue, padding, width, height, wrappedLabels) {
+            const ctx = this.ctx;
+            const plotWidth = width - padding.left - padding.right;
+            const plotHeight = height - padding.top - padding.bottom;
+            const steps = 5;
+
+            ctx.strokeStyle = '#d9e8ec';
+            ctx.fillStyle = '#58727a';
+            ctx.textAlign = 'left';
+            for (let i = 0; i <= steps; i++) {
+                const y = padding.top + (plotHeight / steps) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+
+                const value = Math.round(maxValue - (maxValue / steps) * i);
+                ctx.fillText(String(value), 8, y + 4);
+            }
+
+            const groupWidth = plotWidth / Math.max(this.labels.length, 1);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#204650';
+            this.labels.forEach((_, index) => {
+                const baseX = padding.left + index * groupWidth + groupWidth / 2;
+                wrappedLabels[index].forEach((line, lineIndex) => {
+                    ctx.fillText(line, baseX, padding.top + plotHeight + 18 + lineIndex * 14);
+                });
+            });
+
+            return { plotWidth, plotHeight, groupWidth };
+        }
+
+        drawBars(seriesList, maxValue, padding, dims) {
+            const ctx = this.ctx;
+            const { plotHeight, groupWidth } = dims;
+            const barWidth = Math.max(10, Math.min(20, groupWidth / (seriesList.length + 1.5)));
+
+            this.labels.forEach((_, index) => {
+                const centerX = padding.left + index * groupWidth + groupWidth / 2;
+                seriesList.forEach((series, seriesIndex) => {
+                    const value = series.data[index] || 0;
+                    const height = (value / maxValue) * plotHeight;
+                    const offset = (seriesIndex - (seriesList.length - 1) / 2) * (barWidth + 6);
+                    ctx.fillStyle = series.color;
+                    ctx.fillRect(centerX + offset - barWidth / 2, padding.top + plotHeight - height, barWidth, height);
+                });
+            });
+        }
+
+        drawLines(seriesList, maxValue, padding, dims, filled) {
+            const ctx = this.ctx;
+            const { plotHeight, groupWidth } = dims;
+            const pointX = (index) => padding.left + index * groupWidth + groupWidth / 2;
+            const pointY = (value) => padding.top + plotHeight - (value / maxValue) * plotHeight;
+
+            seriesList.forEach((series) => {
+                ctx.beginPath();
+                series.data.forEach((value, index) => {
+                    const x = pointX(index);
+                    const y = pointY(value || 0);
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = series.color;
+                ctx.stroke();
+
+                if (filled) {
+                    ctx.lineTo(pointX(series.data.length - 1), padding.top + plotHeight);
+                    ctx.lineTo(pointX(0), padding.top + plotHeight);
+                    ctx.closePath();
+                    ctx.fillStyle = series.fill;
+                    ctx.fill();
+                }
+
+                series.data.forEach((value, index) => {
+                    ctx.beginPath();
+                    ctx.fillStyle = series.color;
+                    ctx.arc(pointX(index), pointY(value || 0), 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+        }
+
+        drawLegend(seriesList, width) {
+            const ctx = this.ctx;
+            let x = 44;
+            const y = 12;
+            ctx.font = '12px Segoe UI, sans-serif';
+
+            seriesList.forEach((series) => {
+                ctx.fillStyle = series.color;
+                ctx.fillRect(x, y, 12, 12);
+                ctx.fillStyle = '#204650';
+                ctx.textAlign = 'left';
+                ctx.fillText(series.label, x + 18, y + 10);
+                x += Math.min(220, Math.max(120, ctx.measureText(series.label).width + 34));
+                if (x > width - 180) {
+                    x = 44;
+                }
+            });
+        }
+
+        render() {
+            if (!this.labels.length) {
+                return;
+            }
+
+            const seriesList = this.getPlottedSeries();
+            this.buildInsights(seriesList);
+
+            const ctx = this.ctx;
+            const parent = this.canvas.parentElement;
+            const width = parent.clientWidth || 900;
+            ctx.font = '12px Segoe UI, sans-serif';
+
+            const preliminaryGroupWidth = Math.max((width - 72) / Math.max(this.labels.length, 1), 48);
+            const wrappedLabels = this.labels.map((label) => wrapLabel(ctx, label, Math.max(preliminaryGroupWidth - 8, 44), 3));
+            const maxLabelLines = wrappedLabels.reduce((max, lines) => Math.max(max, lines.length), 1);
+            const height = 320 + Math.max(0, maxLabelLines - 1) * 16;
+            this.canvas.width = width;
+            this.canvas.height = height;
+
+            const padding = { top: 30, right: 24, bottom: 56 + maxLabelLines * 14, left: 44 };
+            const maxValue = Math.max(1, ...seriesList.flatMap((series) => series.data));
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.font = '12px Segoe UI, sans-serif';
+
+            const dims = this.drawAxes(maxValue, padding, width, height, wrappedLabels);
+            if (this.state.type === 'line') {
+                this.drawLines(seriesList, maxValue, padding, dims, false);
+            } else if (this.state.type === 'area') {
+                this.drawLines(seriesList, maxValue, padding, dims, true);
+            } else {
+                this.drawBars(seriesList, maxValue, padding, dims);
+            }
+            this.drawLegend(seriesList, width);
+        }
+    }
+
+    const chartComponents = [];
+    const mountChartComponents = () => {
+        chartComponents.length = 0;
+        document.querySelectorAll('[data-component="dashboard-chart"]').forEach((root) => {
+            chartComponents.push(new DashboardChartComponent(root));
+        });
     };
 
-    const renderCharts = () => {
-        document.querySelectorAll('.dashboard-chart-canvas').forEach(drawChart);
-    };
-
-    renderCharts();
+    mountChartComponents();
 
     let resizeTimer = null;
     window.addEventListener('resize', () => {
         if (resizeTimer) {
             window.clearTimeout(resizeTimer);
         }
-        resizeTimer = window.setTimeout(renderCharts, 120);
+        resizeTimer = window.setTimeout(() => {
+            chartComponents.forEach((component) => component.render());
+        }, 120);
     });
 
     if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.tooltip === 'function') {
@@ -414,42 +591,6 @@
             placement: 'top'
         });
     }
-})();
-
-(() => {
-    const toolbarToggle = document.getElementById('dashboardToolbarToggle');
-    const toolbarSection = document.getElementById('dashboardToolbarSection');
-    const storageKey = 'dashboard-filters-open';
-
-    if (!toolbarToggle || !toolbarSection) {
-        return;
-    }
-
-    const setButtonText = (open) => {
-        const label = open ? 'Hide filters' : 'Show filters';
-        if (toolbarToggle.dataset.iconized !== 'true') {
-            toolbarToggle.textContent = label;
-        }
-        toolbarToggle.setAttribute('title', label);
-        toolbarToggle.setAttribute('aria-label', label);
-        toolbarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    };
-
-    if (localStorage.getItem(storageKey) === 'true') {
-        toolbarSection.classList.add('show');
-        toolbarToggle.classList.remove('collapsed');
-    }
-
-    setButtonText(toolbarSection.classList.contains('show'));
-
-    toolbarSection.addEventListener('shown.bs.collapse', () => {
-        setButtonText(true);
-        localStorage.setItem(storageKey, 'true');
-    });
-    toolbarSection.addEventListener('hidden.bs.collapse', () => {
-        setButtonText(false);
-        localStorage.setItem(storageKey, 'false');
-    });
 })();
 </script>
 {{ end }}

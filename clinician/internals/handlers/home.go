@@ -37,6 +37,7 @@ type DashboardChartView struct {
 	ID           string
 	Title        string
 	Subtitle     string
+	ChartType    string
 	Labels       []string
 	SeriesA      []int
 	SeriesALabel string
@@ -480,11 +481,38 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 		{"Title": "Reporting Rate", "Value": fmt.Sprintf("%d%%", snapshot.NationalReportingRate), "Tone": "stat-success"},
 	}
 
+	view.TopFacilities = topFacilityPerformers(snapshot.FacilityPerformance, 5)
+	view.AttentionFacilities = facilitiesNeedingSupport(snapshot.FacilityPerformance, 5)
+
+	departmentAnalysis, err := models.GetNationalDepartmentAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+	view.DepartmentAnalysis = departmentAnalysis
+	view.TopDepartments = topDepartments(departmentAnalysis, 5)
+	view.PriorityDepartments = priorityDepartments(departmentAnalysis, 5)
+
+	clinicianAnalysis, err := models.GetNationalClinicianAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
+	if err != nil {
+		return HomeViewModel{}, err
+	}
+	view.ClinicianAnalysis = clinicianAnalysis
+	view.TopClinicians = topClinicians(clinicianAnalysis, 5)
+	view.PriorityClinicians = priorityClinicians(clinicianAnalysis, 5)
+	approvedCount, declinedCount, onLeaveCount := summarizeClinicianStatus(clinicianAnalysis)
+	firstPassApprovalRate := percentage(approvedCount, approvedCount+declinedCount)
+
 	view.KPIs = []DashboardKPIView{
 		{
 			Title: "National Reporting Rate",
 			Value: snapshot.NationalReportingRate,
 			Unit:  "% reporting rate",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Title: "First-Pass Approval Rate",
+			Value: firstPassApprovalRate,
+			Unit:  "% approved first-pass",
 			Meta:  selectedWeekLabel,
 		},
 		{
@@ -523,26 +551,13 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 			Unit:  "clinicians",
 			Meta:  "Still not submitted",
 		},
+		{
+			Title: "Staff On Leave",
+			Value: onLeaveCount,
+			Unit:  "clinicians",
+			Meta:  "Current leave status",
+		},
 	}
-
-	view.TopFacilities = topFacilityPerformers(snapshot.FacilityPerformance, 3)
-	view.AttentionFacilities = facilitiesNeedingSupport(snapshot.FacilityPerformance, 3)
-
-	departmentAnalysis, err := models.GetNationalDepartmentAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
-	if err != nil {
-		return HomeViewModel{}, err
-	}
-	view.DepartmentAnalysis = departmentAnalysis
-	view.TopDepartments = topDepartments(departmentAnalysis, 5)
-	view.PriorityDepartments = priorityDepartments(departmentAnalysis, 5)
-
-	clinicianAnalysis, err := models.GetNationalClinicianAnalysisByRange(c.Request.Context(), db, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, periodStart, periodEnd)
-	if err != nil {
-		return HomeViewModel{}, err
-	}
-	view.ClinicianAnalysis = clinicianAnalysis
-	view.TopClinicians = topClinicians(clinicianAnalysis, 8)
-	view.PriorityClinicians = priorityClinicians(clinicianAnalysis, 8)
 
 	trendPoints, err := models.GetScopeTrendPoints(c.Request.Context(), db, 0, selectedFacilityID, selectedDepartmentID, selectedEmployeeID, selectedYear, selectedMonth, 0)
 	if err != nil {
@@ -600,7 +615,7 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 	if err != nil {
 		return HomeViewModel{}, err
 	}
-	leaveSummary, err := models.GetFacilityLeaveReviewSummary(c.Request.Context(), db, int64(facilityID))
+	leaveSummary, err := models.GetFacilityLeaveReviewSummary(c.Request.Context(), db, int64(facilityID), int64(selectedDepartmentID), selectedYear, selectedMonth, selectedWeek)
 	if err != nil {
 		return HomeViewModel{}, err
 	}
@@ -652,17 +667,22 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 	}
 
 	view.KPIs = []DashboardKPIView{
+		{Title: "Facility Reporting Rate", Value: reportingRate, Unit: "% reporting rate", Meta: selectedWeekLabel},
 		{Title: "Reports Entered", Value: snapshot.ReportsEnteredThisWeek, Unit: "entered reports", Meta: selectedWeekLabel},
 		{Title: "Reports Submitted", Value: snapshot.SubmittedThisWeek, Unit: "submitted reports", Meta: selectedWeekLabel},
 		{Title: "Pending Submission", Value: snapshot.PendingSubmission, Unit: "clinicians", Meta: "Still not submitted"},
 		{Title: "Pending Report Approvals", Value: reportSummary.PendingReports, Unit: "reports", Meta: "Current review queue", Link: buildReportSubmissionsURL(0, 0, selectedYear, selectedMonth, selectedWeek, "pending")},
-		{Title: "Pending Leave Requests", Value: leaveSummary.PendingLeaves, Unit: "leave requests", Meta: "Current review queue", Link: buildFacilityLeaveReviewURL("pending")},
+		{Title: "First-Pass Approval Rate", Value: percentage(reportSummary.ApprovedReports, reportSummary.ApprovedReports+reportSummary.DeclinedReports), Unit: "% approved first-pass", Meta: selectedWeekLabel},
+		{Title: "Staff On Leave", Value: countCliniciansOnLeave(clinicianAnalysis), Unit: "clinicians", Meta: "Current leave status"},
+		{Title: "Pending Leave Requests", Value: leaveSummary.PendingLeaves, Unit: "leave requests", Meta: "Current review queue", Link: buildFacilityLeaveReviewURL("pending", selectedDepartmentID, selectedYear, selectedMonth, selectedWeek)},
 		{Title: "Ward Rounds", Value: departmentSummary.WardRounds, Unit: "rounds", Meta: selectedWeekLabel},
 		{Title: "Patients Reviewed", Value: departmentSummary.PatientsReviewed, Unit: "patients", Meta: selectedWeekLabel},
 		{Title: "Procedures", Value: departmentSummary.Procedures, Unit: "procedures", Meta: selectedWeekLabel},
 	}
 
-	view.PriorityDepartments = priorityDepartments(departmentAnalysis, 3)
+	view.TopDepartments = topDepartments(departmentAnalysis, 5)
+	view.PriorityDepartments = priorityDepartments(departmentAnalysis, 5)
+	view.TopClinicians = topClinicians(clinicianAnalysis, 5)
 	view.PriorityClinicians = priorityClinicians(clinicianAnalysis, 5)
 	if len(snapshot.Departments) > 0 {
 		view.OverviewCharts = append(view.OverviewCharts,
@@ -753,9 +773,33 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 			Link:  buildReportHistoryPeriodFilterQuery("declined", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
+			Title: "Submission Progress",
+			Value: snapshot.SubmissionProgress,
+			Unit:  "% submitted",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+		},
+		{
+			Title: "First-Pass Approval Rate",
+			Value: percentage(snapshot.ApprovedReports, snapshot.ApprovedReports+snapshot.DeclinedReports),
+			Unit:  "% approved first-pass",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+		},
+		{
 			Title: "Days Worked",
 			Value: snapshot.DaysWorked,
 			Unit:  "days",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+		},
+		{
+			Title: "Patients per Day",
+			Value: ratioPerUnit(snapshot.PatientsReviewed, snapshot.DaysWorked),
+			Unit:  "patients/day",
+			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
+		},
+		{
+			Title: "Procedures per Day",
+			Value: ratioPerUnit(snapshot.Procedures, snapshot.DaysWorked),
+			Unit:  "procedures/day",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
 		},
 		{
@@ -908,9 +952,10 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 		}
 		view.SummarySections = append(view.SummarySections,
 			withSummaryTab(buildNationalPerformanceSection(view.PerformanceRows, view.SelectedWeekLabel), "facilities", "Facilities"),
+			withSummaryTab(buildFacilityTopPerformanceSection("Top 5 Performing Facilities", "Highest-performing facilities in the selected national scope.", view.TopFacilities), "facilities", "Facilities"),
+			withSummaryTab(buildClinicianTopPerformanceSection("Top 5 Performing Staff Nationwide", "Highest-performing staff in the selected national scope.", view.TopClinicians), "clinicians", "Clinicians"),
 		)
 		view.DetailSections = append(view.DetailSections,
-			withDetailTab(buildFacilityFocusSection("Top Performing Facilities", "Facilities leading on reporting rate and completed submissions in the current view.", view.TopFacilities), "facilities", "Facilities"),
 			withDetailTab(buildFacilitySupportSection("Facilities Requiring Support", "Facilities with the clearest reporting gaps in the current national scope.", view.AttentionFacilities), "facilities", "Facilities"),
 		)
 		if len(view.DepartmentAnalysis) > 0 {
@@ -922,7 +967,6 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 		}
 		if len(view.ClinicianAnalysis) > 0 {
 			view.DetailSections = append(view.DetailSections,
-				withDetailTab(buildClinicianAnalysisSection("Top Performing Staff Nationwide", "Staff leading reporting quality and workload output in the current national scope.", view.TopClinicians), "clinicians", "Clinicians"),
 				withDetailTab(buildClinicianAnalysisSection("Staff Requiring Follow-up", "Staff whose reporting status or leave status requires follow-up in the current national scope.", view.PriorityClinicians), "clinicians", "Clinicians"),
 				withDetailTab(buildClinicianAnalysisSection("Clinician Drill-down", "Clinician-level reporting and workload indicators for the current drill-down selection.", view.ClinicianAnalysis), "clinicians", "Clinicians"),
 			)
@@ -969,6 +1013,8 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 		}
 		view.SummarySections = append(view.SummarySections,
 			withSummaryTab(buildDepartmentFollowUpSection(view.DepartmentRows), "departments", "Departments"),
+			withSummaryTab(buildDepartmentTopPerformanceSection("Top 5 Performing Departments", "Highest-performing departments in the current facility scope.", view.TopDepartments), "departments", "Departments"),
+			withSummaryTab(buildClinicianTopPerformanceSection("Top 5 Performing Staff", "Highest-performing staff in the current facility scope.", view.TopClinicians), "staff", "Staff"),
 		)
 		view.DetailSections = append(view.DetailSections,
 			withDetailTab(buildDepartmentAnalysisSection("Department Analysis", "Compare departments using reporting rate, ward rounds, attendance, and workload indicators.", view.DepartmentAnalysis), "departments", "Departments"),
@@ -1000,7 +1046,7 @@ func applyKPIDrilldowns(view *HomeViewModel) {
 			case "National Reporting Rate", "Facilities in Scope", "Missing Submissions":
 				kpi.Link = facilitiesURL
 				kpi.Tooltip = "Open facility performance table"
-			case "Clinicians in Scope":
+			case "Clinicians in Scope", "First-Pass Approval Rate", "Staff On Leave":
 				kpi.Link = cliniciansURL
 				kpi.Tooltip = "Open nationwide clinician drill-down table"
 			case "Reports Entered", "Reports Submitted":
@@ -1012,7 +1058,7 @@ func applyKPIDrilldowns(view *HomeViewModel) {
 			}
 		case utilities.RoleFacilityAdmin:
 			switch kpi.Title {
-			case "Reports Entered", "Reports Submitted":
+			case "Reports Entered", "Reports Submitted", "Facility Reporting Rate", "First-Pass Approval Rate", "Staff On Leave":
 				kpi.Link = buildReportSubmissionsURL(0, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all")
 				kpi.Tooltip = "Open facility report submissions table"
 			case "Pending Submission", "Ward Rounds", "Patients Reviewed", "Procedures":
@@ -1022,7 +1068,7 @@ func applyKPIDrilldowns(view *HomeViewModel) {
 				kpi.Link = buildReportSubmissionsURL(0, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "pending")
 				kpi.Tooltip = "Open pending report approvals"
 			case "Pending Leave Requests":
-				kpi.Link = buildFacilityLeaveReviewURL("pending")
+				kpi.Link = buildFacilityLeaveReviewURL("pending", view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
 				kpi.Tooltip = "Open pending leave requests table"
 			}
 		default:
@@ -1039,6 +1085,12 @@ func applyKPIDrilldowns(view *HomeViewModel) {
 			case "Declined":
 				kpi.Link = buildReportHistoryPeriodFilterQuery("declined", view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
 				kpi.Tooltip = "Open declined reports"
+			case "Submission Progress", "First-Pass Approval Rate":
+				kpi.Link = buildReportHistoryPeriodFilterQuery("all", view.SelectedYear, view.SelectedMonth, view.SelectedWeek)
+				kpi.Tooltip = "Open my report history"
+			case "Patients per Day", "Procedures per Day":
+				kpi.Link = activityURL
+				kpi.Tooltip = "Open activity breakdown table"
 			case "Days Worked", "Ward Rounds", "Patients Reviewed", "Procedures":
 				kpi.Link = activityURL
 				kpi.Tooltip = "Open activity breakdown table"
@@ -1170,6 +1222,7 @@ func buildScopeTrendChart(title string, subtitle string, points []models.ScopeTr
 		ID:           makeChartID("scope", title),
 		Title:        title,
 		Subtitle:     subtitle,
+		ChartType:    "line",
 		SeriesALabel: "Submitted",
 		SeriesBLabel: "Pending Approval",
 	}
@@ -1186,6 +1239,7 @@ func buildFacilityComparisonChart(title string, subtitle string, rows []models.F
 		ID:           makeChartID("facility", title),
 		Title:        title,
 		Subtitle:     subtitle,
+		ChartType:    "bar",
 		SeriesALabel: "Submitted",
 		SeriesBLabel: "Missing",
 	}
@@ -1202,6 +1256,7 @@ func buildDepartmentProgressChart(title string, subtitle string, rows []models.D
 		ID:           makeChartID("department-progress", title),
 		Title:        title,
 		Subtitle:     subtitle,
+		ChartType:    "bar",
 		SeriesALabel: "Entered",
 		SeriesBLabel: "Submitted",
 	}
@@ -1218,6 +1273,7 @@ func buildDepartmentWorkloadChart(title string, subtitle string, rows []models.D
 		ID:           makeChartID("department-workload", title),
 		Title:        title,
 		Subtitle:     subtitle,
+		ChartType:    "bar",
 		SeriesALabel: "Patients Reviewed",
 		SeriesBLabel: "Ward Rounds",
 	}
@@ -1229,11 +1285,46 @@ func buildDepartmentWorkloadChart(title string, subtitle string, rows []models.D
 	return chart
 }
 
+func buildDepartmentReportingChart(title string, subtitle string, rows []models.DepartmentAnalysisRow) DashboardChartView {
+	chart := DashboardChartView{
+		ID:           makeChartID("department-reporting", title),
+		Title:        title,
+		Subtitle:     subtitle,
+		ChartType:    "bar",
+		SeriesALabel: "Submitted",
+		SeriesBLabel: "Pending",
+	}
+	for _, row := range rows {
+		chart.Labels = append(chart.Labels, row.DepartmentName)
+		chart.SeriesA = append(chart.SeriesA, row.ReportsSubmitted)
+		chart.SeriesB = append(chart.SeriesB, row.PendingReports)
+	}
+	return chart
+}
+
+func buildClinicianPerformanceChart(title string, subtitle string, rows []models.ClinicianAnalysisRow) DashboardChartView {
+	chart := DashboardChartView{
+		ID:           makeChartID("clinician-performance", title),
+		Title:        title,
+		Subtitle:     subtitle,
+		ChartType:    "bar",
+		SeriesALabel: "Reports Submitted",
+		SeriesBLabel: "Patients Reviewed",
+	}
+	for _, row := range rows {
+		chart.Labels = append(chart.Labels, row.EmployeeName)
+		chart.SeriesA = append(chart.SeriesA, row.ReportsSubmitted)
+		chart.SeriesB = append(chart.SeriesB, row.PatientsReviewed)
+	}
+	return chart
+}
+
 func buildClinicianWorkloadChart(title string, subtitle string, rows []models.ClinicianTrendPoint) DashboardChartView {
 	chart := DashboardChartView{
 		ID:           makeChartID("clinician-workload", title),
 		Title:        title,
 		Subtitle:     subtitle,
+		ChartType:    "line",
 		SeriesALabel: "Patients Reviewed",
 		SeriesBLabel: "Procedures",
 	}
@@ -1250,6 +1341,7 @@ func buildClinicianActivityChart(title string, subtitle string, rows []models.Cl
 		ID:           makeChartID("clinician-activity", title),
 		Title:        title,
 		Subtitle:     subtitle,
+		ChartType:    "line",
 		SeriesALabel: "Days Worked",
 		SeriesBLabel: "Ward Rounds",
 	}
@@ -1448,6 +1540,72 @@ func buildDepartmentFollowUpSection(rows []models.DepartmentProgressRow) Dashboa
 	return section
 }
 
+func buildFacilityTopPerformanceSection(title string, subtitle string, rows []models.FacilityPerformanceRow) DashboardSummarySectionView {
+	section := DashboardSummarySectionView{
+		Title:        title,
+		Subtitle:     subtitle,
+		EmptyMessage: "No facility performance records are available for this selection.",
+	}
+
+	for _, row := range rows {
+		section.Rows = append(section.Rows, DashboardSummaryRowView{
+			Cells: []DashboardSummaryCellView{
+				{Label: "Facility", Value: row.FacilityName},
+				{Label: "Reporting Rate", Value: fmt.Sprintf("%d%%", row.ReportingRate)},
+				{Label: "Submitted", Value: strconv.Itoa(row.SubmittedThisWeek)},
+				{Label: "Missing", Value: strconv.Itoa(row.PendingThisWeek)},
+				{Label: "Pending Approval", Value: strconv.Itoa(row.PendingApproval)},
+			},
+		})
+	}
+
+	return section
+}
+
+func buildDepartmentTopPerformanceSection(title string, subtitle string, rows []models.DepartmentAnalysisRow) DashboardSummarySectionView {
+	section := DashboardSummarySectionView{
+		Title:        title,
+		Subtitle:     subtitle,
+		EmptyMessage: "No department performance records are available for this selection.",
+	}
+
+	for _, row := range rows {
+		section.Rows = append(section.Rows, DashboardSummaryRowView{
+			Cells: []DashboardSummaryCellView{
+				{Label: "Department", Value: row.DepartmentName},
+				{Label: "Reporting Rate", Value: fmt.Sprintf("%d%%", row.ReportingRate)},
+				{Label: "Submitted", Value: strconv.Itoa(row.ReportsSubmitted)},
+				{Label: "Pending", Value: strconv.Itoa(row.PendingReports)},
+				{Label: "Patients Reviewed", Value: strconv.Itoa(row.PatientsReviewed)},
+			},
+		})
+	}
+
+	return section
+}
+
+func buildClinicianTopPerformanceSection(title string, subtitle string, rows []models.ClinicianAnalysisRow) DashboardSummarySectionView {
+	section := DashboardSummarySectionView{
+		Title:        title,
+		Subtitle:     subtitle,
+		EmptyMessage: "No staff performance records are available for this selection.",
+	}
+
+	for _, row := range rows {
+		section.Rows = append(section.Rows, DashboardSummaryRowView{
+			Cells: []DashboardSummaryCellView{
+				{Label: "Staff", Value: row.EmployeeName, Subvalue: row.DepartmentName},
+				{Label: "Submitted", Value: strconv.Itoa(row.ReportsSubmitted)},
+				{Label: "Patients Reviewed", Value: strconv.Itoa(row.PatientsReviewed)},
+				{Label: "Procedures", Value: strconv.Itoa(row.Procedures)},
+				{Label: "Status", Value: row.SubmissionStatus},
+			},
+		})
+	}
+
+	return section
+}
+
 func buildFacilityFocusSection(title string, subtitle string, rows []models.FacilityPerformanceRow) DashboardDetailSectionView {
 	section := DashboardDetailSectionView{
 		Title:        title,
@@ -1633,6 +1791,37 @@ func percentage(numerator int, denominator int) int {
 		return 100
 	}
 	return value
+}
+
+func ratioPerUnit(numerator int, denominator int) int {
+	if denominator <= 0 {
+		return 0
+	}
+	value := int(float64(numerator)/float64(denominator) + 0.5)
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func summarizeClinicianStatus(rows []models.ClinicianAnalysisRow) (approved int, declined int, onLeave int) {
+	for _, row := range rows {
+		switch strings.ToLower(strings.TrimSpace(row.SubmissionStatus)) {
+		case "approved":
+			approved++
+		case "declined":
+			declined++
+		}
+		if strings.EqualFold(strings.TrimSpace(row.LeaveStatus), "On Leave") {
+			onLeave++
+		}
+	}
+	return approved, declined, onLeave
+}
+
+func countCliniciansOnLeave(rows []models.ClinicianAnalysisRow) int {
+	_, _, onLeave := summarizeClinicianStatus(rows)
+	return onLeave
 }
 
 func topFacilityPerformers(rows []models.FacilityPerformanceRow, limit int) []models.FacilityPerformanceRow {

@@ -853,10 +853,6 @@ func HandlerClinicianReportSubmit(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 	if report.WeekStart.Valid && report.WeekStop.Valid {
-		if !isCompletedReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
-			c.String(http.StatusForbidden, "You can only submit reports for completed reporting weeks.")
-			return
-		}
 		onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, sesDetails.EmpID, report.WeekStart.Time, report.WeekStop.Time)
 		if leaveErr != nil {
 			c.String(http.StatusInternalServerError, "Unable to verify leave status")
@@ -1391,7 +1387,23 @@ func buildReportHistoryPeriodQuery(year, month, week int) string {
 }
 
 func buildReportHistoryPeriodFilterQuery(status string, year, month, week int) string {
-	return buildReportSubmissionsURL(0, 0, year, month, week, status)
+	if year < 0 {
+		year = 0
+	}
+	if month < 0 {
+		month = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	values := url.Values{}
+	values.Set("status", normalizeReportSubmissionStatus(status))
+	values.Set("year", strconv.Itoa(year))
+	values.Set("month", strconv.Itoa(month))
+	values.Set("week", strconv.Itoa(week))
+
+	return "/reports/analysis?" + values.Encode()
 }
 
 func buildFacilityReportReviewURL(status string, year, month, week int) string {
@@ -1399,7 +1411,24 @@ func buildFacilityReportReviewURL(status string, year, month, week int) string {
 }
 
 func buildReportHistoryExportURL(format, status string, year, month, week int) string {
-	return buildReportSubmissionsExportURL(format, 0, 0, year, month, week, status)
+	if year < 0 {
+		year = 0
+	}
+	if month < 0 {
+		month = 0
+	}
+	if week < 0 {
+		week = 0
+	}
+
+	values := url.Values{}
+	values.Set("format", strings.ToLower(strings.TrimSpace(format)))
+	values.Set("status", normalizeReportSubmissionStatus(status))
+	values.Set("year", strconv.Itoa(year))
+	values.Set("month", strconv.Itoa(month))
+	values.Set("week", strconv.Itoa(week))
+
+	return "/reports/analysis/export?" + values.Encode()
 }
 
 func buildFacilityReportReviewExportURL(format, status string, year, month, week int) string {
