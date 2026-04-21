@@ -1711,14 +1711,26 @@ func buildClinicianEntryWeekOptions(reportID int, employeeID int, returnURL stri
 			params.Set("return_to", returnURL)
 		}
 		params.Set("start", option.StartDate)
+		optionLabel := strings.TrimSpace(option.Label)
+		if option.StartDate != "" && option.EndDate != "" {
+			optionLabel = fmt.Sprintf("%s to %s", formatISODateToDMY(option.StartDate), formatISODateToDMY(option.EndDate))
+		}
 		options = append(options, ClinicianEntryWeekOption{
 			StartDate: option.StartDate,
-			Label:     option.Label,
+			Label:     optionLabel,
 			URL:       "/reports/new/0?" + params.Encode(),
 			Selected:  option.StartDate == selectedDate,
 		})
 	}
 	return options
+}
+
+func formatISODateToDMY(value string) string {
+	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(value))
+	if err != nil {
+		return strings.TrimSpace(value)
+	}
+	return parsed.Format("02-01-2006")
 }
 
 func parseISODate(value string) (time.Time, error) {

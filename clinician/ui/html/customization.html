@@ -23,6 +23,11 @@
     grid-template-columns: minmax(70px, 0.4fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(230px, 1.4fr) minmax(100px, 0.65fr) minmax(240px, 1.3fr);
 }
 
+.customization-grid-targets .app-list-grid-header,
+.customization-grid-targets .app-list-grid-row {
+    grid-template-columns: minmax(160px, 1fr) minmax(180px, 1.1fr) minmax(170px, 1fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) minmax(100px, 0.6fr) minmax(170px, 0.95fr);
+}
+
 .customization-actions {
     justify-content: flex-start;
 }
@@ -83,6 +88,9 @@
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ if eq $activeTab "clinical-roles" }}active{{ end }}" id="clinical-roles-tab" data-toggle="tab" href="#clinical-roles-panel" role="tab" aria-controls="clinical-roles-panel" aria-selected="{{ if eq $activeTab "clinical-roles" }}true{{ else }}false{{ end }}">Clinical Roles</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {{ if eq $activeTab "targets" }}active{{ end }}" id="targets-tab" data-toggle="tab" href="#targets-panel" role="tab" aria-controls="targets-panel" aria-selected="{{ if eq $activeTab "targets" }}true{{ else }}false{{ end }}">Targets</a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ if eq $activeTab "data-elements" }}active{{ end }}" id="data-elements-tab" data-toggle="tab" href="#data-elements-panel" role="tab" aria-controls="data-elements-panel" aria-selected="{{ if eq $activeTab "data-elements" }}true{{ else }}false{{ end }}">Data Elements</a>
@@ -275,6 +283,128 @@
                         {{ end }}
                     {{ else }}
                     <div class="app-list-empty">No clinical roles available.</div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="tab-pane fade {{ if eq $activeTab "targets" }}show active{{ end }}" id="targets-panel" role="tabpanel" aria-labelledby="targets-tab">
+                <div class="app-list-actions mb-3">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#addTargetPanel" aria-expanded="false" aria-controls="addTargetPanel" data-keep-text="true">+ Add Target Profile</button>
+                </div>
+
+                <div class="collapse" id="addTargetPanel">
+                    <div class="customization-add-panel">
+                        <form method="post" action="/customization/target/save" class="filter-form mb-3">
+                            <input type="hidden" name="id" value="0">
+                            <input type="hidden" name="tab" value="targets">
+                            <div class="form-group">
+                                <label for="targetDepartment" class="sr-only">Department</label>
+                                <select class="form-control form-control-sm" id="targetDepartment" name="department_id" required>
+                                    <option value="">Select Department</option>
+                                    {{ range $view.Departments }}
+                                    <option value="{{ .ID }}">{{ .Name }}</option>
+                                    {{ end }}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="targetClinicalRole" class="sr-only">Clinical Role</label>
+                                <select class="form-control form-control-sm" id="targetClinicalRole" name="clinical_role_id" required>
+                                    <option value="">Select Clinical Role</option>
+                                    {{ range $view.ClinicalRoles }}
+                                    <option value="{{ .ID }}">{{ .Title }}</option>
+                                    {{ end }}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="targetMetric" class="sr-only">Metric</label>
+                                <select class="form-control form-control-sm" id="targetMetric" name="metric_key" required>
+                                    <option value="">Select Metric</option>
+                                    {{ range $view.TargetMetrics }}
+                                    <option value="{{ .ElementKey }}">{{ .DisplayName }} ({{ .ElementKey }})</option>
+                                    {{ end }}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="targetValue" class="sr-only">Target Value</label>
+                                <input type="number" min="0" class="form-control form-control-sm" id="targetValue" name="target_value" placeholder="Target Value" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="targetPeriod" class="sr-only">Period</label>
+                                <select class="form-control form-control-sm" id="targetPeriod" name="period_type" required>
+                                    <option value="weekly" selected>Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                            <div class="form-group d-flex align-items-center">
+                                <input type="checkbox" id="targetActive" name="is_active" value="true" checked>
+                                <label for="targetActive" class="mb-0 ml-2">Active</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-keep-text="true">Create</button>
+                        </form>
+                    </div>
+                </div>
+                <small class="form-text text-muted mb-3">Define role-specific performance targets by department and clinical role. Staff dashboards will compare reported output against active targets.</small>
+
+                <div class="app-list-grid customization-grid-targets">
+                    <div class="app-list-grid-header">
+                        <div>Department</div>
+                        <div>Clinical Role</div>
+                        <div>Metric</div>
+                        <div>Target</div>
+                        <div>Period</div>
+                        <div>Status</div>
+                        <div>Actions</div>
+                    </div>
+                    {{ if $view.RoleTargets }}
+                        {{ range $view.RoleTargets }}
+                        {{ $target := . }}
+                        <form method="post" action="/customization/target/save" class="app-list-grid-row">
+                            <input type="hidden" name="id" value="{{ .ID }}">
+                            <input type="hidden" name="tab" value="targets">
+                            <div class="app-list-cell">
+                                <select class="form-control form-control-sm" name="department_id" required>
+                                    {{ range $view.Departments }}
+                                    <option value="{{ .ID }}" {{ if eq .ID $target.DepartmentID }}selected{{ end }}>{{ .Name }}</option>
+                                    {{ end }}
+                                </select>
+                            </div>
+                            <div class="app-list-cell">
+                                <select class="form-control form-control-sm" name="clinical_role_id" required>
+                                    {{ range $view.ClinicalRoles }}
+                                    <option value="{{ .ID }}" {{ if eq .ID $target.ClinicalRoleID }}selected{{ end }}>{{ .Title }}</option>
+                                    {{ end }}
+                                </select>
+                            </div>
+                            <div class="app-list-cell">
+                                <select class="form-control form-control-sm" name="metric_key" required>
+                                    {{ range $view.TargetMetrics }}
+                                    <option value="{{ .ElementKey }}" {{ if eq .ElementKey $target.MetricKey }}selected{{ end }}>{{ .DisplayName }} ({{ .ElementKey }})</option>
+                                    {{ end }}
+                                </select>
+                            </div>
+                            <div class="app-list-cell">
+                                <input type="number" min="0" class="form-control form-control-sm" name="target_value" value="{{ .TargetValue }}" required>
+                            </div>
+                            <div class="app-list-cell">
+                                <select class="form-control form-control-sm" name="period_type" required>
+                                    <option value="weekly" {{ if eq .PeriodType "weekly" }}selected{{ end }}>Weekly</option>
+                                    <option value="monthly" {{ if eq .PeriodType "monthly" }}selected{{ end }}>Monthly</option>
+                                </select>
+                            </div>
+                            <div class="app-list-cell">
+                                <select class="form-control form-control-sm" name="is_active" required>
+                                    <option value="true" {{ if .IsActive }}selected{{ end }}>Active</option>
+                                    <option value="false" {{ if not .IsActive }}selected{{ end }}>Inactive</option>
+                                </select>
+                            </div>
+                            <div class="app-row-actions customization-actions">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formaction="/customization/target/delete/{{ .ID }}" onclick="return confirm('Delete this target profile?');">Delete</button>
+                            </div>
+                        </form>
+                        {{ end }}
+                    {{ else }}
+                    <div class="app-list-empty">No target profiles configured.</div>
                     {{ end }}
                 </div>
             </div>

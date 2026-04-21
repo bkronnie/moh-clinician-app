@@ -305,17 +305,17 @@ func (w *WeeklyReportExtended) Updatez(ctx context.Context, db DB) error {
 
 	// Update the WeeklyReportExtended record
 	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
-		`attendance = $1, ward_rounds = $2, patients_reviewed = $3, theatre_days =$4, elective = $5, emergency = $6, postmortems = $7, opd_clinics = $8, opd_patients = $9, anc_patients = $10, teaching_rounds = $11, students_taught = $12, mortality_reviews = $13, maternal = $14, ` +
-		`perinatal = $15, surgical = $16, medical = $17, paed = $18, labs_requests = $19, imaging_requests = $20, lab_investigations = $21, bs = $22, hiv = $23, malaria = $24, tb = $25, cbc = $26, chemistry = $27, hematology = $28, urinalysis = $29, gram_stain = $30, ` +
-		`culture = $31, microbiology = $32, sensitivity_tests = $33, diagnostics = $34, xrays = $35, ct_scans = $36, obstetrics_scans = $37, abdominal_scans = $38,` +
-		`days_worked = $39, last_updated_on = $40 ` +
-		`WHERE id = $41 `
+		`start = $1, stop = $2, attendance = $3, ward_rounds = $4, patients_reviewed = $5, theatre_days =$6, elective = $7, emergency = $8, postmortems = $9, opd_clinics = $10, opd_patients = $11, anc_patients = $12, teaching_rounds = $13, students_taught = $14, mortality_reviews = $15, maternal = $16, ` +
+		`perinatal = $17, surgical = $18, medical = $19, paed = $20, labs_requests = $21, imaging_requests = $22, lab_investigations = $23, bs = $24, hiv = $25, malaria = $26, tb = $27, cbc = $28, chemistry = $29, hematology = $30, urinalysis = $31, gram_stain = $32, ` +
+		`culture = $33, microbiology = $34, sensitivity_tests = $35, diagnostics = $36, xrays = $37, ct_scans = $38, obstetrics_scans = $39, abdominal_scans = $40, ` +
+		`days_worked = $41, last_updated_on = $42 ` +
+		`WHERE id = $43 `
 
-	logf(sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+	logf(sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
 		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
 
-	_, err := db.ExecContext(ctx, sqlstr, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+	_, err := db.ExecContext(ctx, sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
 		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
 	if err != nil {

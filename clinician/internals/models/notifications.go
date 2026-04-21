@@ -59,6 +59,8 @@ func EnsurePerformanceIndexes(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_stop_7_days`,
 		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_stop_6_days`,
 		`ALTER TABLE clinician_app.weeklyreport ADD CONSTRAINT ck_weeklyreport_start_stop_6_days CHECK (start IS NULL OR stop IS NULL OR stop = start + INTERVAL '6 days') NOT VALID`,
+		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ck_weeklyreport_start_monday`,
+		`ALTER TABLE clinician_app.weeklyreport ADD CONSTRAINT ck_weeklyreport_start_monday CHECK (start IS NULL OR EXTRACT(ISODOW FROM start) = 1) NOT VALID`,
 		`ALTER TABLE clinician_app.weeklyreport DROP CONSTRAINT IF EXISTS ex_weeklyreport_employee_hospital_no_overlap`,
 		`ALTER TABLE clinician_app.weeklyreport ADD CONSTRAINT ex_weeklyreport_employee_hospital_no_overlap EXCLUDE USING gist (employee WITH =, hospital WITH =, daterange(start, stop, '[]') WITH &&) WHERE (employee IS NOT NULL AND hospital IS NOT NULL AND start IS NOT NULL AND stop IS NOT NULL)`,
 		`CREATE INDEX IF NOT EXISTS idx_weeklyreport_facility_week_review_flow ON clinician_app.weeklyreport(hospital, start, facility_review_status, national_submission_status, national_review_status)`,
@@ -79,7 +81,10 @@ func EnsurePerformanceIndexes(ctx context.Context, db *sql.DB) error {
 
 // EnsureCustomizationSchema provisions audit storage for national customization changes.
 func EnsureCustomizationSchema(ctx context.Context, db *sql.DB) error {
-	return EnsureCustomizationAuditSchema(ctx, db)
+	if err := EnsureCustomizationAuditSchema(ctx, db); err != nil {
+		return err
+	}
+	return EnsureRoleMetricTargetSchema(ctx, db)
 }
 
 // ExpireOldLeave marks approved/valid leaves whose end_date is before today as 'Completed'.

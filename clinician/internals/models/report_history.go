@@ -362,9 +362,17 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 			w.submitted_on
 		FROM clinician_app.weeklyreport w
 		WHERE w.employee = $1
-			AND w.start::date = $2::date
-			AND w.stop::date = $3::date
-		ORDER BY w.id DESC
+			AND (
+				w.start::date = $2::date
+				OR (
+					w.start IS NOT NULL
+					AND w.stop IS NOT NULL
+					AND daterange(w.start, w.stop, '[]') && daterange($2::date, $3::date, '[]')
+				)
+			)
+		ORDER BY CASE WHEN w.start::date = $2::date THEN 0 ELSE 1 END,
+			CASE WHEN w.stop::date = $3::date THEN 0 ELSE 1 END,
+			w.id DESC
 		LIMIT 1
 	`
 

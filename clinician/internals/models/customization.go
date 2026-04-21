@@ -31,6 +31,19 @@ type CustomizationClinicalRole struct {
 	Title string
 }
 
+type CustomizationRoleMetricTarget struct {
+	ID                int64
+	DepartmentID      int64
+	DepartmentName    string
+	ClinicalRoleID    int64
+	ClinicalRoleTitle string
+	MetricKey         string
+	MetricLabel       string
+	TargetValue       int64
+	PeriodType        string
+	IsActive          bool
+}
+
 type CustomizationChange struct {
 	ID        int64
 	Entity    string
@@ -46,6 +59,8 @@ type CustomizationView struct {
 	Departments   []CustomizationDepartment
 	Roles         []CustomizationRole
 	ClinicalRoles []CustomizationClinicalRole
+	RoleTargets   []CustomizationRoleMetricTarget
+	TargetMetrics []ReportDataElement
 	DataElements  []ReportDataElement
 	History       []CustomizationChange
 	HistoryPage   int
@@ -60,9 +75,9 @@ type CustomizationView struct {
 }
 
 var immutableRoleNames = map[string]struct{}{
-        "National Admin": {},
-        "Facility Admin": {},
-        "Staff":          {},
+	"National Admin": {},
+	"Facility Admin": {},
+	"Staff":          {},
 }
 
 func EnsureCustomizationAuditSchema(ctx context.Context, db *sql.DB) error {
@@ -99,6 +114,40 @@ func EnsureCustomizationAuditSchema(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
+func EnsureRoleMetricTargetSchema(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS clinician_app.role_metric_targets (
+			id BIGSERIAL PRIMARY KEY,
+			department_id BIGINT NOT NULL REFERENCES clinician_app.departments(id),
+			clinical_role_id BIGINT NOT NULL REFERENCES clinician_app.specialist_titles(id),
+			metric_key TEXT NOT NULL,
+			target_value BIGINT NOT NULL CHECK (target_value >= 0),
+			period_type TEXT NOT NULL DEFAULT 'weekly',
+			is_active BOOLEAN NOT NULL DEFAULT TRUE,
+			created_by BIGINT REFERENCES clinician_app.users(id),
+			created_on TIMESTAMP NOT NULL DEFAULT NOW(),
+			updated_by BIGINT REFERENCES clinician_app.users(id),
+			updated_on TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	statements := []string{
+		`CREATE UNIQUE INDEX IF NOT EXISTS ux_role_metric_targets_profile ON clinician_app.role_metric_targets(department_id, clinical_role_id, metric_key, period_type)`,
+		`CREATE INDEX IF NOT EXISTS idx_role_metric_targets_lookup ON clinician_app.role_metric_targets(department_id, clinical_role_id, is_active)`,
+	}
+
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func GetCustomizationView(ctx context.Context, db DB, historyLimit int, historyOffset int) (CustomizationView, error) {
 	if historyLimit <= 0 {
 		historyLimit = 100
@@ -127,9 +176,22 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int, historyO
 		return CustomizationView{}, err
 	}
 
+	roleTargets, err := ListCustomizationRoleMetricTargets(ctx, db)
+	if err != nil {
+		return CustomizationView{}, err
+	}
+
 	dataElements, err := ListReportDataElements(ctx, db)
 	if err != nil {
 		return CustomizationView{}, err
+	}
+
+	targetMetrics := make([]ReportDataElement, 0)
+	for _, item := range dataElements {
+		if !item.IsActive {
+			continue
+		}
+		targetMetrics = append(targetMetrics, item)
 	}
 
 	history, err := ListCustomizationHistory(ctx, db, historyLimit, historyOffset)
@@ -147,6 +209,8 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int, historyO
 		Departments:   departments,
 		Roles:         roles,
 		ClinicalRoles: clinicalRoles,
+		RoleTargets:   roleTargets,
+		TargetMetrics: targetMetrics,
 		DataElements:  dataElements,
 		History:       history,
 		HistoryTotal:  historyTotal,
@@ -237,6 +301,53 @@ func ListCustomizationClinicalRoles(ctx context.Context, db DB) ([]Customization
 	for rows.Next() {
 		var item CustomizationClinicalRole
 		if err := rows.Scan(&item.ID, &item.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	return items, rows.Err()
+}
+
+func ListCustomizationRoleMetricTargets(ctx context.Context, db DB) ([]CustomizationRoleMetricTarget, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT
+			rmt.id,
+			rmt.department_id,
+			COALESCE(d.d_name, '') AS department_name,
+			rmt.clinical_role_id,
+			COALESCE(st.title, '') AS clinical_role_title,
+			COALESCE(rmt.metric_key, ''),
+			COALESCE(rde.display_name, rmt.metric_key, '') AS metric_label,
+			COALESCE(rmt.target_value, 0),
+			COALESCE(rmt.period_type, 'weekly'),
+			COALESCE(rmt.is_active, TRUE)
+		FROM clinician_app.role_metric_targets rmt
+		LEFT JOIN clinician_app.departments d ON d.id = rmt.department_id
+		LEFT JOIN clinician_app.specialist_titles st ON st.id = rmt.clinical_role_id
+		LEFT JOIN clinician_app.report_data_elements rde ON rde.element_key = rmt.metric_key
+		ORDER BY d.d_name ASC, st.title ASC, rmt.metric_key ASC, rmt.id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]CustomizationRoleMetricTarget, 0)
+	for rows.Next() {
+		var item CustomizationRoleMetricTarget
+		if err := rows.Scan(
+			&item.ID,
+			&item.DepartmentID,
+			&item.DepartmentName,
+			&item.ClinicalRoleID,
+			&item.ClinicalRoleTitle,
+			&item.MetricKey,
+			&item.MetricLabel,
+			&item.TargetValue,
+			&item.PeriodType,
+			&item.IsActive,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -786,6 +897,231 @@ func DeleteCustomizationClinicalRole(ctx context.Context, db *sql.DB, actorUserI
 
 	prevSnapshot := map[string]interface{}{"id": id, "title": currentTitle}
 	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "clinical_role", id, "delete", "Clinical role deleted", prevSnapshot, map[string]interface{}{}); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func SaveCustomizationRoleMetricTarget(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64, departmentID int64, clinicalRoleID int64, metricKey string, targetValue int64, periodType string, isActive bool) error {
+	if departmentID <= 0 {
+		return errors.New("department is required")
+	}
+	if clinicalRoleID <= 0 {
+		return errors.New("clinical role is required")
+	}
+	metricKey = normalizeReportIdentifier(metricKey)
+	if metricKey == "" {
+		return errors.New("metric key is required")
+	}
+	if targetValue < 0 {
+		return errors.New("target value cannot be negative")
+	}
+	periodType = strings.ToLower(strings.TrimSpace(periodType))
+	if periodType != "weekly" && periodType != "monthly" {
+		periodType = "weekly"
+	}
+
+	if err := EnsureCustomizationAuditSchema(ctx, db); err != nil {
+		return err
+	}
+	if err := EnsureRoleMetricTargetSchema(ctx, db); err != nil {
+		return err
+	}
+
+	if _, err := GetReportDataElementColumnMap(ctx, db); err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var metricExists bool
+	if err := tx.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM clinician_app.report_data_elements
+			WHERE element_key = $1 AND is_active = TRUE
+		)
+	`, metricKey).Scan(&metricExists); err != nil {
+		return err
+	}
+	if !metricExists {
+		return errors.New("metric key is invalid or inactive")
+	}
+
+	if id <= 0 {
+		var newID int64
+		if err := tx.QueryRowContext(ctx, `
+			INSERT INTO clinician_app.role_metric_targets (
+				department_id,
+				clinical_role_id,
+				metric_key,
+				target_value,
+				period_type,
+				is_active,
+				created_by,
+				created_on,
+				updated_by,
+				updated_on
+			)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $7, NOW())
+			RETURNING id
+		`, departmentID, clinicalRoleID, metricKey, targetValue, periodType, isActive, actorUserID).Scan(&newID); err != nil {
+			return err
+		}
+
+		newSnapshot := map[string]interface{}{
+			"id":               newID,
+			"department_id":    departmentID,
+			"clinical_role_id": clinicalRoleID,
+			"metric_key":       metricKey,
+			"target_value":     targetValue,
+			"period_type":      periodType,
+			"is_active":        isActive,
+		}
+		if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "role_metric_target", newID, "create", "Role metric target created", map[string]interface{}{}, newSnapshot); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+
+	current := CustomizationRoleMetricTarget{}
+	err = tx.QueryRowContext(ctx, `
+		SELECT
+			id,
+			department_id,
+			clinical_role_id,
+			COALESCE(metric_key, ''),
+			COALESCE(target_value, 0),
+			COALESCE(period_type, 'weekly'),
+			COALESCE(is_active, TRUE)
+		FROM clinician_app.role_metric_targets
+		WHERE id = $1
+	`, id).Scan(
+		&current.ID,
+		&current.DepartmentID,
+		&current.ClinicalRoleID,
+		&current.MetricKey,
+		&current.TargetValue,
+		&current.PeriodType,
+		&current.IsActive,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("role metric target not found")
+		}
+		return err
+	}
+
+	if current.DepartmentID == departmentID && current.ClinicalRoleID == clinicalRoleID && current.MetricKey == metricKey && current.TargetValue == targetValue && current.PeriodType == periodType && current.IsActive == isActive {
+		return nil
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE clinician_app.role_metric_targets
+		SET
+			department_id = $1,
+			clinical_role_id = $2,
+			metric_key = $3,
+			target_value = $4,
+			period_type = $5,
+			is_active = $6,
+			updated_by = $7,
+			updated_on = NOW()
+		WHERE id = $8
+	`, departmentID, clinicalRoleID, metricKey, targetValue, periodType, isActive, actorUserID, id); err != nil {
+		return err
+	}
+
+	prevSnapshot := map[string]interface{}{
+		"id":               current.ID,
+		"department_id":    current.DepartmentID,
+		"clinical_role_id": current.ClinicalRoleID,
+		"metric_key":       current.MetricKey,
+		"target_value":     current.TargetValue,
+		"period_type":      current.PeriodType,
+		"is_active":        current.IsActive,
+	}
+	newSnapshot := map[string]interface{}{
+		"id":               id,
+		"department_id":    departmentID,
+		"clinical_role_id": clinicalRoleID,
+		"metric_key":       metricKey,
+		"target_value":     targetValue,
+		"period_type":      periodType,
+		"is_active":        isActive,
+	}
+	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "role_metric_target", id, "update", "Role metric target updated", prevSnapshot, newSnapshot); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func DeleteCustomizationRoleMetricTarget(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, id int64) error {
+	if id <= 0 {
+		return errors.New("invalid role metric target id")
+	}
+
+	if err := EnsureCustomizationAuditSchema(ctx, db); err != nil {
+		return err
+	}
+	if err := EnsureRoleMetricTargetSchema(ctx, db); err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	current := CustomizationRoleMetricTarget{}
+	err = tx.QueryRowContext(ctx, `
+		SELECT
+			id,
+			department_id,
+			clinical_role_id,
+			COALESCE(metric_key, ''),
+			COALESCE(target_value, 0),
+			COALESCE(period_type, 'weekly'),
+			COALESCE(is_active, TRUE)
+		FROM clinician_app.role_metric_targets
+		WHERE id = $1
+	`, id).Scan(
+		&current.ID,
+		&current.DepartmentID,
+		&current.ClinicalRoleID,
+		&current.MetricKey,
+		&current.TargetValue,
+		&current.PeriodType,
+		&current.IsActive,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("role metric target not found")
+		}
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM clinician_app.role_metric_targets WHERE id = $1`, id); err != nil {
+		return err
+	}
+
+	prevSnapshot := map[string]interface{}{
+		"id":               current.ID,
+		"department_id":    current.DepartmentID,
+		"clinical_role_id": current.ClinicalRoleID,
+		"metric_key":       current.MetricKey,
+		"target_value":     current.TargetValue,
+		"period_type":      current.PeriodType,
+		"is_active":        current.IsActive,
+	}
+	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "role_metric_target", id, "delete", "Role metric target deleted", prevSnapshot, map[string]interface{}{}); err != nil {
 		return err
 	}
 

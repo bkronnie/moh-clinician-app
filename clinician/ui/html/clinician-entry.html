@@ -20,7 +20,7 @@
         </div>
         <div class="entry-summary-card">
             <small>Reporting Week</small>
-            <strong>{{ .Form.StartDate }} to {{ .Form.StopDate }}</strong>
+            <strong>{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }} to {{ slice .Form.StopDate 8 10 }}-{{ slice .Form.StopDate 5 7 }}-{{ slice .Form.StopDate 0 4 }}</strong>
         </div>
         {{ if .Form.IsEdit }}
         <div class="entry-summary-card">
@@ -51,26 +51,25 @@
         {{ if .Form.WeekOptions }}
         <div class="entry-grid mb-3">
             <div class="entry-field">
-                <label for="entryWeekSelector">Pending Reporting Weeks</label>
+                <label for="entryWeekSelector">Reporting Week</label>
                 <select id="entryWeekSelector" class="form-control" onchange="if(this.value){ window.location.href = this.value; }">
                     {{ range .Form.WeekOptions }}
                     <option value="{{ .URL }}" {{ if .Selected }}selected{{ end }}>{{ .Label }}</option>
                     {{ end }}
                 </select>
-                <small class="form-text text-muted">Select any pending week to complete and submit that report.</small>
+                <small class="form-text text-muted">Select a reporting week to load that week for data entry.</small>
             </div>
         </div>
         {{ end }}
 
+        <input type="hidden" name="start" value="{{ .Form.StartDate }}">
+        <input type="hidden" name="stop" value="{{ .Form.StopDate }}">
+
         <fieldset {{ if .Form.ReadOnly }}disabled{{ end }}>
         <div class="entry-grid">
             <div class="entry-field">
-                <label for="start">Start Date</label>
-                <input id="start" type="date" name="start" class="form-control" value="{{ .Form.StartDate }}" required readonly>
-            </div>
-            <div class="entry-field">
-                <label for="stop">Stop Date</label>
-                <input id="stop" type="date" name="stop" class="form-control" value="{{ .Form.StopDate }}" required readonly>
+                <label for="reportingWeekDisplay">Reporting Week</label>
+                <input id="reportingWeekDisplay" type="text" class="form-control" value="{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }} to {{ slice .Form.StopDate 8 10 }}-{{ slice .Form.StopDate 5 7 }}-{{ slice .Form.StopDate 0 4 }}" readonly>
             </div>
         </div>
 

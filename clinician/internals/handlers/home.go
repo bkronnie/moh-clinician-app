@@ -133,6 +133,7 @@ type HomeViewModel struct {
 	AvailableYears      []int
 	AvailableMonths     []models.DashboardFilterOption
 	AvailableWeeks      []models.ClinicianWeekOption
+	TargetPerformance   []models.ClinicianTargetPerformanceRow
 	Stats               []map[string]interface{}
 	KPIs                []DashboardKPIView
 	SeriesTitle         string
@@ -738,6 +739,7 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 		AvailableYears:    snapshot.AvailableYears,
 		AvailableMonths:   snapshot.AvailableMonths,
 		AvailableWeeks:    snapshot.AvailableWeeks,
+		TargetPerformance: snapshot.TargetPerformance,
 		DataEntryURL:      "/reports/new/0",
 		ReportHistoryURL:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		ActiveTab:         activeTab,
@@ -899,6 +901,7 @@ func standardizeHomeViewModel(view *HomeViewModel) {
 		}
 		view.SummarySections = append(view.SummarySections,
 			withSummaryTab(buildClinicianPeriodSummarySection(*view), "activity", "Activity"),
+			withSummaryTab(buildClinicianTargetSummarySection(*view), "activity", "Activity"),
 		)
 		view.DetailSections = append(view.DetailSections,
 			withDetailTab(buildClinicianBenchmarkSection(*view), "benchmarks", "Benchmarks"),
@@ -1405,6 +1408,34 @@ func buildClinicianBenchmarkSection(view HomeViewModel) DashboardDetailSectionVi
 			},
 		},
 	}
+}
+
+func buildClinicianTargetSummarySection(view HomeViewModel) DashboardSummarySectionView {
+	section := DashboardSummarySectionView{
+		Title:        "Target Performance",
+		Subtitle:     "Track your actual activity against department clinical-role targets for the selected filter.",
+		EmptyMessage: "No active target profile is configured for your department and clinical role.",
+		Rows:         []DashboardSummaryRowView{},
+	}
+
+	for _, row := range view.TargetPerformance {
+		valueLabel := strconv.FormatInt(row.ActualValue, 10)
+		if row.ComputationNote != "" {
+			valueLabel = fmt.Sprintf("%d", row.ActualValue)
+		}
+
+		section.Rows = append(section.Rows, DashboardSummaryRowView{
+			Cells: []DashboardSummaryCellView{
+				{Label: "Metric", Value: row.MetricLabel, Subvalue: row.MetricKey},
+				{Label: "Actual", Value: valueLabel, Subvalue: row.ComputationNote},
+				{Label: "Target", Value: strconv.FormatInt(row.TargetValue, 10), Subvalue: row.PeriodType},
+				{Label: "Gap", Value: strconv.FormatInt(row.Gap, 10)},
+				{Label: "Achievement", Value: fmt.Sprintf("%d%%", row.AchievementPct), Badge: &DashboardBadgeView{Text: row.StatusLabel, Tone: row.StatusTone}},
+			},
+		})
+	}
+
+	return section
 }
 
 func findKPIValue(items []DashboardKPIView, title string) string {

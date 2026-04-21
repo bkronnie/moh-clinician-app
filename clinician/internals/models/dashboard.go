@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -76,6 +77,20 @@ type ClinicianTrendPoint struct {
 	Procedures       int    `json:"procedures"`
 }
 
+type ClinicianTargetPerformanceRow struct {
+	MetricKey       string
+	MetricLabel     string
+	PeriodType      string
+	TargetValue     int64
+	ActualValue     int64
+	ActualRawValue  int64
+	AchievementPct  int
+	Gap             int64
+	StatusTone      string
+	StatusLabel     string
+	ComputationNote string
+}
+
 type ScopeTrendPoint struct {
 	WeekLabel        string
 	StartDate        string
@@ -106,10 +121,10 @@ type NationalDashboardSnapshot struct {
 
 func GetDashboardReportPeriods(ctx context.Context, db *sql.DB) ([]time.Time, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT DISTINCT start
+		SELECT DISTINCT date_trunc('week', start)::date AS week_start
 		FROM clinician_app.weeklyreport
 		WHERE start IS NOT NULL
-		ORDER BY start DESC
+		ORDER BY week_start DESC
 	`)
 	if err != nil {
 		return nil, err
@@ -216,8 +231,10 @@ type ClinicianDashboardSnapshot struct {
 	EmployeeID            int
 	EmployeeName          string
 	EmployeeTitle         string
+	EmployeeTitleID       int64
 	FacilityName          string
 	DepartmentName        string
+	DepartmentID          int64
 	SelectedYear          int
 	SelectedMonth         int
 	SelectedWeek          int
@@ -243,6 +260,7 @@ type ClinicianDashboardSnapshot struct {
 	AvailableWeeks        []ClinicianWeekOption
 	RecentWeeks           []ClinicianTrendPoint
 	SelectedWeekSubmitted bool
+	TargetPerformance     []ClinicianTargetPerformanceRow
 }
 
 func GetNationalDashboardSnapshot(ctx context.Context, db *sql.DB) (NationalDashboardSnapshot, error) {
@@ -607,8 +625,10 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 			e.id,
 			CONCAT(e.fname, ' ', e.lname) AS employee_name,
 			COALESCE(st.title, '') AS employee_title,
+			COALESCE(e.title, 0) AS employee_title_id,
 			COALESCE(f.f_name, '') AS facility_name,
-			COALESCE(d.d_name, '') AS department_name
+			COALESCE(d.d_name, '') AS department_name,
+			COALESCE(e.department, 0) AS department_id
 		FROM clinician_app.employees e
 		LEFT JOIN clinician_app.specialist_titles st ON st.id = e.title
 		LEFT JOIN clinician_app.facilities f ON f.id = e.facility
@@ -619,17 +639,19 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 		&snapshot.EmployeeID,
 		&snapshot.EmployeeName,
 		&snapshot.EmployeeTitle,
+		&snapshot.EmployeeTitleID,
 		&snapshot.FacilityName,
 		&snapshot.DepartmentName,
+		&snapshot.DepartmentID,
 	); err != nil {
 		return snapshot, err
 	}
 
 	periodRows, err := db.QueryContext(ctx, `
-		SELECT DISTINCT start
+		SELECT DISTINCT date_trunc('week', start)::date AS week_start
 		FROM clinician_app.weeklyreport
 		WHERE employee = $1
-		ORDER BY start DESC
+		ORDER BY week_start DESC
 	`, employeeID)
 	if err != nil {
 		return snapshot, err
@@ -865,6 +887,23 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 		snapshot.SubmissionProgress = 100
 	}
 
+	targetPerformance, err := getClinicianTargetPerformance(
+		ctx,
+		db,
+		employeeID,
+		snapshot.DepartmentID,
+		snapshot.EmployeeTitleID,
+		snapshot.SelectedYear,
+		snapshot.SelectedMonth,
+		snapshot.SelectedWeek,
+		snapshot.SelectedWeekStart,
+		snapshot.WeeksEntered,
+	)
+	if err != nil {
+		return snapshot, err
+	}
+	snapshot.TargetPerformance = targetPerformance
+
 	snapshot.OutputTarget = getDashboardTarget(ctx, db, 1, 40)
 	snapshot.AttendanceTarget = getDashboardTarget(ctx, db, 2, 95)
 	snapshot.WardRoundsTarget = getDashboardTarget(ctx, db, 3, 25)
@@ -936,6 +975,155 @@ func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID i
 	}
 
 	return snapshot, rows.Err()
+}
+
+func getClinicianTargetPerformance(ctx context.Context, db *sql.DB, employeeID int, departmentID int64, clinicalRoleID int64, selectedYear int, selectedMonth int, selectedWeek int, selectedWeekStart string, weeksEntered int) ([]ClinicianTargetPerformanceRow, error) {
+	if departmentID <= 0 || clinicalRoleID <= 0 {
+		return []ClinicianTargetPerformanceRow{}, nil
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT
+			COALESCE(rmt.metric_key, ''),
+			COALESCE(rde.display_name, rmt.metric_key, ''),
+			COALESCE(rmt.target_value, 0),
+			COALESCE(rmt.period_type, 'weekly')
+		FROM clinician_app.role_metric_targets rmt
+		LEFT JOIN clinician_app.report_data_elements rde ON rde.element_key = rmt.metric_key
+		WHERE rmt.department_id = $1
+			AND rmt.clinical_role_id = $2
+			AND COALESCE(rmt.is_active, TRUE) = TRUE
+		ORDER BY rde.position ASC NULLS LAST, rmt.metric_key ASC
+	`, departmentID, clinicalRoleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	targets := make([]ClinicianTargetPerformanceRow, 0)
+	for rows.Next() {
+		var item ClinicianTargetPerformanceRow
+		if err := rows.Scan(&item.MetricKey, &item.MetricLabel, &item.TargetValue, &item.PeriodType); err != nil {
+			return nil, err
+		}
+		targets = append(targets, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(targets) == 0 {
+		return []ClinicianTargetPerformanceRow{}, nil
+	}
+
+	columnByKey, err := GetReportDataElementColumnMap(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	whereParts := []string{"w.employee = $1"}
+	args := []interface{}{employeeID}
+	argPos := 2
+
+	if selectedYear > 0 {
+		whereParts = append(whereParts, fmt.Sprintf("EXTRACT(ISOYEAR FROM w.start) = $%d", argPos))
+		args = append(args, selectedYear)
+		argPos++
+	}
+	if selectedMonth > 0 {
+		whereParts = append(whereParts, fmt.Sprintf("EXTRACT(MONTH FROM w.start) = $%d", argPos))
+		args = append(args, selectedMonth)
+		argPos++
+	}
+	if selectedWeek > 0 {
+		if strings.TrimSpace(selectedWeekStart) != "" {
+			whereParts = append(whereParts, fmt.Sprintf("w.start = $%d::date", argPos))
+			args = append(args, selectedWeekStart)
+			argPos++
+		} else {
+			whereParts = append(whereParts, fmt.Sprintf("EXTRACT(WEEK FROM w.start) = $%d", argPos))
+			args = append(args, selectedWeek)
+			argPos++
+		}
+	}
+	whereClause := strings.Join(whereParts, " AND ")
+
+	monthCount := int64(1)
+	if selectedWeek == 0 {
+		monthCountQuery := `
+			SELECT GREATEST(COUNT(DISTINCT date_trunc('month', w.start)), 1)
+			FROM clinician_app.weeklyreport w
+			WHERE ` + whereClause
+		if err := db.QueryRowContext(ctx, monthCountQuery, args...).Scan(&monthCount); err != nil {
+			return nil, err
+		}
+	}
+
+	result := make([]ClinicianTargetPerformanceRow, 0, len(targets))
+	for _, target := range targets {
+		columnName, ok := columnByKey[target.MetricKey]
+		if !ok || strings.TrimSpace(columnName) == "" {
+			continue
+		}
+
+		metricQuery := `
+			SELECT COALESCE(SUM(w.` + columnName + `), 0)
+			FROM clinician_app.weeklyreport w
+			WHERE ` + whereClause
+
+		var rawActual int64
+		if err := db.QueryRowContext(ctx, metricQuery, args...).Scan(&rawActual); err != nil {
+			return nil, err
+		}
+
+		target.ActualRawValue = rawActual
+		target.ActualValue = rawActual
+		target.ComputationNote = ""
+
+		actualCompare := float64(rawActual)
+		targetCompare := float64(target.TargetValue)
+
+		if selectedWeek == 0 {
+			switch strings.ToLower(strings.TrimSpace(target.PeriodType)) {
+			case "monthly":
+				if monthCount > 0 {
+					actualCompare = float64(rawActual) / float64(monthCount)
+					target.ActualValue = int64(actualCompare + 0.5)
+					target.ComputationNote = "average per month"
+				}
+			default:
+				if weeksEntered > 0 {
+					actualCompare = float64(rawActual) / float64(weeksEntered)
+					target.ActualValue = int64(actualCompare + 0.5)
+					target.ComputationNote = "average per week"
+				}
+			}
+		}
+
+		if targetCompare <= 0 {
+			target.AchievementPct = 100
+			target.Gap = target.ActualValue
+			target.StatusTone = "info"
+			target.StatusLabel = "No target"
+		} else {
+			target.AchievementPct = int((actualCompare / targetCompare) * 100)
+			target.Gap = target.ActualValue - target.TargetValue
+			switch {
+			case target.AchievementPct >= 100:
+				target.StatusTone = "success"
+				target.StatusLabel = "On track"
+			case target.AchievementPct >= 80:
+				target.StatusTone = "warning"
+				target.StatusLabel = "At risk"
+			default:
+				target.StatusTone = "danger"
+				target.StatusLabel = "Below target"
+			}
+		}
+
+		result = append(result, target)
+	}
+
+	return result, nil
 }
 
 func containsInt(values []int, target int) bool {
@@ -1796,7 +1984,7 @@ func GetClinicianMissingRequiredReportsCount(ctx context.Context, db *sql.DB, em
 func GetClinicianPendingEntryWeeks(ctx context.Context, db *sql.DB, employeeID int) ([]ClinicianWeekOption, error) {
 	const sqlstr = `
 		WITH last_submitted AS (
-			SELECT MAX(w.start)::date AS week_start
+			SELECT MAX(date_trunc('week', w.start)::date) AS week_start
 			FROM clinician_app.weeklyreport w
 			WHERE w.employee = $1
 				AND COALESCE(w.submit_status, '') = 'Submitted'
@@ -1830,7 +2018,7 @@ func GetClinicianPendingEntryWeeks(ctx context.Context, db *sql.DB, employeeID i
 				AND COALESCE(sl.return_date::date, sl.end_date::date) >= cw.week_start
 		),
 		submitted_weeks AS (
-			SELECT DISTINCT w.start::date AS week_start
+			SELECT DISTINCT date_trunc('week', w.start)::date AS week_start
 			FROM clinician_app.weeklyreport w
 			WHERE w.employee = $1
 				AND COALESCE(w.submit_status, '') = 'Submitted'

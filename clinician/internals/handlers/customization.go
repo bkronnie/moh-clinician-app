@@ -228,6 +228,53 @@ func HandlerCustomizationClinicalRoleDelete(c *gin.Context, db *sql.DB, sessionM
 	redirectCustomizationOK(c, tab, "Clinical role deleted")
 }
 
+func HandlerCustomizationRoleTargetSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
+	actor, err := SES_SET(c, db, sessionManager)
+	if err != nil {
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
+		return
+	}
+
+	id := parsePositiveInt64(c.PostForm("id"))
+	departmentID := parsePositiveInt64(c.PostForm("department_id"))
+	clinicalRoleID := parsePositiveInt64(c.PostForm("clinical_role_id"))
+	metricKey := strings.TrimSpace(c.PostForm("metric_key"))
+	targetValue := parsePositiveInt64(c.PostForm("target_value"))
+	periodType := strings.TrimSpace(c.PostForm("period_type"))
+	isActive := strings.EqualFold(strings.TrimSpace(c.PostForm("is_active")), "true") || strings.EqualFold(strings.TrimSpace(c.PostForm("is_active")), "on") || strings.TrimSpace(c.PostForm("is_active")) == "1"
+
+	if err := models.SaveCustomizationRoleMetricTarget(c.Request.Context(), db, actor.UserID, actor.EmpID, id, departmentID, clinicalRoleID, metricKey, targetValue, periodType, isActive); err != nil {
+		redirectCustomizationError(c, tab, err.Error())
+		return
+	}
+
+	if id > 0 {
+		redirectCustomizationOK(c, tab, "Target profile updated")
+		return
+	}
+	redirectCustomizationOK(c, tab, "Target profile created")
+}
+
+func HandlerCustomizationRoleTargetDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := sanitizeCustomizationTab(c.PostForm("tab"))
+
+	actor, err := SES_SET(c, db, sessionManager)
+	if err != nil {
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
+		return
+	}
+
+	id := parsePositiveInt64(c.Param("id"))
+	if err := models.DeleteCustomizationRoleMetricTarget(c.Request.Context(), db, actor.UserID, actor.EmpID, id); err != nil {
+		redirectCustomizationError(c, tab, err.Error())
+		return
+	}
+
+	redirectCustomizationOK(c, tab, "Target profile deleted")
+}
+
 func HandlerCustomizationDataElementSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	tab := sanitizeCustomizationTab(c.PostForm("tab"))
 
@@ -314,7 +361,7 @@ func redirectCustomizationError(c *gin.Context, tab string, msg string) {
 func sanitizeCustomizationTab(raw string) string {
 	tab := strings.ToLower(strings.TrimSpace(raw))
 	switch tab {
-	case "facilities", "departments", "roles", "clinical-roles", "data-elements", "history":
+	case "facilities", "departments", "roles", "clinical-roles", "targets", "data-elements", "history":
 		return tab
 	default:
 		return "facilities"
