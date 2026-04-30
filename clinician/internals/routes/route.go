@@ -6,8 +6,8 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
 
-	"github.com/moh/clinician/internals/handlers"
-	"github.com/moh/clinician/internals/middleware"
+	"clinician/internals/handlers"
+	"clinician/internals/middleware"
 )
 
 func SetupRoutes(router *gin.Engine, db *sql.DB, sessionManager *scs.SessionManager) {

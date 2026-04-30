@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"clinician/internals/models"
+	"clinician/internals/utilities"
+
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/moh/clinician/internals/models"
-	"github.com/moh/clinician/internals/utilities"
 )
 
 func TestHasEmployeeMapping(t *testing.T) {

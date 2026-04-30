@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/moh/clinician/app"
+	"clinician/app"
 )
 
 func main() {

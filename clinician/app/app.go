@@ -13,12 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"clinician/internals/middleware"
+	"clinician/internals/models"
+	"clinician/internals/routes"
+	"clinician/internals/utilities"
+
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/moh/clinician/internals/middleware"
-	"github.com/moh/clinician/internals/models"
-	"github.com/moh/clinician/internals/routes"
-	"github.com/moh/clinician/internals/utilities"
 
 	_ "github.com/lib/pq"
 )

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moh/clinician/internals/models"
+	"clinician/internals/models"
 
 	_ "github.com/lib/pq"
 )
