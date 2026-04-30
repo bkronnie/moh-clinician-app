@@ -3,7 +3,7 @@ package handlers
 import (
 	"testing"
 
-	"clinician/internals/utilities"
+	"github.com/moh/clinician/internals/utilities"
 )
 
 func TestCanAccessReportSubmissions(t *testing.T) {

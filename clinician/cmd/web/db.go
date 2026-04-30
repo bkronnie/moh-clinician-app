@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 
-	"clinician/internals/utilities" // Import the required package
+	"github.com/moh/clinician/internals/utilities" // Import the required package
 
 	_ "github.com/lib/pq"
 )

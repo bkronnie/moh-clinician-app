@@ -7,11 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"clinician/internals/models"
-	"clinician/internals/utilities"
-
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/moh/clinician/internals/models"
+	"github.com/moh/clinician/internals/utilities"
 )
 
 func HandlerCustomization(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {

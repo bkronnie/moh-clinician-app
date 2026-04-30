@@ -7,12 +7,11 @@ import (
 	"net/url"
 	"strconv"
 
-	"clinician/internals/models"
-	"clinician/internals/utilities"
-
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
+	"github.com/moh/clinician/internals/models"
+	"github.com/moh/clinician/internals/utilities"
 )
 
 func SetupHandler(c *gin.Context, db *sql.DB) {

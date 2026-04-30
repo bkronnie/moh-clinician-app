@@ -6,12 +6,12 @@ package models
 import (
 	"context"
 	"database/sql"
-
-	"clinician/internals/utilities"
-	"crypto/rand"
-	"crypto/sha1"
+	
 	"fmt"
 	"io"
+	"crypto/rand"
+	"crypto/sha1"
+	"github.com/moh/clinician/internals/utilities"
 )
 
 var (

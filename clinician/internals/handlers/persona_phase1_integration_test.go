@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"clinician/internals/utilities"
+	"github.com/moh/clinician/internals/utilities"
 )
 
 func TestPersonaLandingNavDrilldownAndExportScope(t *testing.T) {
