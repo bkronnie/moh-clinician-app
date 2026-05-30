@@ -282,10 +282,9 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		}
 
 		if report.WeekStart.Valid && report.WeekStop.Valid {
-			if !isCompletedReportingWeekRange(report.WeekStart.Time, report.WeekStop.Time, time.Now()) {
-				c.String(http.StatusForbidden, "You can only enter or update reports for completed reporting weeks.")
-				return
-			}
+			// Existing draft/declined reports remain editable regardless of
+			// whether their reporting week has fully elapsed, so clinicians
+			// can submit overdue drafts at any time.
 			onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, report.WeekStart.Time, report.WeekStop.Time)
 			if leaveErr != nil {
 				c.String(http.StatusInternalServerError, "Unable to verify leave status")
@@ -489,10 +488,9 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 		c.String(http.StatusBadRequest, "Invalid report end date")
 		return
 	}
-	if !isCompletedReportingWeekRange(periodStart, periodStop, time.Now()) {
-		c.String(http.StatusForbidden, "Only completed reporting weeks can be entered.")
-		return
-	}
+	// Note: completed-week validation is enforced per-report below, after we
+	// determine whether each save is a new entry or an update of an existing
+	// draft/declined report. Existing actionable reports are always editable.
 
 	// Retrieve individual form fields into a slice of WeeklyReportExtended
 	var reports []models.WeeklyReportExtended
@@ -616,6 +614,10 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 				return
 			}
 		} else {
+			if !isCompletedReportingWeekRange(periodStart, periodStop, time.Now()) {
+				c.String(http.StatusForbidden, "Only completed reporting weeks can be entered.")
+				return
+			}
 			if err := report.InsertNewRecord(c.Request.Context(), db); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save report"})
 				return
@@ -1813,6 +1815,65 @@ func parseBulkEntryWeekRange(startRaw, stopRaw string, now time.Time) (time.Time
 	return start, stop, nil
 }
 
+// bulkEntryCoreValuesFromReport returns the non-null Qn01..Qn38 values from an
+// existing weekly report keyed by the same dynamic entry keys used by the bulk
+// entry form (matches the column order in HandlerReportZave).
+func bulkEntryCoreValuesFromReport(r *models.ClinicianReportHistoryRow) map[string]int64 {
+	out := map[string]int64{}
+	if r == nil {
+		return out
+	}
+	pairs := []struct {
+		key string
+		val sql.NullInt64
+	}{
+		{"attendance", r.Qn01},
+		{"ward_rounds", r.Qn02},
+		{"patients_reviewed", r.Qn03},
+		{"theatre_days", r.Qn04},
+		{"elective", r.Qn05},
+		{"emergency", r.Qn06},
+		{"postmortems", r.Qn07},
+		{"OPD_clinics", r.Qn08},
+		{"OPD_patients", r.Qn09},
+		{"anc_patients", r.Qn10},
+		{"teaching_rounds", r.Qn11},
+		{"students_taught", r.Qn12},
+		{"mortality_reviews", r.Qn13},
+		{"maternal", r.Qn14},
+		{"perinatal", r.Qn15},
+		{"surgical", r.Qn16},
+		{"medical", r.Qn17},
+		{"paed", r.Qn18},
+		{"labs_requests", r.Qn19},
+		{"imaging_requests", r.Qn20},
+		{"lab_investigations", r.Qn21},
+		{"BS", r.Qn22},
+		{"HIV", r.Qn23},
+		{"malaria", r.Qn24},
+		{"TB", r.Qn25},
+		{"CBC", r.Qn26},
+		{"chemistry", r.Qn27},
+		{"hematology", r.Qn28},
+		{"urinalysis", r.Qn29},
+		{"gram_stain", r.Qn30},
+		{"culture", r.Qn31},
+		{"microbiology", r.Qn32},
+		{"sensitivity_tests", r.Qn33},
+		{"diagnostics", r.Qn34},
+		{"xrays", r.Qn35},
+		{"ct_scans", r.Qn36},
+		{"obstetrics_scans", r.Qn37},
+		{"abdominal_scans", r.Qn38},
+	}
+	for _, p := range pairs {
+		if p.val.Valid {
+			out[p.key] = p.val.Int64
+		}
+	}
+	return out
+}
+
 func HandlerBulkCaptureList(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
 	if !ok {
@@ -2047,11 +2108,13 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 		labels := resolveClinicianEntryLabels(c.Request.Context(), db)
 		entryKeys := make([]string, 0)
 		seenKeys := map[string]struct{}{}
+		staffKeysByEmp := map[int64][]string{}
 		for _, item := range staffList {
 			if item == nil {
 				continue
 			}
 			staffKeys := resolveClinicianEntryKeys(c.Request.Context(), db, int64(item.DeptID))
+			staffKeysByEmp[int64(item.EmpID)] = staffKeys
 			for _, key := range staffKeys {
 				key = strings.TrimSpace(key)
 				if key == "" {
@@ -2066,9 +2129,14 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 		}
 
 		type bulkStaffRow struct {
-			EmployeeID int64  `json:"employeeID"`
-			Name       string `json:"name"`
-			Title      string `json:"title"`
+			EmployeeID     int64            `json:"employeeID"`
+			Name           string           `json:"name"`
+			Title          string           `json:"title"`
+			ApplicableKeys []string         `json:"applicableKeys"`
+			Values         map[string]int64 `json:"values"`
+			Editable       bool             `json:"editable"`
+			OnLeave        bool             `json:"onLeave"`
+			StatusLabel    string           `json:"statusLabel"`
 		}
 		type bulkDataPoint struct {
 			Key   string `json:"key"`
@@ -2080,10 +2148,60 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 			if item == nil {
 				continue
 			}
+			empID := int64(item.EmpID)
+			applicable := staffKeysByEmp[empID]
+			values := map[string]int64{}
+			editable := true
+			statusLabel := ""
+
+			existing, exErr := models.LatestClinicianReportByPeriod(c.Request.Context(), db, empID, weekStart, weekStop)
+			if exErr != nil && exErr != sql.ErrNoRows {
+				log.Printf("bulk load: existing report lookup failed for emp %d: %v", empID, exErr)
+			}
+			if existing != nil {
+				for k, v := range bulkEntryCoreValuesFromReport(existing) {
+					values[k] = v
+				}
+				if dyn, derr := models.GetWeeklyReportValuesByElementKeys(c.Request.Context(), db, existing.ReportID, applicable); derr == nil {
+					for k, v := range dyn {
+						values[k] = v
+					}
+				}
+				editable = existing.Actionable
+				submitStatus := strings.TrimSpace(existing.SubmitStatus.String)
+				reportStatus := strings.TrimSpace(existing.ReportStatus.String)
+				switch {
+				case reportStatus == "Approved":
+					statusLabel = "Approved"
+				case reportStatus == "Rejected" || reportStatus == "Declined":
+					statusLabel = "Declined"
+				case submitStatus == "Submitted":
+					statusLabel = "Submitted"
+				default:
+					statusLabel = "Draft"
+				}
+			}
+
+			onLeave, leaveErr := models.IsEmployeeOnLeaveForPeriod(c.Request.Context(), db, empID, weekStart, weekStop)
+			if leaveErr != nil {
+				log.Printf("bulk load: leave check failed for emp %d: %v", empID, leaveErr)
+			}
+			if onLeave {
+				editable = false
+				if statusLabel == "" {
+					statusLabel = "On Leave"
+				}
+			}
+
 			rows = append(rows, bulkStaffRow{
-				EmployeeID: int64(item.EmpID),
-				Name:       formatEmployeeName(item.Fname.String, item.Lname.String, item.Oname.String),
-				Title:      strings.TrimSpace(item.EmpTitle.String),
+				EmployeeID:     empID,
+				Name:           formatEmployeeName(item.Fname.String, item.Lname.String, item.Oname.String),
+				Title:          strings.TrimSpace(item.EmpTitle.String),
+				ApplicableKeys: applicable,
+				Values:         values,
+				Editable:       editable,
+				OnLeave:        onLeave,
+				StatusLabel:    statusLabel,
 			})
 		}
 

@@ -32,6 +32,12 @@ body {
     min-height: 100%;
 }
 
+html {
+    /* Scale root down so every rem-based size in the stylesheet renders at
+       the compact PowerBI/Health BI density (13px base instead of 16px). */
+    font-size: 13px;
+}
+
 body {
     margin: 0;
     background:
@@ -472,6 +478,16 @@ a:hover {
     transition: width 0.22s ease, min-width 0.22s ease, padding 0.22s ease;
     overflow: visible;
     z-index: 20;
+}
+
+/* Override Bootstrap col-lg-2 (16.67%) with a narrower fixed width so the
+   content area gets more room. The collapsed rule below still wins when
+   .sidebar-collapsed is applied. */
+@media (min-width: 992px) {
+    .sidebar.col-lg-2 {
+        flex: 0 0 13.5rem;
+        max-width: 13.5rem;
+    }
 }
 
 /* Collapsed: icons only, no labels */
@@ -1569,6 +1585,107 @@ table.table,
     gap: 0.65rem;
 }
 
+.dashboard-tabs-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    border-bottom: 1px solid #e1ecef;
+    padding-bottom: 0.35rem;
+}
+
+.dashboard-tabs-row .dashboard-tabs,
+.dashboard-tabs-row .section-tabs {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+}
+
+.dashboard-tabs-row .nav-link {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.dashboard-tabs-row .dashboard-inline-filters {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+@media (max-width: 900px) {
+    .dashboard-tabs-row {
+        flex-wrap: wrap;
+    }
+    .dashboard-tabs-row .dashboard-inline-filters {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+.dashboard-inline-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    margin: 0 0 0 auto;
+    padding: 0.2rem 0.55rem;
+    background: #f7fbfc;
+    border: 1px solid #dfeaed;
+    border-radius: 999px;
+    max-width: 100%;
+}
+
+.inline-filters-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #2c6e7a;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.inline-filter-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.inline-filter-field label {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #204650;
+}
+
+.inline-filter-field select {
+    border: 1px solid #c5dadd;
+    border-radius: 8px;
+    padding: 0.15rem 0.35rem;
+    background: #ffffff;
+    color: #12343b;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    min-width: 0;
+    max-width: 12rem;
+}
+
+.inline-filter-clear {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #2c6e7a;
+    text-decoration: none;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+}
+
+.inline-filter-clear:hover {
+    background: #e6f1f3;
+    text-decoration: none;
+}
+
 .dashboard-section {
     background: #ffffff;
     border: 1px solid #d9e8ec;
@@ -1594,6 +1711,23 @@ table.table,
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 0.75rem;
+}
+
+.kpi-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.kpi-group-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #2c6e7a;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #e1ecef;
 }
 
 .kpi-card {
@@ -2544,4 +2678,77 @@ table.table,
     .leave-actions .btn {
         width: 100%;
     }
+}
+
+/* ---- Sortable column triggers (sortable.js) ---------------------- */
+.sortable-header {
+    position: relative;
+}
+.sortable-trigger {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0 0 0 .25rem;
+    margin-left: .25rem;
+    cursor: pointer;
+    color: inherit;
+    line-height: 1;
+    vertical-align: middle;
+    opacity: .55;
+    transition: opacity .15s ease;
+}
+.sortable-trigger:hover,
+.sortable-trigger:focus {
+    opacity: 1;
+    outline: none;
+}
+.sortable-icon {
+    display: inline-flex;
+    flex-direction: column;
+    font-size: .55em;
+    line-height: 1;
+}
+.sortable-arrow {
+    display: block;
+    opacity: .65;
+    transform: translateY(0);
+}
+.sortable-arrow.up { margin-bottom: -1px; }
+.sortable-header.sort-asc  .sortable-trigger { opacity: 1; }
+.sortable-header.sort-asc  .sortable-arrow.up   { opacity: 1; color: #0d6efd; }
+.sortable-header.sort-asc  .sortable-arrow.down { opacity: .25; }
+.sortable-header.sort-desc .sortable-trigger { opacity: 1; }
+.sortable-header.sort-desc .sortable-arrow.down { opacity: 1; color: #0d6efd; }
+.sortable-header.sort-desc .sortable-arrow.up   { opacity: .25; }
+
+.sortable-menu {
+    position: absolute;
+    z-index: 1080;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: .35rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,.12);
+    padding: .25rem 0;
+    min-width: 170px;
+    font-size: .85rem;
+}
+.sortable-menu button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    width: 100%;
+    text-align: left;
+    padding: .4rem .75rem;
+    cursor: pointer;
+    color: #212529;
+    font-weight: 500;
+}
+.sortable-menu button:hover,
+.sortable-menu button:focus {
+    background: rgba(13,110,253,.08);
+    outline: none;
+}
+.sortable-pagination-note {
+    margin: 0 0 .35rem;
+    font-style: italic;
 }

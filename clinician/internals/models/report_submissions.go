@@ -31,6 +31,7 @@ type ReportSubmissionListRow struct {
 	Procedures       int
 	Actionable       bool
 	IsOnLeave        bool
+	Missing          bool
 }
 
 type FacilitySubmissionSummaryRow struct {
@@ -96,8 +97,16 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 			END`
 	} else if facilityApproverMode {
 		// Facility approvers should see national submission/review lifecycle once a batch is sent upward.
+		// The viewer's own row (the facility admin) should NOT show "Submitted" merely because they saved
+		// their personal entry — for the admin, "Submitted" means the facility batch has been escalated to
+		// national. Until then their row is reported as Draft so the dashboard reflects the true upstream state.
+		viewerSelfClause := ""
+		if viewerEmployeeID > 0 {
+			viewerSelfClause = fmt.Sprintf("WHEN w.employee = %d AND COALESCE(w.national_submission_status, '') <> 'Submitted' THEN '' ", viewerEmployeeID)
+		}
 		submitStatusExpr = `CASE
 				WHEN COALESCE(w.national_submission_status, '') = 'Submitted' THEN 'Submitted'
+				` + viewerSelfClause + `
 				ELSE COALESCE(w.submit_status, '')
 			END`
 		reportStatusExpr = `CASE
@@ -128,17 +137,10 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 		argPos++
 	} else if adminMode {
 		whereParts = append(whereParts, "(COALESCE(w.national_submission_status, '') = 'Submitted' OR COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined'))")
-	} else {
-		if viewerEmployeeID > 0 {
-			// Draft rows remain private, except for the current reviewer seeing their own draft row.
-			whereParts = append(whereParts, fmt.Sprintf("(w.employee = $%d OR NOT (COALESCE(w.submit_status, '') <> 'Submitted' AND COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')))", argPos))
-			args = append(args, viewerEmployeeID)
-			argPos++
-		} else {
-			// Draft rows are private to the creating staff member and are hidden from review roles.
-			whereParts = append(whereParts, "NOT (COALESCE(w.submit_status, '') <> 'Submitted' AND COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined'))")
-		}
 	}
+	// Facility approver mode: drafts of all staff in scope are visible so that
+	// "All" really means every row for this facility. Cross-facility leakage is
+	// still prevented by the hospital filter below.
 
 	if effectiveFacilityID > 0 {
 		whereParts = append(whereParts, fmt.Sprintf("w.hospital = $%d", argPos))
@@ -152,15 +154,15 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 	}
 	switch filterStatus {
 	case "submitted":
+		// "Submitted" means the clinician (or, for national, the facility) ever
+		// submitted the report — regardless of any later approve/decline outcome.
 		if facilityApproverMode {
-			whereParts = append(whereParts, "COALESCE(w.submit_status, '') = 'Submitted'")
-			whereParts = append(whereParts, "COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')")
-			whereParts = append(whereParts, "COALESCE(w.national_submission_status, '') <> 'Submitted'")
+			whereParts = append(whereParts, "(COALESCE(w.submit_status, '') = 'Submitted' OR COALESCE(w.national_submission_status, '') = 'Submitted')")
 		} else {
 			whereParts = append(whereParts, submitStatusExpr+" = 'Submitted'")
-			whereParts = append(whereParts, reportStatusExpr+" NOT IN ('Approved', 'Rejected', 'Declined')")
 		}
 	case "pending":
+		// "Pending" means submitted but not yet finalized in this role's review queue.
 		if facilityApproverMode {
 			whereParts = append(whereParts, "COALESCE(w.submit_status, '') = 'Submitted'")
 			whereParts = append(whereParts, "COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')")
@@ -170,9 +172,18 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 			whereParts = append(whereParts, reportStatusExpr+" NOT IN ('Approved', 'Rejected', 'Declined')")
 		}
 	case "approved":
-		whereParts = append(whereParts, reportStatusExpr+" = 'Approved'")
+		if facilityApproverMode {
+			// Include facility-approved rows even after they are escalated to national review.
+			whereParts = append(whereParts, "("+reportStatusExpr+" = 'Approved' OR COALESCE(w.report_status, '') = 'Approved')")
+		} else {
+			whereParts = append(whereParts, reportStatusExpr+" = 'Approved'")
+		}
 	case "declined":
-		whereParts = append(whereParts, reportStatusExpr+" IN ('Rejected', 'Declined')")
+		if facilityApproverMode {
+			whereParts = append(whereParts, "("+reportStatusExpr+" IN ('Rejected', 'Declined') OR COALESCE(w.report_status, '') IN ('Rejected', 'Declined'))")
+		} else {
+			whereParts = append(whereParts, reportStatusExpr+" IN ('Rejected', 'Declined')")
+		}
 	case "draft":
 		if adminMode {
 			whereParts = append(whereParts, "1 = 0")
@@ -181,12 +192,20 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 			whereParts = append(whereParts, "COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')")
 		}
 	}
+	// Period filters: when a specific ISO week is selected it already pins the
+	// period, so the month predicate is dropped to avoid year-boundary mismatches
+	// where ISO year/week and calendar month disagree. When no week is chosen,
+	// the year/month predicates use calendar year/month for intuitive UX.
 	if year > 0 {
-		whereParts = append(whereParts, fmt.Sprintf("EXTRACT(ISOYEAR FROM w.start) = $%d", argPos))
+		if week > 0 {
+			whereParts = append(whereParts, fmt.Sprintf("EXTRACT(ISOYEAR FROM w.start) = $%d", argPos))
+		} else {
+			whereParts = append(whereParts, fmt.Sprintf("EXTRACT(YEAR FROM w.start) = $%d", argPos))
+		}
 		args = append(args, year)
 		argPos++
 	}
-	if month > 0 {
+	if month > 0 && week == 0 {
 		whereParts = append(whereParts, fmt.Sprintf("EXTRACT(MONTH FROM w.start) = $%d", argPos))
 		args = append(args, month)
 		argPos++
@@ -318,6 +337,77 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 	return items, totalCount, nil
 }
 
+// GetMissingStaffForWeek returns synthetic ReportSubmissionListRow entries
+// (Missing=true, ReportID=0) for every employee in the given facility (and
+// optional department) who has no weeklyreport row for the specified week.
+func GetMissingStaffForWeek(ctx context.Context, db *sql.DB, facilityID int, departmentID int, weekStart time.Time, weekStop time.Time) ([]*ReportSubmissionListRow, error) {
+	if facilityID <= 0 {
+		return []*ReportSubmissionListRow{}, nil
+	}
+	args := []interface{}{facilityID, weekStart, weekStop}
+	departmentFilter := ""
+	if departmentID > 0 {
+		departmentFilter = " AND e.department = $4"
+		args = append(args, departmentID)
+	}
+	query := `
+		SELECT
+			e.id,
+			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS employee_name,
+			e.facility,
+			COALESCE(f.f_name, '') AS facility_name,
+			COALESCE(e.department, 0) AS department_id,
+			COALESCE(d.d_name, '') AS department_name,
+			EXISTS (
+				SELECT 1
+				FROM clinician_app.staffleave sl
+				WHERE sl.employee_id = e.id
+				  AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+				  AND sl.start_date::date <= $3::date
+				  AND sl.end_date::date >= $2::date
+			) AS is_on_leave
+		FROM clinician_app.employees e
+		LEFT JOIN clinician_app.facilities f ON f.id = e.facility
+		LEFT JOIN clinician_app.departments d ON d.id = e.department
+		WHERE e.facility = $1
+		` + departmentFilter + `
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM clinician_app.weeklyreport w
+			WHERE w.employee = e.id
+			  AND w.hospital = e.facility
+			  AND w.start::date = $2::date
+			  AND w.stop::date = $3::date
+		  )
+		ORDER BY employee_name
+	`
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []*ReportSubmissionListRow{}
+	for rows.Next() {
+		item := &ReportSubmissionListRow{Missing: true}
+		if err := rows.Scan(
+			&item.EmployeeID,
+			&item.EmployeeName,
+			&item.FacilityID,
+			&item.FacilityName,
+			&item.DepartmentID,
+			&item.DepartmentName,
+			&item.IsOnLeave,
+		); err != nil {
+			return nil, err
+		}
+		item.WeekStart = sql.NullTime{Time: weekStart, Valid: true}
+		item.WeekStop = sql.NullTime{Time: weekStop, Valid: true}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func isFinalReportSubmissionStatus(status string) bool {
 	switch status {
 	case "Approved", "Rejected", "Declined":
@@ -325,6 +415,80 @@ func isFinalReportSubmissionStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// FacilityWeekReadiness summarizes the gate state for a facility-week so the UI
+// can show/hide the "Submit Weekly Facility Report" action and explain why it
+// is blocked. Counts span every weeklyreport row for the period (regardless of
+// the currently selected status tab).
+type FacilityWeekReadiness struct {
+	TotalCount       int // weeklyreport rows for the period
+	DraftCount       int // submit_status <> 'Submitted'
+	PendingCount     int // submit_status = 'Submitted' AND not yet finally reviewed
+	ApprovedCount    int // report_status = 'Approved'
+	DeclinedCount    int // report_status IN ('Rejected','Declined')
+	UnapprovedExists bool
+}
+
+// GetFacilityWeekReadiness returns the per-status counts that gate the
+// "Submit to National" action for a facility week (and optional department).
+// When selfEmployeeID > 0, that employee's own still-draft row is excluded
+// from the draft count because the submit-to-national flow promotes it
+// automatically via selfQuery in SubmitFacilityReportsByFilter.
+func GetFacilityWeekReadiness(ctx context.Context, db *sql.DB, facilityID int, departmentID int, year int, month int, week int, selfEmployeeID int64) (FacilityWeekReadiness, error) {
+	out := FacilityWeekReadiness{}
+	if facilityID <= 0 {
+		return out, nil
+	}
+	args := []interface{}{facilityID}
+	parts := []string{"w.hospital = $1"}
+	pos := 2
+	if departmentID > 0 {
+		parts = append(parts, fmt.Sprintf("w.department = $%d", pos))
+		args = append(args, departmentID)
+		pos++
+	}
+	if year > 0 {
+		parts = append(parts, fmt.Sprintf("EXTRACT(ISOYEAR FROM w.start) = $%d", pos))
+		args = append(args, year)
+		pos++
+	}
+	if month > 0 {
+		parts = append(parts, fmt.Sprintf("EXTRACT(MONTH FROM w.start) = $%d", pos))
+		args = append(args, month)
+		pos++
+	}
+	if week > 0 {
+		parts = append(parts, fmt.Sprintf("EXTRACT(WEEK FROM w.start) = $%d", pos))
+		args = append(args, week)
+		pos++
+	}
+	selfDraftPred := "FALSE"
+	if selfEmployeeID > 0 {
+		selfDraftPred = fmt.Sprintf("(w.employee = $%d AND COALESCE(w.submit_status, '') <> 'Submitted')", pos)
+		args = append(args, selfEmployeeID)
+		pos++
+	}
+	query := `
+		SELECT
+			COUNT(*) AS total_count,
+			COUNT(*) FILTER (
+				WHERE COALESCE(w.submit_status, '') <> 'Submitted'
+				  AND NOT (` + selfDraftPred + `)
+			) AS draft_count,
+			COUNT(*) FILTER (
+				WHERE COALESCE(w.submit_status, '') = 'Submitted'
+				  AND COALESCE(w.report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+			) AS pending_count,
+			COUNT(*) FILTER (WHERE COALESCE(w.report_status, '') = 'Approved') AS approved_count,
+			COUNT(*) FILTER (WHERE COALESCE(w.report_status, '') IN ('Rejected', 'Declined')) AS declined_count
+		FROM clinician_app.weeklyreport w
+		WHERE ` + strings.Join(parts, " AND ")
+	if err := db.QueryRowContext(ctx, query, args...).Scan(&out.TotalCount, &out.DraftCount, &out.PendingCount, &out.ApprovedCount, &out.DeclinedCount); err != nil {
+		return out, err
+	}
+	out.UnapprovedExists = out.DraftCount > 0 || out.PendingCount > 0
+	return out, nil
 }
 
 func GetReportSubmissionDepartmentOptions(ctx context.Context, db *sql.DB, scopeFacilityID int64, filterFacilityID int) ([]DashboardFilterOption, error) {
@@ -491,7 +655,6 @@ func ApproveFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID 
 	args := []interface{}{facilityID}
 	whereParts := []string{
 		"hospital = $1",
-		"COALESCE(submit_status, '') = 'Submitted'",
 		"COALESCE(report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')",
 	}
 	argPos := 2
@@ -521,10 +684,17 @@ func ApproveFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID 
 	approverArg := argPos
 	args = append(args, time.Now())
 	timeArg := argPos + 1
+	// Exclude the approver's own still-draft row: it is intentionally left
+	// alone until the national batch submission promotes it (see
+	// SubmitFacilityReportsByFilter / selfQuery).
+	whereParts = append(whereParts, fmt.Sprintf("NOT (employee = $%d AND COALESCE(submit_status, '') <> 'Submitted')", approverArg))
 
 	sqlstr := `
 		UPDATE clinician_app.weeklyreport
 		SET
+			submit_status = 'Submitted',
+			submitted_by = COALESCE(submitted_by, $` + fmt.Sprintf("%d", approverArg) + `),
+			submitted_on = COALESCE(submitted_on, $` + fmt.Sprintf("%d", timeArg) + `),
 			report_status = 'Approved',
 			facility_review_status = 'Approved',
 			facility_reviewed_by = $` + fmt.Sprintf("%d", approverArg) + `,
@@ -727,10 +897,15 @@ func SubmitFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID i
 	}
 
 	filterArgs := append([]interface{}{}, periodArgs...)
+	// Update target: only rows actually marked Submitted are escalated upward.
 	whereParts := append([]string{}, periodWhereParts...)
 	whereParts = append(whereParts,
 		"COALESCE(submit_status, '') = 'Submitted'",
 	)
+	// Validation target: any in-scope row that is NOT fully facility-approved
+	// (including unsubmitted Drafts) must block the national escalation so the
+	// admin is forced to clear them before re-trying.
+	validationWhereParts := append([]string{}, periodWhereParts...)
 
 	updateArgs := append([]interface{}{}, filterArgs...)
 	updateArgs = append(updateArgs, submittedBy)
@@ -776,14 +951,15 @@ func SubmitFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID i
 	validationQuery := `
 		SELECT COUNT(*)
 		FROM clinician_app.weeklyreport
-		WHERE ` + strings.Join(whereParts, " AND ") + `
+		WHERE ` + strings.Join(validationWhereParts, " AND ") + `
 		  AND (
 			COALESCE(facility_review_status, '') <> 'Approved'
 			OR COALESCE(report_status, '') <> 'Approved'
+			OR COALESCE(submit_status, '') <> 'Submitted'
 		  )`
 
 	var pendingLocalApproval int
-	if err := tx.QueryRowContext(ctx, validationQuery, filterArgs...).Scan(&pendingLocalApproval); err != nil {
+	if err := tx.QueryRowContext(ctx, validationQuery, periodArgs...).Scan(&pendingLocalApproval); err != nil {
 		return 0, err
 	}
 	if pendingLocalApproval > 0 {

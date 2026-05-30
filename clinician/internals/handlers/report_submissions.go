@@ -18,51 +18,56 @@ import (
 )
 
 type ReportSubmissionsView struct {
-	Role               string
-	ViewMode           string
-	Mode               string
-	ShowWeekSummary    bool
-	ScopeTitle         string
-	ScopeSubtitle      string
-	FilterSummary      string
-	SelectedFacility   int
-	FacilityOptions    []models.DashboardFilterOption
-	SelectedDepartment int
-	DepartmentOptions  []models.DashboardFilterOption
-	SelectedStatus     string
-	SelectedYear       int
-	SelectedMonth      int
-	SelectedWeek       int
-	SelectedWeekLabel  string
-	AvailableYears     []int
-	AvailableMonths    []models.DashboardFilterOption
-	AvailableWeeks     []models.ClinicianWeekOption
-	Rows               []*models.ReportSubmissionListRow
-	FacilityRows       []*models.FacilitySubmissionSummaryRow
-	WeekRows           []*ReportSubmissionWeekSummaryRow
-	CurrentURL         string
-	AllURL             string
-	SubmittedURL       string
-	PendingURL         string
-	ApprovedURL        string
-	DeclinedURL        string
-	DraftURL           string
-	ExportCSVURL       string
-	ExportPDFURL       string
-	CanApprove         bool
-	CanView            bool
-	CanSubmitAll       bool
-	SubmitAllURL       string
-	PendingCount       int
-	ClearFiltersURL    string
-	FacilityModeURL    string
-	BackToWeeksURL     string
-	Page               int
-	PageSize           int
-	TotalRows          int
-	TotalPages         int
-	PrevPageURL        string
-	NextPageURL        string
+	Role                string
+	ViewMode            string
+	Mode                string
+	ShowWeekSummary     bool
+	ScopeTitle          string
+	ScopeSubtitle       string
+	FilterSummary       string
+	SelectedFacility    int
+	FacilityOptions     []models.DashboardFilterOption
+	SelectedDepartment  int
+	DepartmentOptions   []models.DashboardFilterOption
+	SelectedStatus      string
+	SelectedYear        int
+	SelectedMonth       int
+	SelectedWeek        int
+	SelectedWeekLabel   string
+	AvailableYears      []int
+	AvailableMonths     []models.DashboardFilterOption
+	AvailableWeeks      []models.ClinicianWeekOption
+	Rows                []*models.ReportSubmissionListRow
+	FacilityRows        []*models.FacilitySubmissionSummaryRow
+	WeekRows            []*ReportSubmissionWeekSummaryRow
+	CurrentURL          string
+	AllURL              string
+	SubmittedURL        string
+	PendingURL          string
+	ApprovedURL         string
+	DeclinedURL         string
+	DraftURL            string
+	ExportCSVURL        string
+	ExportPDFURL        string
+	CanApprove          bool
+	CanView             bool
+	CanSubmitAll        bool
+	SubmitAllURL        string
+	PendingCount        int
+	ClearFiltersURL     string
+	FacilityModeURL     string
+	BackToWeeksURL      string
+	Page                int
+	PageSize            int
+	TotalRows           int
+	TotalPages          int
+	PrevPageURL         string
+	NextPageURL         string
+	BatchDeclined       bool
+	CanSubmitToNational bool
+	SubmitBlockedReason string
+	DraftCount          int
+	CanApproveAll       bool
 }
 
 type ReportSubmissionWeekSummaryRow struct {
@@ -79,8 +84,8 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 	selectedStatus := normalizeReportSubmissionStatus(c.Query("status"))
 	viewMode := normalizeReportSubmissionViewMode(roleFromRights(sesDetails.Rights), c.Query("view"))
 	requestedMode := normalizeReportSubmissionMode(roleFromRights(sesDetails.Rights), c.Query("mode"))
-	allowDraftFilter := roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && requestedMode != "reports"
-	if roleFromRights(sesDetails.Rights) != utilities.RoleStaff && !allowDraftFilter && selectedStatus == "draft" {
+	// National admin has no draft concept — drafts only exist at the facility tier.
+	if roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && selectedStatus == "draft" {
 		selectedStatus = "all"
 	}
 
@@ -174,6 +179,9 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 			if row.PendingCount > 0 {
 				view.PendingCount += row.PendingCount
 			}
+			if row.ApprovalStatus == "Declined" {
+				view.BatchDeclined = true
+			}
 			drilldownURL := buildFacilityWeekDrilldownURL(view.SelectedFacility, view.SelectedDepartment, selectedStatus, row)
 			view.WeekRows = append(view.WeekRows, &ReportSubmissionWeekSummaryRow{Summary: row, DrilldownURL: drilldownURL})
 		}
@@ -197,6 +205,19 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 			offset = (view.Page - 1) * view.PageSize
 		}
 
+		// Facility admin drilling down to a specific week should also list staff
+		// who never submitted a report for that week, marked "Not Submitted".
+		// Disable pagination in that case so the missing rows always render.
+		augmentWithMissing := roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin &&
+			selectedYear > 0 && selectedWeek > 0 &&
+			(selectedStatus == "all" || selectedStatus == "draft")
+		if augmentWithMissing {
+			limit = 0
+			offset = 0
+			view.PageSize = 0
+			view.Page = 1
+		}
+
 		rows, totalRows, err := models.GetReportSubmissionsPaged(c.Request.Context(), db, scopeFacilityID, scopeEmployeeID, sesDetails.EmpID, view.SelectedFacility, view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek, limit, offset)
 		if err != nil {
 			return ReportSubmissionsView{}, err
@@ -207,6 +228,58 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		for _, row := range rows {
 			if row.SubmitStatus.Valid && row.SubmitStatus.String == "Submitted" && (!row.ReportStatus.Valid || !isFinalReportReviewStatus(row.ReportStatus.String)) {
 				view.PendingCount++
+			}
+		}
+
+		if augmentWithMissing {
+			weekStart := isoWeekStart(selectedYear, selectedWeek)
+			weekStop := weekStart.AddDate(0, 0, 6)
+			missing, err := models.GetMissingStaffForWeek(c.Request.Context(), db, view.SelectedFacility, view.SelectedDepartment, weekStart, weekStop)
+			if err != nil {
+				return ReportSubmissionsView{}, err
+			}
+			if len(missing) > 0 {
+				view.Rows = append(view.Rows, missing...)
+				view.TotalRows += len(missing)
+			}
+		}
+
+		// In facility admin staff-drilldown for a specific week, surface whether the
+		// batch was previously submitted upward and declined so the UI can offer a
+		// clear "Resubmit" affordance (the SQL guard still requires all rows approved).
+		if roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && selectedYear > 0 && selectedWeek > 0 {
+			summaries, err := models.GetFacilityWeeklySubmissionSummaries(c.Request.Context(), db, int(sesDetails.HFID), view.SelectedDepartment, "all", selectedYear, selectedMonth, selectedWeek)
+			if err == nil {
+				for _, s := range summaries {
+					if s != nil && s.ApprovalStatus == "Declined" {
+						view.BatchDeclined = true
+						break
+					}
+				}
+			}
+			readiness, err := models.GetFacilityWeekReadiness(c.Request.Context(), db, int(sesDetails.HFID), view.SelectedDepartment, selectedYear, selectedMonth, selectedWeek, sesDetails.EmpID)
+			if err == nil {
+				view.DraftCount = readiness.DraftCount
+				// Step 1 (Approve All) becomes the single action that clears
+				// drafts and pending submissions in scope (admin's own draft
+				// excepted; promoted by Step 2's selfQuery).
+				view.CanApproveAll = view.CanApprove && (readiness.DraftCount > 0 || readiness.PendingCount > 0)
+				switch {
+				case readiness.TotalCount == 0:
+					view.CanSubmitToNational = false
+					view.SubmitBlockedReason = "No reports captured for this week yet."
+				case readiness.DraftCount > 0 && readiness.PendingCount > 0:
+					view.CanSubmitToNational = false
+					view.SubmitBlockedReason = fmt.Sprintf("%d draft and %d submitted-but-unapproved report(s) remain. Use 'Approve All Reports' first.", readiness.DraftCount, readiness.PendingCount)
+				case readiness.DraftCount > 0:
+					view.CanSubmitToNational = false
+					view.SubmitBlockedReason = fmt.Sprintf("%d staff report(s) still in draft. Use 'Approve All Reports' to submit & approve them.", readiness.DraftCount)
+				case readiness.PendingCount > 0:
+					view.CanSubmitToNational = false
+					view.SubmitBlockedReason = fmt.Sprintf("%d submitted report(s) awaiting facility approval. Use 'Approve All Reports' first.", readiness.PendingCount)
+				default:
+					view.CanSubmitToNational = true
+				}
 			}
 		}
 	}
@@ -847,15 +920,24 @@ func resolveReportSubmissionPeriod(c *gin.Context, db *sql.DB, requestedYear int
 	latestYear, latestWeek := latestStart.ISOWeek()
 	latestMonth := int(latestStart.Month())
 
-	selectedYear := latestYear
+	// Default to "All records" on first load so the list reflects the entire
+	// dataset. Once any period query param is supplied, fall back to the
+	// latest-week defaults so partial filter combinations still resolve.
+	anyPeriodRequested := hasYear || hasMonth || hasWeek
+	selectedYear := 0
+	selectedMonth := 0
+	selectedWeek := 0
+	if anyPeriodRequested {
+		selectedYear = latestYear
+		selectedMonth = latestMonth
+		selectedWeek = latestWeek
+	}
 	if hasYear {
 		selectedYear = requestedYear
 	}
-	selectedMonth := latestMonth
 	if hasMonth {
 		selectedMonth = requestedMonth
 	}
-	selectedWeek := latestWeek
 	if hasWeek {
 		selectedWeek = requestedWeek
 	}

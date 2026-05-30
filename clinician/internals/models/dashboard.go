@@ -110,13 +110,16 @@ type ClinicianWeekOption struct {
 }
 
 type NationalDashboardSnapshot struct {
-	TotalFacilities        int
-	TotalClinicians        int
-	ReportsEnteredThisWeek int
-	SubmittedThisWeek      int
-	PendingApproval        int
-	NationalReportingRate  int
-	FacilityPerformance    []FacilityPerformanceRow
+	TotalFacilities          int
+	TotalClinicians          int
+	ReportsEnteredThisWeek   int
+	SubmittedThisWeek        int
+	PendingApproval          int
+	NationalReportingRate    int
+	FacilityPerformance      []FacilityPerformanceRow
+	TotalStaffSubmissions    int
+	TotalReportsApproved     int
+	TotalFacilitySubmissions int
 }
 
 func GetDashboardReportPeriods(ctx context.Context, db *sql.DB) ([]time.Time, error) {
@@ -429,6 +432,39 @@ func GetNationalDashboardSnapshotByRange(ctx context.Context, db *sql.DB, period
 	}
 
 	snapshot.NationalReportingRate = percentageInt(snapshot.SubmittedThisWeek, snapshot.TotalClinicians)
+
+	const totalsQuery = `
+		WITH employee_scope AS (
+			SELECT e.id
+			FROM clinician_app.employees e
+			WHERE ($3 = 0 OR e.facility = $3)
+				AND ($4 = 0 OR e.department = $4)
+				AND ($5 = 0 OR e.id = $5)
+		),
+		scoped_reports AS (
+			SELECT w.hospital, w.start, w.submit_status, w.report_status, w.national_submission_status
+			FROM clinician_app.weeklyreport w
+			JOIN employee_scope es ON es.id = w.employee
+			WHERE w.start BETWEEN $1 AND $2
+				AND ($3 = 0 OR w.hospital = $3)
+		)
+		SELECT
+			COUNT(*) FILTER (WHERE COALESCE(submit_status, '') = 'Submitted') AS staff_submissions,
+			COUNT(*) FILTER (WHERE COALESCE(report_status, '') = 'Approved') AS reports_approved,
+			COUNT(DISTINCT CASE
+				WHEN COALESCE(national_submission_status, '') = 'Submitted'
+				THEN (hospital::text || '|' || start::text)
+			END) AS facility_submissions
+		FROM scoped_reports
+	`
+	if err := db.QueryRowContext(ctx, totalsQuery, periodStart, periodEnd, facilityID, departmentID, employeeID).Scan(
+		&snapshot.TotalStaffSubmissions,
+		&snapshot.TotalReportsApproved,
+		&snapshot.TotalFacilitySubmissions,
+	); err != nil {
+		return snapshot, err
+	}
+
 	return snapshot, nil
 }
 
@@ -1961,6 +1997,7 @@ func GetClinicianMissingRequiredReportsCount(ctx context.Context, db *sql.DB, em
 			SELECT DISTINCT w.start::date AS week_start
 			FROM clinician_app.weeklyreport w
 			WHERE w.employee = $1
+				AND COALESCE(w.submit_status, '') = 'Submitted'
 		)
 		SELECT COUNT(1)
 		FROM required_weeks rw
@@ -1983,23 +2020,14 @@ func GetClinicianMissingRequiredReportsCount(ctx context.Context, db *sql.DB, em
 
 func GetClinicianPendingEntryWeeks(ctx context.Context, db *sql.DB, employeeID int) ([]ClinicianWeekOption, error) {
 	const sqlstr = `
-		WITH last_submitted AS (
-			SELECT MAX(date_trunc('week', w.start)::date) AS week_start
-			FROM clinician_app.weeklyreport w
-			WHERE w.employee = $1
-				AND COALESCE(w.submit_status, '') = 'Submitted'
-		),
-		employee_window AS (
+		WITH employee_window AS (
 			SELECT date_trunc('week', COALESCE(e.created_on, CURRENT_DATE::timestamp))::date AS created_week
 			FROM clinician_app.employees e
 			WHERE e.id = $1
 		),
 		bounds AS (
 			SELECT
-				COALESCE(
-					(SELECT (ls.week_start + INTERVAL '7 days')::date FROM last_submitted ls WHERE ls.week_start IS NOT NULL),
-					(SELECT ew.created_week FROM employee_window ew)
-				) AS start_week,
+				(SELECT ew.created_week FROM employee_window ew) AS start_week,
 				(date_trunc('week', CURRENT_DATE)::date - INTERVAL '7 days')::date AS end_week
 		),
 		candidate_weeks AS (

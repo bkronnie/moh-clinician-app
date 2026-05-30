@@ -38,6 +38,18 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/reports/analysis"><span class="nav-link-icon">{{ navIcon "reports" }}</span><span>Reports</span>{{ if $isClinician }}{{ if gt .NotifMyReports 0 }}<span class="nav-badge">{{ .NotifMyReports }}</span>{{ end }}{{ else }}{{ if gt .NotifPendingReports 0 }}<span class="nav-badge">{{ .NotifPendingReports }}</span>{{ end }}{{ end }}</a>
                 </li>
+                {{ if or $isManager $isAdmin }}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="analysisDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span class="nav-link-icon">{{ navIcon "analysis" }}</span><span>Analysis</span>
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="analysisDropdown">
+                        <a class="dropdown-item" href="/reports/analysis?status=facility_submitted">Facility Submissions</a>
+                        <a class="dropdown-item" href="/reports/analysis?status=submitted">Staff Submissions</a>
+                        <a class="dropdown-item" href="/reports/analysis?status=approved">Approved Reports</a>
+                    </div>
+                </li>
+                {{ end }}
                 {{ end }}
                 {{ if or $isClinician $isManager }}
                 <li class="nav-item">
@@ -87,14 +99,14 @@
                     <div class="dropdown-menu dropdown-menu-right account-menu" aria-labelledby="accountMenu">
                         <div class="account-menu-header">
                             <div class="account-menu-name">{{ $ses.FName }} {{ $ses.LName }}</div>
-                            {{ if $ses.Title }}<div class="account-menu-email">{{ $ses.Title }}</div>{{ end }}
+                            {{ if $isAdmin }}<div class="account-menu-email">National Admin</div>{{ else if $isManager }}<div class="account-menu-email">Facility Admin</div>{{ else if $isClinician }}<div class="account-menu-email">Staff</div>{{ end }}
                             {{ if $ses.Email }}<div class="account-menu-email">{{ $ses.Email }}</div>{{ end }}
                         </div>
                         <div class="account-menu-details">
                             <div class="account-detail-row">
-                                <span class="account-detail-label">Title</span>
+                                <span class="account-detail-label">Rights</span>
                                 <span class="account-detail-value">
-                                    {{ if $ses.Title }}{{ $ses.Title }}{{ else if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Staff{{ else }}User{{ end }}
+                                    {{ if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Staff{{ else }}User{{ end }}
                                 </span>
                             </div>
                             {{ if gt $ses.EmpID 0 }}
@@ -283,6 +295,7 @@
     <script src="/static/js/jquery-3.5.1.slim.min.js"></script>
     <script src="/static/js/popper.min.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/sortable.js"></script>
     <script>
     (() => {
         const path = window.location.pathname || "/";

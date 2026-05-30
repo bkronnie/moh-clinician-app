@@ -19,6 +19,7 @@ import (
 )
 
 type DashboardKPIView struct {
+	Group   string
 	Title   string
 	Value   int
 	Unit    string
@@ -475,12 +476,7 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 		ActiveTab:          activeTab,
 	}
 
-	view.Stats = []map[string]interface{}{
-		{"Title": "Scope", "Value": scopeSuffix, "Tone": "stat-primary"},
-		{"Title": "Facilities in Scope", "Value": snapshot.TotalFacilities, "Tone": "stat-info"},
-		{"Title": "Clinicians in Scope", "Value": snapshot.TotalClinicians, "Tone": "stat-primary"},
-		{"Title": "Reporting Rate", "Value": fmt.Sprintf("%d%%", snapshot.NationalReportingRate), "Tone": "stat-success"},
-	}
+	view.Stats = nil
 
 	view.TopFacilities = topFacilityPerformers(snapshot.FacilityPerformance, 5)
 	view.AttentionFacilities = facilitiesNeedingSupport(snapshot.FacilityPerformance, 5)
@@ -505,54 +501,77 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 
 	view.KPIs = []DashboardKPIView{
 		{
-			Title: "National Reporting Rate",
-			Value: snapshot.NationalReportingRate,
-			Unit:  "% reporting rate",
-			Meta:  selectedWeekLabel,
-		},
-		{
-			Title: "First-Pass Approval Rate",
-			Value: firstPassApprovalRate,
-			Unit:  "% approved first-pass",
-			Meta:  selectedWeekLabel,
-		},
-		{
+			Group: "Facility Reporting",
 			Title: "Facilities in Scope",
 			Value: snapshot.TotalFacilities,
 			Unit:  "facilities",
-			Meta:  "Filtered national view",
+			Meta:  scopeSuffix,
 		},
 		{
+			Group: "Facility Reporting",
+			Title: "Facility Reporting Rate",
+			Value: snapshot.NationalReportingRate,
+			Unit:  "% of facilities reporting",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Facility Reporting",
+			Title: "Facility Submissions",
+			Value: snapshot.TotalFacilitySubmissions,
+			Unit:  "submitted to national",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Facility Reporting",
+			Title: "Staff Submissions",
+			Value: snapshot.TotalStaffSubmissions,
+			Unit:  "submitted reports",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
 			Title: "Clinicians in Scope",
 			Value: snapshot.TotalClinicians,
 			Unit:  "clinicians",
 			Meta:  "Reporting population",
 		},
 		{
-			Title: "Reports Entered",
-			Value: snapshot.ReportsEnteredThisWeek,
-			Unit:  "entered reports",
-			Meta:  selectedWeekLabel,
-		},
-		{
-			Title: "Reports Submitted",
-			Value: snapshot.SubmittedThisWeek,
+			Group: "Staff Reporting",
+			Title: "Submissions",
+			Value: snapshot.TotalStaffSubmissions,
 			Unit:  "submitted reports",
 			Meta:  selectedWeekLabel,
 		},
 		{
+			Group: "Staff Reporting",
+			Title: "Approved",
+			Value: snapshot.TotalReportsApproved,
+			Unit:  "approved reports",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
 			Title: "Pending Approval",
 			Value: snapshot.PendingApproval,
-			Unit:  "submitted reports",
-			Meta:  "Awaiting approval",
+			Unit:  "awaiting approval",
+			Meta:  selectedWeekLabel,
 		},
 		{
+			Group: "Staff Reporting",
+			Title: "Staff Reporting Rate",
+			Value: firstPassApprovalRate,
+			Unit:  "% approved first-pass",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
 			Title: "Missing Submissions",
 			Value: pendingSubmission,
 			Unit:  "clinicians",
 			Meta:  "Still not submitted",
 		},
 		{
+			Group: "Staff Reporting",
 			Title: "Staff On Leave",
 			Value: onLeaveCount,
 			Unit:  "clinicians",
@@ -660,12 +679,7 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 		ActiveTab:          activeTab,
 	}
 
-	view.Stats = []map[string]interface{}{
-		{"Title": "Facility Reporting Rate", "Value": fmt.Sprintf("%d%%", reportingRate), "Tone": "stat-success"},
-		{"Title": "Clinicians in Scope", "Value": snapshot.TotalClinicians, "Tone": "stat-primary"},
-		{"Title": "Departments in Scope", "Value": len(snapshot.Departments), "Tone": "stat-info"},
-		{"Title": "Review Queue", "Value": reportSummary.PendingReports + leaveSummary.PendingLeaves, "Tone": "stat-warning"},
-	}
+	view.Stats = nil
 
 	view.KPIs = []DashboardKPIView{
 		{Title: "Facility Reporting Rate", Value: reportingRate, Unit: "% reporting rate", Meta: selectedWeekLabel},
@@ -1052,6 +1066,15 @@ func applyKPIDrilldowns(view *HomeViewModel) {
 			case "Clinicians in Scope", "First-Pass Approval Rate", "Staff On Leave":
 				kpi.Link = cliniciansURL
 				kpi.Tooltip = "Open nationwide clinician drill-down table"
+			case "Facility Submissions":
+				kpi.Link = buildReportSubmissionsURL(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "facility_submitted")
+				kpi.Tooltip = "View all facility submissions sent to national"
+			case "Staff Submissions", "Submissions":
+				kpi.Link = buildReportSubmissionsURL(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "submitted")
+				kpi.Tooltip = "View all staff report submissions"
+			case "Approved":
+				kpi.Link = buildReportSubmissionsURL(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "approved")
+				kpi.Tooltip = "View all approved staff reports"
 			case "Reports Entered", "Reports Submitted":
 				kpi.Link = buildReportSubmissionsURL(view.SelectedFacility, view.SelectedDepartment, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "all")
 				kpi.Tooltip = "Open report submissions table"
@@ -2042,8 +2065,22 @@ func resolveNationalDashboardPeriod(c *gin.Context, db *sql.DB, requestedYear in
 	}
 
 	latestStart := periods[0]
-	defaultYear, defaultWeek := latestStart.ISOWeek()
-	defaultMonth := int(latestStart.Month())
+	latestYear, latestWeek := latestStart.ISOWeek()
+	latestMonth := int(latestStart.Month())
+
+	// Default the dashboard to "All records" so visuals reflect the entire
+	// dataset on first load. The user can narrow down via the filter controls.
+	// When the request supplies any period query param we fall back to the
+	// latest-week defaults so partial filter combinations still resolve.
+	anyPeriodRequested := hasYear || hasMonth || hasWeek
+	defaultYear := 0
+	defaultMonth := 0
+	defaultWeek := 0
+	if anyPeriodRequested {
+		defaultYear = latestYear
+		defaultMonth = latestMonth
+		defaultWeek = latestWeek
+	}
 
 	yearSeen := map[int]bool{}
 	availableYears := []int{0}
@@ -2157,7 +2194,7 @@ func resolveNationalDashboardPeriod(c *gin.Context, db *sql.DB, requestedYear in
 			selectedWeek = 0
 		}
 	}
-	if !hasWeek {
+	if !hasWeek && anyPeriodRequested {
 		if selectedYear == defaultYear && selectedMonth == defaultMonth {
 			selectedWeek = defaultWeek
 			selectedWeekOption, ok = resolveWeekSelectionLocal(availableWeeks[1:], selectedWeek)

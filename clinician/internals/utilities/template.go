@@ -61,6 +61,18 @@ var functions = template.FuncMap{
 	"hasRole":           HasRole,
 	"toJSON":            ToJSON,
 	"navIcon":           NavIcon,
+	"isoYear":           ISOYear,
+	"isoWeek":           ISOWeek,
+}
+
+func ISOYear(t time.Time) int {
+	y, _ := t.ISOWeek()
+	return y
+}
+
+func ISOWeek(t time.Time) int {
+	_, w := t.ISOWeek()
+	return w
 }
 
 func HumanDate(t time.Time) string {

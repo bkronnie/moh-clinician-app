@@ -64,11 +64,12 @@
                     <th>SN</th>
                     <th>Staff Name</th>
                     <th>Title</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody id="bulkTableBody">
                 <tr>
-                    <td colspan="3" class="text-center text-muted">Select a department and click Load Staff.</td>
+                    <td colspan="4" class="text-center text-muted">Select a department and click Load Staff.</td>
                 </tr>
             </tbody>
         </table>
@@ -115,28 +116,46 @@
     };
 
     const renderTable = (staff, dataPoints) => {
-        let headers = '<th>SN</th><th>Staff Name</th><th>Title</th>';
+        let headers = '<th>SN</th><th>Staff Name</th><th>Title</th><th>Status</th>';
         dataPoints.forEach((point) => {
             headers += `<th>${point.label}</th>`;
         });
         headersRow.innerHTML = headers;
 
         if (!staff || staff.length === 0) {
-            renderEmpty('No active staff records found for the selected department and week.', dataPoints.length + 3);
+            renderEmpty('No active staff records found for the selected department and week.', dataPoints.length + 4);
             return;
         }
 
         let rows = '';
+        let anyEditable = false;
         staff.forEach((member, index) => {
             const title = (member.title || '').trim() || 'Not set';
-            rows += `<tr><td>${index + 1}</td><td>${member.name}</td><td>${title}</td>`;
+            const applicable = new Set(member.applicableKeys || []);
+            const values = member.values || {};
+            const editable = member.editable !== false;
+            const statusLabel = (member.statusLabel || '').trim() || (editable ? 'New' : '\u2014');
+            const rowClass = editable ? '' : ' class="table-secondary text-muted"';
+            if (editable) {
+                anyEditable = true;
+            }
+            rows += `<tr${rowClass}><td>${index + 1}</td><td>${member.name}</td><td>${title}</td><td>${statusLabel}</td>`;
             dataPoints.forEach((point) => {
-                rows += `<td><input type="number" min="0" step="1" name="input[${member.employeeID}][${point.key}]" class="form-control form-control-sm" /></td>`;
+                const applies = applicable.has(point.key);
+                const hasValue = Object.prototype.hasOwnProperty.call(values, point.key);
+                const valueAttr = hasValue ? ` value="${values[point.key]}"` : '';
+                if (!applies) {
+                    rows += `<td class="bg-light text-center text-muted" title="Not applicable for this department">&mdash;</td>`;
+                } else if (!editable) {
+                    rows += `<td><input type="number" min="0" step="1" disabled${valueAttr} class="form-control form-control-sm" /></td>`;
+                } else {
+                    rows += `<td><input type="number" min="0" step="1" name="input[${member.employeeID}][${point.key}]"${valueAttr} class="form-control form-control-sm" /></td>`;
+                }
             });
             rows += '</tr>';
         });
         body.innerHTML = rows;
-        saveButton.disabled = false;
+        saveButton.disabled = !anyEditable;
     };
 
     loadButton.addEventListener('click', async () => {
@@ -165,13 +184,13 @@
             const staff = Array.isArray(payload.staff) ? payload.staff : [];
             const dataPoints = Array.isArray(payload.dataPoints) ? payload.dataPoints : [];
             if (dataPoints.length === 0) {
-                renderEmpty('No data points are configured for this department.', 3);
-                headersRow.innerHTML = '<th>SN</th><th>Staff Name</th><th>Title</th>';
+                renderEmpty('No data points are configured for this department.', 4);
+                headersRow.innerHTML = '<th>SN</th><th>Staff Name</th><th>Title</th><th>Status</th>';
                 return;
             }
             renderTable(staff, dataPoints);
         } catch (error) {
-            renderEmpty('Error loading data. Please try again.', 3);
+            renderEmpty('Error loading data. Please try again.', 4);
         }
     });
 
