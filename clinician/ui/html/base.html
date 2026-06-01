@@ -58,7 +58,7 @@
                 {{ end }}
                 {{ if $isManager }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
+                    <a class="nav-link" href="/reports/entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                 </li>
                 {{ end }}
                 {{ if $isClinician }}
@@ -151,7 +151,7 @@
                     <a class="nav-link" href="/reports/new/0"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>My Data Entry</span><span class="nav-badge {{ if eq .NotifMyDataState "current" }}nav-badge--current{{ else }}nav-badge--overdue{{ end }}">{{ if eq .NotifMyDataState "current" }}Current{{ else }}Overdue{{ if gt .NotifMyDataEntry 0 }} ({{ .NotifMyDataEntry }}){{ end }}{{ end }}</span></a>
                     {{ end }}
                     {{ if $isManager }}
-                    <a class="nav-link" href="/reports/bulk"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
+                    <a class="nav-link" href="/reports/entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                     {{ end }}
                     {{ if $isClinician }}
                     <a class="nav-link" href="/leave/form"><span class="nav-link-icon">{{ navIcon "leave" }}</span><span>Office Leave</span>{{ if gt .NotifMyLeave 0 }}<span class="nav-badge">{{ .NotifMyLeave }}</span>{{ end }}</a>
@@ -192,7 +192,7 @@
                         {{ end }}
                         {{ if $isManager }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/reports/bulk" data-tooltip="Bulk Entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
+                            <a class="nav-link" href="/reports/entry" data-tooltip="Bulk Entry"><span class="nav-link-icon">{{ navIcon "entry" }}</span><span>Bulk Entry</span></a>
                         </li>
                         {{ end }}
                         {{ if $isClinician }}

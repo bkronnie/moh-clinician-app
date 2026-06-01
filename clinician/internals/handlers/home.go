@@ -523,6 +523,13 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 		},
 		{
 			Group: "Facility Reporting",
+			Title: "Facility Submissions Pending Approval",
+			Value: snapshot.PendingApproval,
+			Unit:  "awaiting approval",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Facility Reporting",
 			Title: "Staff Submissions",
 			Value: snapshot.TotalStaffSubmissions,
 			Unit:  "submitted reports",
@@ -551,24 +558,10 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 		},
 		{
 			Group: "Staff Reporting",
-			Title: "Pending Approval",
-			Value: snapshot.PendingApproval,
-			Unit:  "awaiting approval",
-			Meta:  selectedWeekLabel,
-		},
-		{
-			Group: "Staff Reporting",
 			Title: "Staff Reporting Rate",
 			Value: firstPassApprovalRate,
 			Unit:  "% approved first-pass",
 			Meta:  selectedWeekLabel,
-		},
-		{
-			Group: "Staff Reporting",
-			Title: "Missing Submissions",
-			Value: pendingSubmission,
-			Unit:  "clinicians",
-			Meta:  "Still not submitted",
 		},
 		{
 			Group: "Staff Reporting",
