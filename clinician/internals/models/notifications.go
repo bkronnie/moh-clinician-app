@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 // EnsureLeaveSchema adds the reviewed_on column to staffleave if it doesn't exist.
@@ -136,6 +137,22 @@ func GetPendingLeaveCount(ctx context.Context, db DB, facilityID int64) (int, er
 	return count, nil
 }
 
+// GetFacilitySubmissionsPendingApprovalCount returns the number of distinct (facility, week)
+// pairs where the facility has submitted to national level but has not yet been nationally reviewed.
+func GetFacilitySubmissionsPendingApprovalCount(ctx context.Context, db DB) (int, error) {
+	var count int
+	err := db.QueryRowContext(ctx, `
+		SELECT COUNT(DISTINCT (w.hospital, w.start))
+		FROM clinician_app.weeklyreport w
+		WHERE COALESCE(w.national_submission_status, '') = 'Submitted'
+		  AND COALESCE(w.national_review_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+	`).Scan(&count)
+	if err != nil {
+		return 0, nil
+	}
+	return count, nil
+}
+
 // GetPendingReportCount returns the count of submitted-but-unreviewed reports.
 // Pass facilityID = 0 to count nationally (for admin).
 func GetPendingReportCount(ctx context.Context, db DB, facilityID int64) (int, error) {
@@ -227,6 +244,31 @@ func GetMyRecentReportUpdates(ctx context.Context, db DB, empID int64) (int, err
 			)
 		  )
 	`, empID).Scan(&count)
+	if err != nil {
+		return 0, nil
+	}
+	return count, nil
+}
+
+// GetMyReportUpdatesSince returns reviewed report updates for an employee
+// at or after the supplied timestamp.
+func GetMyReportUpdatesSince(ctx context.Context, db DB, empID int64, since time.Time) (int, error) {
+	var count int
+	err := db.QueryRowContext(ctx, `
+		SELECT COUNT(DISTINCT w.id)
+		FROM clinician_app.weeklyreport w
+		WHERE w.employee = $1
+		  AND (
+			(
+				COALESCE(w.report_status, '') IN ('Approved', 'Rejected', 'Declined')
+				AND COALESCE(w.facility_reviewed_on, w.last_updated_on, w.created_on) >= $2
+			)
+			OR (
+				COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined')
+				AND COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) >= $2
+			)
+		  )
+	`, empID, since).Scan(&count)
 	if err != nil {
 		return 0, nil
 	}

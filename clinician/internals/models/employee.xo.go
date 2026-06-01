@@ -713,23 +713,24 @@ func GetDashboardData(db *sql.DB, facilityID int) (DashboardData, error) {
 		return data, err
 	}
 
-	// Query to count staff on leave (leave_status = 'Valid') filtered by facilityID
+	// Query to count staff on leave in scope. facilityID=0 means nationwide.
 	queryLeave := `
 		SELECT COUNT(*)
 		FROM clinician_app.staffleave_view s
 		INNER JOIN clinician_app.employees e ON s.employee_id = e.id
-		WHERE e.facility = $1 AND s.leave_status IN ('Valid', 'Approved')
+		WHERE ($1 = 0 OR e.facility = $1)
+		  AND s.leave_status IN ('Valid', 'Approved')
 	`
 	err = db.QueryRow(queryLeave, facilityID).Scan(&staffOnLeave)
 	if err != nil {
 		return data, err
 	}
 
-	// Query to count total staff filtered by facilityID
+	// Query to count total staff in scope. facilityID=0 means nationwide.
 	queryTotal := `
 		SELECT COUNT(*)
 		FROM clinician_app.employees e
-		WHERE e.facility = $1
+		WHERE ($1 = 0 OR e.facility = $1)
 	`
 	err = db.QueryRow(queryTotal, facilityID).Scan(&totalStaff)
 	if err != nil {

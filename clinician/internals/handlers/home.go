@@ -379,9 +379,19 @@ func Get_Session_Data(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMan
 			}
 		case utilities.RoleNationalAdmin:
 			data.NotifPendingReports, _ = models.GetPendingReportCount(ctx, db, 0)
+			data.NotifFacilitySubmissions, _ = models.GetFacilitySubmissionsPendingApprovalCount(ctx, db)
 		case utilities.RoleStaff:
 			data.NotifMyLeave, _ = models.GetMyRecentLeaveUpdates(ctx, db, ses.EmpID)
-			data.NotifMyReports, _ = models.GetMyRecentReportUpdates(ctx, db, ses.EmpID)
+			lastSeenRaw := strings.TrimSpace(sessionManager.GetString(c.Request.Context(), "reports_analysis_seen_at"))
+			if lastSeenRaw != "" {
+				if lastSeenAt, parseErr := time.Parse(time.RFC3339Nano, lastSeenRaw); parseErr == nil {
+					data.NotifMyReports, _ = models.GetMyReportUpdatesSince(ctx, db, ses.EmpID, lastSeenAt)
+				} else {
+					data.NotifMyReports, _ = models.GetMyRecentReportUpdates(ctx, db, ses.EmpID)
+				}
+			} else {
+				data.NotifMyReports, _ = models.GetMyRecentReportUpdates(ctx, db, ses.EmpID)
+			}
 			missingReports, _ := models.GetClinicianMissingRequiredReportsCount(ctx, db, int(ses.EmpID))
 			data.NotifMyDataEntry = missingReports
 			if missingReports > 0 {
@@ -498,6 +508,10 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 	view.PriorityClinicians = priorityClinicians(clinicianAnalysis, 5)
 	approvedCount, declinedCount, onLeaveCount := summarizeClinicianStatus(clinicianAnalysis)
 	firstPassApprovalRate := percentage(approvedCount, approvedCount+declinedCount)
+	approvedFacilityReports := snapshot.TotalFacilitySubmissions - snapshot.PendingApproval
+	if approvedFacilityReports < 0 {
+		approvedFacilityReports = 0
+	}
 
 	view.KPIs = []DashboardKPIView{
 		{
@@ -530,9 +544,9 @@ func buildNationalHome(c *gin.Context, db *sql.DB, selectedFacilityID int, selec
 		},
 		{
 			Group: "Facility Reporting",
-			Title: "Staff Submissions",
-			Value: snapshot.TotalStaffSubmissions,
-			Unit:  "submitted reports",
+			Title: "Approved Facility Reports",
+			Value: approvedFacilityReports,
+			Unit:  "approved facility reports",
 			Meta:  selectedWeekLabel,
 		},
 		{
@@ -624,8 +638,7 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 		return HomeViewModel{}, err
 	}
 
-	reportSummary, err := models.GetFacilityReportReviewSummary(c.Request.Context(), db, int64(facilityID))
-	if err != nil {
+	if _, err := models.GetFacilityReportReviewSummary(c.Request.Context(), db, int64(facilityID)); err != nil {
 		return HomeViewModel{}, err
 	}
 	leaveSummary, err := models.GetFacilityLeaveReviewSummary(c.Request.Context(), db, int64(facilityID), int64(selectedDepartmentID), selectedYear, selectedMonth, selectedWeek)
@@ -639,7 +652,6 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 	}
 
 	reportingRate := percentage(snapshot.SubmittedThisWeek, snapshot.TotalClinicians)
-	departmentSummary := summarizeDepartmentAnalysis(departmentAnalysis)
 	scopeLabel := facilityName
 	if selectedDepartmentID > 0 {
 		for _, option := range departmentOptions {
@@ -674,18 +686,96 @@ func buildFacilityManagerHome(c *gin.Context, db *sql.DB, facilityID int, facili
 
 	view.Stats = nil
 
+	_, _, onLeaveCount := summarizeClinicianStatus(clinicianAnalysis)
+
 	view.KPIs = []DashboardKPIView{
-		{Title: "Facility Reporting Rate", Value: reportingRate, Unit: "% reporting rate", Meta: selectedWeekLabel},
-		{Title: "Reports Entered", Value: snapshot.ReportsEnteredThisWeek, Unit: "entered reports", Meta: selectedWeekLabel},
-		{Title: "Reports Submitted", Value: snapshot.SubmittedThisWeek, Unit: "submitted reports", Meta: selectedWeekLabel},
-		{Title: "Pending Submission", Value: snapshot.PendingSubmission, Unit: "clinicians", Meta: "Still not submitted"},
-		{Title: "Pending Report Approvals", Value: reportSummary.PendingReports, Unit: "reports", Meta: "Current review queue", Link: buildReportSubmissionsURL(0, 0, selectedYear, selectedMonth, selectedWeek, "pending")},
-		{Title: "First-Pass Approval Rate", Value: percentage(reportSummary.ApprovedReports, reportSummary.ApprovedReports+reportSummary.DeclinedReports), Unit: "% approved first-pass", Meta: selectedWeekLabel},
-		{Title: "Staff On Leave", Value: countCliniciansOnLeave(clinicianAnalysis), Unit: "clinicians", Meta: "Current leave status"},
-		{Title: "Pending Leave Requests", Value: leaveSummary.PendingLeaves, Unit: "leave requests", Meta: "Current review queue", Link: buildFacilityLeaveReviewURL("pending", selectedDepartmentID, selectedYear, selectedMonth, selectedWeek)},
-		{Title: "Ward Rounds", Value: departmentSummary.WardRounds, Unit: "rounds", Meta: selectedWeekLabel},
-		{Title: "Patients Reviewed", Value: departmentSummary.PatientsReviewed, Unit: "patients", Meta: selectedWeekLabel},
-		{Title: "Procedures", Value: departmentSummary.Procedures, Unit: "procedures", Meta: selectedWeekLabel},
+		// Facility Reporting group — national-facing metrics for this facility
+		{
+			Group: "Facility Reporting",
+			Title: "Staff Reporting Rate",
+			Value: reportingRate,
+			Unit:  "% of staff submitted",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Facility Reporting",
+			Title: "Pending Staff Submission",
+			Value: snapshot.PendingSubmission,
+			Unit:  "clinicians",
+			Meta:  "Still not submitted",
+		},
+		{
+			Group: "Facility Reporting",
+			Title: "Facility Submissions",
+			Value: snapshot.FacilitySubmissions,
+			Unit:  "batches submitted to national",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Facility Reporting",
+			Title: "Pending National Approval",
+			Value: snapshot.FacilitySubmissionsPending,
+			Unit:  "awaiting national review",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Facility Reporting",
+			Title: "Approved Facility Reports",
+			Value: snapshot.FacilitySubmissionsApproved,
+			Unit:  "approved by national",
+			Meta:  selectedWeekLabel,
+		},
+		// Staff Reporting group — individual staff metrics
+		{
+			Group: "Staff Reporting",
+			Title: "Clinicians",
+			Value: snapshot.TotalClinicians,
+			Unit:  "clinicians",
+			Meta:  "Reporting population",
+		},
+		{
+			Group: "Staff Reporting",
+			Title: "Reports Entered",
+			Value: snapshot.ReportsEnteredThisWeek,
+			Unit:  "entered reports",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
+			Title: "Submissions",
+			Value: snapshot.TotalStaffSubmissions,
+			Unit:  "submitted reports",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
+			Title: "Approved",
+			Value: snapshot.TotalStaffApproved,
+			Unit:  "approved reports",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
+			Title: "First-Pass Approval Rate",
+			Value: percentage(snapshot.TotalStaffApproved, snapshot.TotalStaffApproved+snapshot.TotalStaffDeclined),
+			Unit:  "% approved first-pass",
+			Meta:  selectedWeekLabel,
+		},
+		{
+			Group: "Staff Reporting",
+			Title: "Staff On Leave",
+			Value: onLeaveCount,
+			Unit:  "clinicians",
+			Meta:  "Current leave status",
+		},
+		{
+			Group: "Staff Reporting",
+			Title: "Pending Leave Requests",
+			Value: leaveSummary.PendingLeaves,
+			Unit:  "leave requests",
+			Meta:  "Current review queue",
+			Link:  buildFacilityLeaveReviewURL("pending", selectedDepartmentID, selectedYear, selectedMonth, selectedWeek),
+		},
 	}
 
 	view.TopDepartments = topDepartments(departmentAnalysis, 5)
@@ -761,25 +851,11 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 			Link:  buildReportHistoryPeriodFilterQuery("all", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
-			Title: "Submitted",
-			Value: snapshot.SubmittedReports,
-			Unit:  "reports",
-			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-			Link:  buildReportHistoryPeriodFilterQuery("submitted", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
-		},
-		{
 			Title: "Approved",
 			Value: snapshot.ApprovedReports,
 			Unit:  "reports",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
 			Link:  buildReportHistoryPeriodFilterQuery("approved", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
-		},
-		{
-			Title: "Declined",
-			Value: snapshot.DeclinedReports,
-			Unit:  "reports",
-			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-			Link:  buildReportHistoryPeriodFilterQuery("declined", snapshot.SelectedYear, snapshot.SelectedMonth, snapshot.SelectedWeek),
 		},
 		{
 			Title: "Submission Progress",
@@ -788,27 +864,9 @@ func buildClinicianHome(c *gin.Context, db *sql.DB, employeeID int, facilityName
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
 		},
 		{
-			Title: "First-Pass Approval Rate",
-			Value: percentage(snapshot.ApprovedReports, snapshot.ApprovedReports+snapshot.DeclinedReports),
-			Unit:  "% approved first-pass",
-			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-		},
-		{
 			Title: "Days Worked",
 			Value: snapshot.DaysWorked,
 			Unit:  "days",
-			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-		},
-		{
-			Title: "Patients per Day",
-			Value: ratioPerUnit(snapshot.PatientsReviewed, snapshot.DaysWorked),
-			Unit:  "patients/day",
-			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
-		},
-		{
-			Title: "Procedures per Day",
-			Value: ratioPerUnit(snapshot.Procedures, snapshot.DaysWorked),
-			Unit:  "procedures/day",
 			Meta:  addReportPeriodSuffix(snapshot.SelectedWeekLabel),
 		},
 		{
@@ -1062,6 +1120,9 @@ func applyKPIDrilldowns(view *HomeViewModel) {
 			case "Facility Submissions":
 				kpi.Link = buildReportSubmissionsURL(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "facility_submitted")
 				kpi.Tooltip = "View all facility submissions sent to national"
+			case "Approved Facility Reports":
+				kpi.Link = buildReportSubmissionsURL(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "facility_submitted")
+				kpi.Tooltip = "View facility submissions sent to national"
 			case "Staff Submissions", "Submissions":
 				kpi.Link = buildReportSubmissionsURL(0, 0, view.SelectedYear, view.SelectedMonth, view.SelectedWeek, "submitted")
 				kpi.Tooltip = "View all staff report submissions"
@@ -1384,7 +1445,6 @@ func buildClinicianPeriodSummarySection(view HomeViewModel) DashboardSummarySect
 					{Label: "Attendance Rate", Value: findStatValue(view.Stats, "Attendance Rate")},
 					{Label: "Submission Progress", Value: findStatValue(view.Stats, "Submission Progress")},
 					{Label: "Total Reports", Value: findKPIValue(view.KPIs, "Total Reports")},
-					{Label: "Submitted", Value: findKPIValue(view.KPIs, "Submitted")},
 					{Label: "Ward Rounds", Value: findKPIValue(view.KPIs, "Ward Rounds")},
 					{Label: "Patients Reviewed", Value: findKPIValue(view.KPIs, "Patients Reviewed")},
 					{Label: "Procedures", Value: findKPIValue(view.KPIs, "Procedures")},
@@ -1405,9 +1465,7 @@ func buildClinicianBenchmarkSection(view HomeViewModel) DashboardDetailSectionVi
 				Subtitle: "Submission quality and reporting outcome indicators.",
 				Metrics: []DashboardMetricView{
 					{Label: "Total Reports", Value: findKPIValue(view.KPIs, "Total Reports")},
-					{Label: "Submitted", Value: findKPIValue(view.KPIs, "Submitted")},
 					{Label: "Approved", Value: findKPIValue(view.KPIs, "Approved")},
-					{Label: "Declined", Value: findKPIValue(view.KPIs, "Declined")},
 					{Label: "Submission Progress", Value: findStatValue(view.Stats, "Submission Progress")},
 				},
 			},

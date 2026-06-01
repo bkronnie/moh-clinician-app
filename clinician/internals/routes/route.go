@@ -37,6 +37,7 @@ func SetupRoutes(router *gin.Engine, db *sql.DB, sessionManager *scs.SessionMana
 
 		// additional routes
 		RouteReports(protected, db, sessionManager)
+		RouteAnalysis(protected, db, sessionManager)
 		RouteFacilities(protected, db, sessionManager)
 		RouteDepartment(protected, db, sessionManager)
 		RouteCustomization(protected, db, sessionManager)
@@ -98,6 +99,14 @@ func RouteReports(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionMan
 		approverOnly.POST("/analysis/approve-all", func(c *gin.Context) { handlers.HandlerReportSubmissionApproveAll(c, db, sessionManager) })
 	}
 
+}
+
+func RouteAnalysis(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {
+	v := r.Group("/analysis")
+	v.Use(middleware.RequireRoles(db, sessionManager, "National Admin", "Facility Admin"))
+	{
+		v.GET("/tables", func(c *gin.Context) { handlers.HandlerAnalysisTables(c, db, sessionManager) })
+	}
 }
 
 func RouteFacilities(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManager) {

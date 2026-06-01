@@ -17,10 +17,11 @@ import (
 )
 
 type LeaveFormView struct {
-	IsEdit      bool
-	ActionURL   string
-	SubmitLabel string
-	Leave       *models.LeaveHistory
+	IsEdit       bool
+	ActionURL    string
+	SubmitLabel  string
+	MinStartDate string
+	Leave        *models.LeaveHistory
 }
 
 type LeaveHistoryView struct {
@@ -244,16 +245,6 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 
 	activeTab := normalizeEmployeeTab(c.DefaultQuery("tab", "dashboard"))
 	selectedFacilityInt, _ := parseOptionalIntQuery(c, "facility")
-	if selectedFacilityInt <= 0 {
-		if parsedFacilityID, ok := parseOptionalIntQuery(c, "facilityID"); ok {
-			selectedFacilityInt = parsedFacilityID
-		}
-	}
-	if selectedFacilityInt <= 0 {
-		if parsedFacilityID, ok := parseOptionalIntQuery(c, "facility_id"); ok {
-			selectedFacilityInt = parsedFacilityID
-		}
-	}
 	selectedDepartmentInt, _ := parseOptionalIntQuery(c, "department")
 	selectedFacility := int64(selectedFacilityInt)
 	selectedDepartment := int64(selectedDepartmentInt)
@@ -290,6 +281,8 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 	if err != nil {
 		log.Printf("Error retrieving employee directory: %v", err)
 		employees = nil
+	} else {
+		log.Printf("employee list tab=%s facility=%d department=%d search=%q rows=%d", activeTab, selectedFacility, selectedDepartment, searchTerm, len(employees))
 	}
 
 	onDutyEmployees, err := models.Employees(c.Request.Context(), db, selectedFacility, "on_duty", selectedDepartment, searchTerm, 0)
@@ -388,8 +381,9 @@ func HandlerEmployeeLeaveForm(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 	}
 
 	formView := LeaveFormView{
-		ActionURL:   "/leave/save",
-		SubmitLabel: "Submit Leave Request",
+		ActionURL:    "/leave/save",
+		SubmitLabel:  "Submit Leave Request",
+		MinStartDate: time.Now().In(time.Local).Format("2006-01-02"),
 	}
 
 	if utilities.RoleMatches(sesDetails.Rights, "National Admin") || utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
@@ -473,6 +467,15 @@ func HandlerEmployeeLeaveSave(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 		return
 	}
 
+	if utilities.RoleMatches(sesDetails.Rights, "Staff") {
+		today := time.Now().In(time.Local)
+		today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+		if startDate.Before(today) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Start date cannot be before today"})
+			return
+		}
+	}
+
 	// Assign values to leave object
 	leave.EmpID.Int64 = employeeID
 	leave.EmpID.Valid = true
@@ -534,10 +537,11 @@ func HandlerEmployeeLeaveEditForm(c *gin.Context, db *sql.DB, sessionManager *sc
 	}
 
 	formView := LeaveFormView{
-		IsEdit:      true,
-		ActionURL:   fmt.Sprintf("/leave/update/%d", leave.ID),
-		SubmitLabel: "Update Leave Request",
-		Leave:       leave,
+		IsEdit:       true,
+		ActionURL:    fmt.Sprintf("/leave/update/%d", leave.ID),
+		SubmitLabel:  "Update Leave Request",
+		MinStartDate: time.Now().In(time.Local).Format("2006-01-02"),
+		Leave:        leave,
 	}
 
 	data := Get_Session_Data(c, db, sessionManager, formView)
@@ -592,6 +596,13 @@ func HandlerEmployeeLeaveUpdate(c *gin.Context, db *sql.DB, sessionManager *scs.
 
 	if endDate.Before(startDate) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "End date cannot be before start date"})
+		return
+	}
+
+	today := time.Now().In(time.Local)
+	today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	if startDate.Before(today) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Start date cannot be before today"})
 		return
 	}
 

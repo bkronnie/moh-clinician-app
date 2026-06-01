@@ -2752,3 +2752,167 @@ table.table,
     margin: 0 0 .35rem;
     font-style: italic;
 }
+
+/* ── Mobile enhancements ────────────────────────────────────────────────── */
+
+/* Bottom navigation bar — hidden by default, shown on phones only */
+.mobile-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    /* Replace the quick-access strip with the bottom nav on phones */
+    .mobile-sidebar {
+        display: none !important;
+    }
+
+    /* Fixed bottom tab bar */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid var(--app-border);
+        box-shadow: 0 -4px 18px rgba(13, 43, 51, 0.09);
+        padding: 0.3rem 0.25rem calc(0.3rem + env(safe-area-inset-bottom, 0px));
+        justify-content: space-around;
+        gap: 0;
+    }
+
+    .mobile-bottom-nav-item {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.18rem;
+        flex: 1;
+        padding: 0.35rem 0.25rem !important;
+        border-radius: 12px;
+        color: var(--app-text-soft) !important;
+        font-size: 0.63rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-decoration: none;
+        min-height: 52px;
+        position: relative;
+        transition: color 0.18s ease, background 0.18s ease;
+    }
+
+    .mobile-bottom-nav-item .nav-link-icon {
+        width: 1.85rem;
+        height: 1.85rem;
+    }
+
+    .mobile-bottom-nav-item.active {
+        color: var(--app-primary) !important;
+        background: var(--app-primary-soft);
+    }
+
+    .mobile-bottom-nav-item.active .nav-link-icon,
+    .mobile-bottom-nav-item:hover .nav-link-icon {
+        color: var(--app-primary);
+        border-color: rgba(21, 107, 122, 0.22);
+        background: linear-gradient(180deg, rgba(220, 239, 242, 0.96), rgba(255, 255, 255, 0.98));
+    }
+
+    /* Badge inside bottom nav item */
+    .mobile-nav-badge {
+        position: absolute;
+        top: 0.25rem;
+        right: calc(50% - 1.2rem);
+        background: #c83b2e;
+        color: #fff;
+        font-size: 0.58rem;
+        font-weight: 700;
+        border-radius: 999px;
+        min-width: 1rem;
+        height: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.18rem;
+        line-height: 1;
+    }
+
+    /* Clearance so content isn't hidden under the fixed bar */
+    .app-footer {
+        margin-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* ── Form inputs: prevent iOS auto-zoom (needs >= 16px) ── */
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    input[type="search"],
+    select,
+    textarea,
+    .form-control {
+        font-size: 16px !important;
+    }
+
+    /* ── Touch targets: 44px minimum ── */
+    .btn {
+        min-height: 44px;
+    }
+
+    /* ── Entry form panel: tighter padding on phone ── */
+    .entry-form-panel {
+        padding: 1rem 0.9rem;
+    }
+
+    /* ── Entry actions: stack vertically, full-width buttons ── */
+    .entry-actions {
+        flex-direction: column;
+    }
+
+    .entry-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* ── Days-worked dropdown: larger tap targets ── */
+    .days-worked-item {
+        min-height: 40px;
+    }
+
+    .days-worked-menu {
+        max-height: 280px;
+    }
+
+    /* ── Filter forms: stack vertically ── */
+    .submissions-filters,
+    .dashboard-filter-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Very small phones: single-column data entry grid */
+    .entry-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* KPI cards: 2 columns is still readable, keep as-is but
+       ensure they don't shrink below a legible width */
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Summary/analysis grids: single column */
+    .summary-row,
+    .analysis-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Navbar brand: hide subtitle on tiny screens */
+    .brand-copy small {
+        display: none;
+    }
+}

@@ -14,20 +14,21 @@ import (
 )
 
 type TemplateData struct {
-	CurrentYear         int
-	Form                any
-	Ses                 any
-	Items               []interface{}
-	Optionz             map[string]map[string]string
-	Flash               string
-	IsAuthenticated     bool
-	CSRFToken           string // Add a CSRFToken field.
-	NotifPendingLeave   int    // for managers: pending leave requests
-	NotifPendingReports int    // for managers/admin: pending reports
-	NotifMyLeave        int    // for clinicians: recently reviewed leave
-	NotifMyReports      int    // for clinicians: recently reviewed reports
-	NotifMyDataEntry    int    // for clinicians: pending reminder for last-week submission
-	NotifMyDataState    string // "overdue" or "current" for the nav indicator
+	CurrentYear              int
+	Form                     any
+	Ses                      any
+	Items                    []interface{}
+	Optionz                  map[string]map[string]string
+	Flash                    string
+	IsAuthenticated          bool
+	CSRFToken                string // Add a CSRFToken field.
+	NotifPendingLeave        int    // for managers: pending leave requests
+	NotifPendingReports      int    // for managers/admin: pending reports
+	NotifFacilitySubmissions int    // for national admin: facility submissions pending national approval
+	NotifMyLeave             int    // for clinicians: recently reviewed leave
+	NotifMyReports           int    // for clinicians: recently reviewed reports
+	NotifMyDataEntry         int    // for clinicians: pending reminder for last-week submission
+	NotifMyDataState         string // "overdue" or "current" for the nav indicator
 }
 
 type SessionDetails struct {
@@ -329,6 +330,7 @@ func NavIcon(name string) template.HTML {
 		"customization": `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h0a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5h0a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v0a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1z"></path></svg>`,
 		"submissions":   `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><rect x="4" y="17" width="16" height="4" rx="1.5"></rect></svg>`,
 		"logout":        `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>`,
+		"table":         `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18"></path><path d="M9 4v16"></path></svg>`,
 	}
 
 	if icon, ok := icons[name]; ok {

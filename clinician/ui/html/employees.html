@@ -81,11 +81,11 @@ Staff Management
             </div>
             <div class="employee-card">
                 <h4>Active leave</h4>
-                <span>{{ .Form.Dashboard.TotalLeave }}</span>
+                <span>{{ .Form.Dashboard.StaffOnLeave }}</span>
             </div>
             <div class="employee-card">
                 <h4>Current on duty</h4>
-                <span>{{ .Form.Dashboard.TotalOnDuty }}</span>
+                <span>{{ .Form.Dashboard.StaffPresent }}</span>
             </div>
             <div class="employee-card">
                 <h4>Facilities</h4>
@@ -121,11 +121,11 @@ Staff Management
             {{ end }}
         </div>
         {{ else if eq .Form.ActiveTab "list" }}
-        {{ template "employeeTable" .Form.Employees }}
+        {{ template "employeeTable" (dict "Employees" .Form.Employees "CurrentURL" .Form.CurrentURL) }}
         {{ else if eq .Form.ActiveTab "on_duty" }}
-        {{ template "employeeTable" .Form.OnDuty }}
+        {{ template "employeeTable" (dict "Employees" .Form.OnDuty "CurrentURL" .Form.CurrentURL) }}
         {{ else if eq .Form.ActiveTab "on_leave" }}
-        {{ template "employeeTable" .Form.OnLeave }}
+        {{ template "employeeTable" (dict "Employees" .Form.OnLeave "CurrentURL" .Form.CurrentURL) }}
         {{ end }}
     </div>
 </div>
@@ -141,8 +141,8 @@ Staff Management
         <div>Status</div>
         <div>Actions</div>
     </div>
-    {{ if . }}
-        {{ range $employee := . }}
+    {{ if .Employees }}
+        {{ range $employee := .Employees }}
         <div class="app-list-grid-row">
             <div class="app-list-cell">
                 <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
@@ -160,7 +160,7 @@ Staff Management
                 <form method="post" action="/employee/delete/{{ $employee.EmpID }}" class="inline-form" onsubmit="return confirm('Delete this employee?');">
                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                 </form>
-                <a href="/employee/{{ $employee.EmpID }}/leave/history?return_to={{ urlquery $.Form.CurrentURL }}" class="btn btn-sm btn-outline-secondary">Leave History</a>
+                <a href="/employee/{{ $employee.EmpID }}/leave/history?return_to={{ urlquery $.CurrentURL }}" class="btn btn-sm btn-outline-secondary">Leave History</a>
             </div>
         </div>
         {{ end }}

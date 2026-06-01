@@ -323,6 +323,8 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 }
 
 func HandlerReportsAnalysis(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionManager.Put(c.Request.Context(), "reports_analysis_seen_at", time.Now().UTC().Format(time.RFC3339Nano))
+
 	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
 	if !ok {
 		log.Println("Failed to retrieve session data as TemplateData")

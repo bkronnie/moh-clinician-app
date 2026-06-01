@@ -227,7 +227,14 @@ type FacilityManagerDashboardSnapshot struct {
 	ReportsEnteredThisWeek int
 	SubmittedThisWeek      int
 	PendingSubmission      int
-	Departments            []DepartmentProgressRow
+	// National-level facility submission tracking
+	TotalStaffSubmissions       int // individual staff reports submitted in period
+	TotalStaffApproved          int // staff reports approved at facility level
+	TotalStaffDeclined          int // staff reports declined at facility level
+	FacilitySubmissions         int // distinct weekly batches submitted to national
+	FacilitySubmissionsPending  int // batches awaiting national approval
+	FacilitySubmissionsApproved int // batches approved by national
+	Departments                 []DepartmentProgressRow
 }
 
 type ClinicianDashboardSnapshot struct {
@@ -423,6 +430,7 @@ func GetNationalDashboardSnapshotByRange(ctx context.Context, db *sql.DB, period
 		snapshot.TotalClinicians += row.Clinicians
 		snapshot.ReportsEnteredThisWeek += row.EnteredThisWeek
 		snapshot.SubmittedThisWeek += row.SubmittedThisWeek
+
 		snapshot.PendingApproval += row.PendingApproval
 		snapshot.FacilityPerformance = append(snapshot.FacilityPerformance, row)
 	}
@@ -649,8 +657,53 @@ func GetFacilityManagerDashboardSnapshotByRange(ctx context.Context, db *sql.DB,
 
 		snapshot.Departments = append(snapshot.Departments, row)
 	}
+	if err := rows.Err(); err != nil {
+		return snapshot, err
+	}
 
-	return snapshot, rows.Err()
+	const statsQuery = `
+		WITH employee_scope AS (
+			SELECT id
+			FROM clinician_app.employees
+			WHERE facility = $1
+				AND ($2 = 0 OR department = $2)
+				AND ($3 = 0 OR id = $3)
+		)
+		SELECT
+			COUNT(DISTINCT CASE
+				WHEN COALESCE(w.national_submission_status, '') = 'Submitted'
+				THEN w.hospital::text || '|' || w.start::text
+			END) AS facility_submissions,
+			COUNT(DISTINCT CASE
+				WHEN COALESCE(w.national_submission_status, '') = 'Submitted'
+					AND COALESCE(w.national_review_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+				THEN w.hospital::text || '|' || w.start::text
+			END) AS facility_submissions_pending,
+			COUNT(DISTINCT CASE
+				WHEN COALESCE(w.national_submission_status, '') = 'Submitted'
+					AND COALESCE(w.national_review_status, '') = 'Approved'
+				THEN w.hospital::text || '|' || w.start::text
+			END) AS facility_submissions_approved,
+			COUNT(CASE WHEN es.id IS NOT NULL AND COALESCE(w.submit_status, '') = 'Submitted' THEN 1 END) AS staff_submissions,
+			COUNT(CASE WHEN es.id IS NOT NULL AND COALESCE(w.report_status, '') = 'Approved' THEN 1 END) AS staff_approved,
+			COUNT(CASE WHEN es.id IS NOT NULL AND COALESCE(w.report_status, '') IN ('Rejected', 'Declined') THEN 1 END) AS staff_declined
+		FROM clinician_app.weeklyreport w
+		LEFT JOIN employee_scope es ON es.id = w.employee
+		WHERE w.hospital = $1
+			AND w.start BETWEEN $4 AND $5
+	`
+	if err := db.QueryRowContext(ctx, statsQuery, facilityID, departmentID, employeeID, periodStart, periodEnd).Scan(
+		&snapshot.FacilitySubmissions,
+		&snapshot.FacilitySubmissionsPending,
+		&snapshot.FacilitySubmissionsApproved,
+		&snapshot.TotalStaffSubmissions,
+		&snapshot.TotalStaffApproved,
+		&snapshot.TotalStaffDeclined,
+	); err != nil {
+		return snapshot, err
+	}
+
+	return snapshot, nil
 }
 
 func GetClinicianDashboardSnapshot(ctx context.Context, db *sql.DB, employeeID int, selectedYear int, selectedMonth int, selectedWeek int) (ClinicianDashboardSnapshot, error) {
@@ -1975,7 +2028,7 @@ func GetClinicianMissingRequiredReportsCount(ctx context.Context, db *sql.DB, em
 		WITH employee_window AS (
 			SELECT
 				date_trunc('week', COALESCE(e.created_on, CURRENT_DATE::timestamp))::date AS start_week,
-				date_trunc('week', CURRENT_DATE)::date AS end_week
+				(date_trunc('week', CURRENT_DATE)::date - INTERVAL '7 days')::date AS end_week
 			FROM clinician_app.employees e
 			WHERE e.id = $1
 		),
@@ -2111,4 +2164,111 @@ func averageInt(total int, count int) int {
 		return 0
 	}
 	return value
+}
+
+// StaffPerformanceRow holds per-staff aggregated metrics for the Analysis Tables page.
+type StaffPerformanceRow struct {
+	EmployeeID       int
+	EmployeeName     string
+	Title            string
+	Department       string
+	DaysWorked       int
+	WardRounds       int
+	PatientsReviewed int
+	Procedures       int
+}
+
+// FacilityPerformanceTable holds a facility's header and its staff performance rows.
+type FacilityPerformanceTable struct {
+	FacilityID      int
+	FacilityName    string
+	Rows            []StaffPerformanceRow
+	TotalDays       int
+	TotalWardRounds int
+	TotalPatients   int
+	TotalProcedures int
+}
+
+// GetFacilityStaffPerformanceTables returns one FacilityPerformanceTable per facility,
+// each containing per-staff aggregates for the 4 core metrics across the given date range.
+// Pass zero-value times to query all records.
+func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodStart, periodEnd time.Time) ([]FacilityPerformanceTable, error) {
+	const sqlstr = `
+		SELECT
+			f.id                                                                    AS facility_id,
+			f.f_name                                                               AS facility_name,
+			e.id                                                                   AS employee_id,
+			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, '')))       AS employee_name,
+			COALESCE(st.title, '')                                                 AS title,
+			COALESCE(d.d_name, '')                                                 AS department,
+			COALESCE(SUM(COALESCE(w.attendance, 0)), 0)                           AS days_worked,
+			COALESCE(SUM(COALESCE(w.ward_rounds, 0)), 0)                          AS ward_rounds,
+			COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0)                    AS patients_reviewed,
+			COALESCE(SUM(COALESCE(w.elective, 0) + COALESCE(w.emergency, 0)), 0) AS procedures
+		FROM clinician_app.facilities f
+		JOIN clinician_app.employees e ON e.facility = f.id
+		LEFT JOIN clinician_app.specialist_titles st ON st.id = e.title
+		LEFT JOIN clinician_app.departments d ON d.id = e.department
+		LEFT JOIN clinician_app.weeklyreport w
+			ON w.employee = e.id
+			AND ($1::date IS NULL OR w.start >= $1::date)
+			AND ($2::date IS NULL OR w.start <= $2::date)
+		GROUP BY f.id, f.f_name, e.id, e.fname, e.lname, st.title, d.d_name
+		ORDER BY f.f_name, employee_name
+	`
+
+	var start, end interface{}
+	if !periodStart.IsZero() {
+		start = periodStart.Format("2006-01-02")
+	}
+	if !periodEnd.IsZero() {
+		end = periodEnd.Format("2006-01-02")
+	}
+
+	rows, err := db.QueryContext(ctx, sqlstr, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tableIndex := map[int]int{}
+	var tables []FacilityPerformanceTable
+
+	for rows.Next() {
+		var fid int
+		var fname string
+		var row StaffPerformanceRow
+		if err := rows.Scan(
+			&fid,
+			&fname,
+			&row.EmployeeID,
+			&row.EmployeeName,
+			&row.Title,
+			&row.Department,
+			&row.DaysWorked,
+			&row.WardRounds,
+			&row.PatientsReviewed,
+			&row.Procedures,
+		); err != nil {
+			return nil, err
+		}
+
+		idx, ok := tableIndex[fid]
+		if !ok {
+			tables = append(tables, FacilityPerformanceTable{
+				FacilityID:   fid,
+				FacilityName: fname,
+			})
+			idx = len(tables) - 1
+			tableIndex[fid] = idx
+		}
+
+		tables[idx].Rows = append(tables[idx].Rows, row)
+		tables[idx].TotalDays += row.DaysWorked
+		tables[idx].TotalWardRounds += row.WardRounds
+		tables[idx].TotalPatients += row.PatientsReviewed
+		tables[idx].TotalProcedures += row.Procedures
+	}
+
+	return tables, rows.Err()
 }
