@@ -104,14 +104,14 @@
                     <div class="dropdown-menu dropdown-menu-right account-menu" aria-labelledby="accountMenu">
                         <div class="account-menu-header">
                             <div class="account-menu-name">{{ $ses.FName }} {{ $ses.LName }}</div>
-                            {{ if $isAdmin }}<div class="account-menu-email">National Admin</div>{{ else if $isManager }}<div class="account-menu-email">Facility Admin</div>{{ else if $isClinician }}<div class="account-menu-email">Staff</div>{{ end }}
+                            {{ if $ses.Title }}<div class="account-menu-email">{{ $ses.Title }}</div>{{ else if $isAdmin }}<div class="account-menu-email">National Admin</div>{{ else if $isManager }}<div class="account-menu-email">Facility Admin</div>{{ else if $isClinician }}<div class="account-menu-email">Staff</div>{{ end }}
                             {{ if $ses.Email }}<div class="account-menu-email">{{ $ses.Email }}</div>{{ end }}
                         </div>
                         <div class="account-menu-details">
                             <div class="account-detail-row">
-                                <span class="account-detail-label">Rights</span>
+                                <span class="account-detail-label">Cadre</span>
                                 <span class="account-detail-value">
-                                    {{ if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Staff{{ else }}User{{ end }}
+                                    {{ if $ses.Title }}{{ $ses.Title }}{{ else if $isAdmin }}National Admin{{ else if $isManager }}Facility Admin{{ else if $isClinician }}Staff{{ else }}User{{ end }}
                                 </span>
                             </div>
                             {{ if gt $ses.EmpID 0 }}

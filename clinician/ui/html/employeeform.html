@@ -29,7 +29,7 @@
 
         <div class="employee-form-row">
             <div class="form-group">
-                <label for="emptitle_id">Title</label>
+                <label for="emptitle_id">Cadre</label>
                 <select id="emptitle_id" name="EmpTitleID" class="form-control form-control-sm" required>
                     {{ $currentTitle := printf "%d" .Form.employee.EmpTitleID }}
                     <option value="1" {{ if eq $currentTitle "1" }}selected{{ end }}>Medical Officer(SG)</option>

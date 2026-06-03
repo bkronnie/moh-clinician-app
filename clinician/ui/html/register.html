@@ -42,7 +42,7 @@
                 <p class="auth-copy">Complete your professional details once so the system can create a working clinician profile, link you to the correct facility, and enable your individual dashboard and data entry tools.</p>
                 <ul class="auth-points">
                     <li>Use your official email address for login.</li>
-                    <li>Select the correct facility, department, and specialist title.</li>
+                    <li>Select the correct facility, department, and cadre.</li>
                     <li>Your account will be created with clinician-level access only.</li>
                 </ul>
             </section>
@@ -109,9 +109,9 @@
                             </select>
                         </div>
                         <div class="register-field">
-                            <label for="title_id">Specialist Title</label>
+                            <label for="title_id">Cadre</label>
                             <select id="title_id" name="title_id" required class="form-control form-control-sm">
-                                <option value="">Select title</option>
+                                <option value="">Select cadre</option>
                                 {{ range .Titles }}
                                 <option value="{{ .ID }}" {{ if eq (printf "%d" .ID) (index $.Values "title") }}selected{{ end }}>{{ .Title }}</option>
                                 {{ end }}

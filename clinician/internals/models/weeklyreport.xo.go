@@ -265,6 +265,7 @@ func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error
 		w.Qn09, w.Qn10, w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26,
 		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
 	if err != nil {
+		log.Printf("InsertNewRecord DB error: %v | emp=%v start=%v stop=%v hospital=%d dept=%d", err, w.Emp, w.Start, w.Stop, facilityID, departmentID)
 		return logerror(err)
 	}
 

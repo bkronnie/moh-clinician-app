@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var canonicalRights = []string{"National Admin", "Facility Admin", "Staff"}
+var canonicalRights = []string{"Admin", "Facility Admin", "Staff"}
 
 // CheckCanonicalRightsDrift verifies that the rights table matches the expected
 // application role baseline and returns non-fatal drift details.

@@ -1,7 +1,7 @@
-{{ define "title"}}{{ if .Form.ReadOnly }} Report Submission Review {{ else if .Form.PageTitle }} {{ .Form.PageTitle }} {{ else }} My Weekly Data Entry {{ end }}{{ end }}
+{{ define "title"}}{{ if .Form.ReadOnly }} Report Submission Review {{ else if .Form.PageTitle }} {{ .Form.PageTitle }} {{ else }} My Daily Data Entry {{ end }}{{ end }}
 
 
-{{ define "header" }}{{ if .Form.ReadOnly }}Report Submission Review{{ else if .Form.PageTitle }}{{ .Form.PageTitle }}{{ else }}My Weekly Data Entry{{ end }}{{ end }}
+{{ define "header" }}{{ if .Form.ReadOnly }}Report Submission Review{{ else if .Form.PageTitle }}{{ .Form.PageTitle }}{{ else }}My Daily Data Entry{{ end }}{{ end }}
 
 {{ define "content" }}
 <div class="entry-shell">
@@ -19,8 +19,8 @@
             <strong>{{ .Form.DepartmentName }}</strong>
         </div>
         <div class="entry-summary-card">
-            <small>Reporting Week</small>
-            <strong>{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }} to {{ slice .Form.StopDate 8 10 }}-{{ slice .Form.StopDate 5 7 }}-{{ slice .Form.StopDate 0 4 }}</strong>
+            <small>Reporting Date</small>
+            <strong>{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }}</strong>
         </div>
         {{ if .Form.IsEdit }}
         <div class="entry-summary-card">
@@ -33,7 +33,7 @@
     <form method="post" action="{{ .Form.ActionURL }}" class="entry-form-panel">
         {{ if .Form.ReadOnly }}
         <div class="alert alert-info" role="alert">
-            A report for this week already exists and is no longer editable. The saved values below are shown for reference.
+            A report for this date already exists and is no longer editable. The saved values below are shown for reference.
         </div>
         {{ else if .Form.IsEdit }}
         <div class="alert alert-warning" role="alert">
@@ -42,7 +42,7 @@
         {{ end }}
         {{ if .Form.OnLeave }}
         <div class="alert alert-secondary" role="alert">
-            This staff member is on approved leave for the selected week. Attendance and clinical data fields are recorded as not applicable.
+            This staff member is on approved leave for the selected date. Attendance and clinical data fields are recorded as not applicable.
         </div>
         {{ end }}
 
@@ -51,13 +51,13 @@
         {{ if .Form.WeekOptions }}
         <div class="entry-grid mb-3">
             <div class="entry-field">
-                <label for="entryWeekSelector">Reporting Week</label>
+                <label for="entryWeekSelector">Reporting Date</label>
                 <select id="entryWeekSelector" class="form-control" onchange="if(this.value){ window.location.href = this.value; }">
                     {{ range .Form.WeekOptions }}
                     <option value="{{ .URL }}" {{ if .Selected }}selected{{ end }}>{{ .Label }}</option>
                     {{ end }}
                 </select>
-                <small class="form-text text-muted">Select a reporting week to load that week for data entry.</small>
+                <small class="form-text text-muted">Select a reporting date to load that date for data entry.</small>
             </div>
         </div>
         {{ end }}
@@ -68,8 +68,8 @@
         <fieldset {{ if .Form.ReadOnly }}disabled{{ end }}>
         <div class="entry-grid">
             <div class="entry-field">
-                <label for="reportingWeekDisplay">Reporting Week</label>
-                <input id="reportingWeekDisplay" type="text" class="form-control" value="{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }} to {{ slice .Form.StopDate 8 10 }}-{{ slice .Form.StopDate 5 7 }}-{{ slice .Form.StopDate 0 4 }}" readonly>
+                <label for="reportingWeekDisplay">Reporting Date</label>
+                <input id="reportingWeekDisplay" type="text" class="form-control" value="{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }}" readonly>
             </div>
         </div>
 
@@ -77,27 +77,19 @@
             <h3>Core Activity</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Days Worked This Week</label>
-                    <div class="dropdown days-worked-dropdown">
-                        <button id="days-worked-toggle" class="btn btn-outline-secondary btn-block text-left" type="button" aria-expanded="false" {{ if .Form.OnLeave }}disabled{{ end }}>
-                            Select worked days
-                        </button>
-                        <div id="days-worked-menu" class="days-worked-menu" hidden>
-                            {{ range .Form.WeekDays }}
-                            <label class="days-worked-item mb-1">
-                                <input type="checkbox" class="days-worked-checkbox" name="input[{{ $.Form.EmployeeID }}][days_worked][]" value="{{ .Date }}" {{ if .Checked }}checked{{ end }} {{ if $.Form.OnLeave }}disabled{{ end }}>
-                                <span>{{ .Name }}</span>
-                            </label>
-                            {{ end }}
-                        </div>
+                    <label>Attendance</label>
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <input type="checkbox" id="attended-today" class="days-worked-checkbox" name="input[{{ .Form.EmployeeID }}][days_worked][]" value="{{ .Form.StartDate }}" {{ if gt (index .Form.Values "attendance") "0" }}checked{{ end }} {{ if .Form.OnLeave }}disabled{{ end }}>
+                        <label for="attended-today" class="mb-0">Attended on this date</label>
                     </div>
-                    <small class="form-text text-muted">Click to expand and tick all days the clinician worked.</small>
+                    <small class="form-text text-muted">Check this box if the clinician attended on this date.</small>
                 </div>
                 <div class="entry-field">
                     <label>{{ index .Form.Labels "attendance" }}</label>
-                    <input id="attendance-days" type="number" min="0" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control" value="{{ index .Form.Values "attendance" }}" readonly>
+                    <input id="attendance-days" type="number" min="0" max="1" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control" value="{{ index .Form.Values "attendance" }}" readonly>
                 </div>
                 {{ if not .Form.AttendanceOnly }}
+                {{ if not .Form.HideCoreSection }}
                 <div class="entry-field">
                     <label>{{ index .Form.Labels "ward_rounds" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][ward_rounds]" class="form-control" value="{{ index .Form.Values "ward_rounds" }}">
@@ -134,6 +126,7 @@
                     <label>{{ index .Form.Labels "imaging_requests" }}</label>
                     <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][imaging_requests]" class="form-control" value="{{ index .Form.Values "imaging_requests" }}">
                 </div>
+                {{ end }}
                 {{ end }}
             </div>
         </div>

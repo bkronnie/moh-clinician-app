@@ -2072,45 +2072,44 @@ func GetClinicianMissingRequiredReportsCount(ctx context.Context, db *sql.DB, em
 }
 
 func GetClinicianPendingEntryWeeks(ctx context.Context, db *sql.DB, employeeID int) ([]ClinicianWeekOption, error) {
+	// Returns individual calendar days (up to 60 days back, or hire date,
+	// whichever is more recent) that still have no submitted daily record.
+	// Leave days are excluded automatically.
 	const sqlstr = `
-		WITH employee_window AS (
-			SELECT date_trunc('week', COALESCE(e.created_on, CURRENT_DATE::timestamp))::date AS created_week
+		WITH employee_start AS (
+			SELECT GREATEST(
+				COALESCE(e.created_on::date, (CURRENT_DATE - INTERVAL '60 days')::date),
+				(CURRENT_DATE - INTERVAL '60 days')::date
+			) AS start_date
 			FROM clinician_app.employees e
 			WHERE e.id = $1
 		),
-		bounds AS (
-			SELECT
-				(SELECT ew.created_week FROM employee_window ew) AS start_week,
-				(date_trunc('week', CURRENT_DATE)::date - INTERVAL '7 days')::date AS end_week
+		candidate_days AS (
+			SELECT gs::date AS report_date
+			FROM employee_start es,
+				generate_series(es.start_date, CURRENT_DATE, INTERVAL '1 day') gs
 		),
-		candidate_weeks AS (
-			SELECT gs::date AS week_start
-			FROM bounds b,
-				generate_series(b.start_week, b.end_week, INTERVAL '7 days') gs
-			WHERE b.start_week IS NOT NULL
-				AND b.start_week <= b.end_week
-		),
-		on_leave_weeks AS (
-			SELECT DISTINCT cw.week_start
-			FROM candidate_weeks cw
+		on_leave_days AS (
+			SELECT DISTINCT cd.report_date
+			FROM candidate_days cd
 			JOIN clinician_app.staffleave sl ON sl.employee_id = $1
 			WHERE COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
-				AND sl.start_date::date <= (cw.week_start + INTERVAL '6 days')::date
-				AND COALESCE(sl.return_date::date, sl.end_date::date) >= cw.week_start
+				AND cd.report_date BETWEEN sl.start_date::date
+					AND COALESCE(sl.return_date::date, sl.end_date::date)
 		),
-		submitted_weeks AS (
-			SELECT DISTINCT date_trunc('week', w.start)::date AS week_start
+		submitted_days AS (
+			SELECT DISTINCT w.start::date AS report_date
 			FROM clinician_app.weeklyreport w
 			WHERE w.employee = $1
 				AND COALESCE(w.submit_status, '') = 'Submitted'
 		)
-		SELECT cw.week_start
-		FROM candidate_weeks cw
-		LEFT JOIN on_leave_weeks olw ON olw.week_start = cw.week_start
-		LEFT JOIN submitted_weeks sw ON sw.week_start = cw.week_start
-		WHERE olw.week_start IS NULL
-			AND sw.week_start IS NULL
-		ORDER BY cw.week_start DESC
+		SELECT cd.report_date
+		FROM candidate_days cd
+		LEFT JOIN on_leave_days old ON old.report_date = cd.report_date
+		LEFT JOIN submitted_days sd ON sd.report_date = cd.report_date
+		WHERE old.report_date IS NULL
+			AND sd.report_date IS NULL
+		ORDER BY cd.report_date DESC
 	`
 
 	rows, err := db.QueryContext(ctx, sqlstr, employeeID)
@@ -2119,24 +2118,23 @@ func GetClinicianPendingEntryWeeks(ctx context.Context, db *sql.DB, employeeID i
 	}
 	defer rows.Close()
 
-	weeks := make([]ClinicianWeekOption, 0)
+	days := make([]ClinicianWeekOption, 0)
 	for rows.Next() {
-		var weekStart time.Time
-		if err := rows.Scan(&weekStart); err != nil {
+		var reportDate time.Time
+		if err := rows.Scan(&reportDate); err != nil {
 			return nil, err
 		}
-		weekStop := weekStart.AddDate(0, 0, 6)
-		yearVal, weekVal := weekStart.ISOWeek()
-		weeks = append(weeks, ClinicianWeekOption{
+		yearVal, weekVal := reportDate.ISOWeek()
+		days = append(days, ClinicianWeekOption{
 			Year:      yearVal,
 			Week:      weekVal,
-			StartDate: weekStart.Format("2006-01-02"),
-			EndDate:   weekStop.Format("2006-01-02"),
-			Label:     fmt.Sprintf("Week %02d (%s - %s)", weekVal, weekStart.Format("02 Jan 2006"), weekStop.Format("02 Jan 2006")),
+			StartDate: reportDate.Format("2006-01-02"),
+			EndDate:   reportDate.Format("2006-01-02"),
+			Label:     reportDate.Format("Mon 02 Jan 2006"),
 		})
 	}
 
-	return weeks, rows.Err()
+	return days, rows.Err()
 }
 
 func percentageInt(numerator int, denominator int) int {

@@ -47,29 +47,30 @@ type ClinicianEntrySection struct {
 }
 
 type ClinicianEntryView struct {
-	EmployeeID     int64
-	EmployeeName   string
-	DepartmentID   int64
-	DepartmentName string
-	FacilityName   string
-	Labels         map[string]string
-	Sections       []ClinicianEntrySection
-	PageTitle      string
-	StartDate      string
-	StopDate       string
-	ReportID       int
-	ActionURL      string
-	SubmitLabel    string
-	Values         map[string]string
-	IsEdit         bool
-	ReadOnly       bool
-	StatusLabel    string
-	ReturnURL      string
-	WeekDays       []WeekDayCheck
-	WeekOptions    []ClinicianEntryWeekOption
-	SelectedWeek   string
-	OnLeave        bool
-	AttendanceOnly bool
+	EmployeeID      int64
+	EmployeeName    string
+	DepartmentID    int64
+	DepartmentName  string
+	FacilityName    string
+	Labels          map[string]string
+	Sections        []ClinicianEntrySection
+	PageTitle       string
+	StartDate       string
+	StopDate        string
+	ReportID        int
+	ActionURL       string
+	SubmitLabel     string
+	Values          map[string]string
+	IsEdit          bool
+	ReadOnly        bool
+	StatusLabel     string
+	ReturnURL       string
+	WeekDays        []WeekDayCheck
+	WeekOptions     []ClinicianEntryWeekOption
+	SelectedWeek    string
+	OnLeave         bool
+	AttendanceOnly  bool
+	HideCoreSection bool
 }
 
 type ClinicianReportHistoryView struct {
@@ -188,7 +189,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	}
 
 	empID := sesDetails.EmpID
-	entryTitle := "My Weekly Data Entry"
+	entryTitle := "My Daily Data Entry"
 
 	requestedEmployeeID := 0
 	approverSelfEntry := utilities.RoleMatches(sesDetails.Rights, "Facility Admin")
@@ -258,27 +259,29 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			weekDays = buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String)
 		}
 		sectionKeys := resolveClinicianEntryKeys(c.Request.Context(), db, report.DepartmentID)
+		draftSections, draftHideCore := resolveClinicianEntryConfig(c.Request.Context(), db, report.DepartmentID, labels)
 		entryForm := ClinicianEntryView{
-			EmployeeID:     empID,
-			EmployeeName:   employeeName,
-			DepartmentID:   report.DepartmentID,
-			DepartmentName: reportDepartment.DepartmentName.String,
-			FacilityName:   facilityName,
-			Labels:         labels,
-			Sections:       buildClinicianEntrySections(c.Request.Context(), db, report.DepartmentID, labels),
-			PageTitle:      entryTitle,
-			StartDate:      formatNullDate(report.WeekStart),
-			StopDate:       formatNullDate(report.WeekStop),
-			ReportID:       report.ReportID,
-			ActionURL:      fmt.Sprintf("/reports/update-self/%d", report.ReportID),
-			SubmitLabel:    "Update Weekly Entry",
-			Values:         clinicianEntryValuesFromReport(report),
-			IsEdit:         true,
-			StatusLabel:    clinicianEntryStatusLabel(report.HistoryStatus),
-			ReturnURL:      returnURL,
-			WeekDays:       weekDays,
-			OnLeave:        onLeave,
-			AttendanceOnly: false,
+			EmployeeID:      empID,
+			EmployeeName:    employeeName,
+			DepartmentID:    report.DepartmentID,
+			DepartmentName:  reportDepartment.DepartmentName.String,
+			FacilityName:    facilityName,
+			Labels:          labels,
+			Sections:        draftSections,
+			PageTitle:       entryTitle,
+			StartDate:       formatNullDate(report.WeekStart),
+			StopDate:        formatNullDate(report.WeekStart),
+			ReportID:        report.ReportID,
+			ActionURL:       fmt.Sprintf("/reports/update-self/%d", report.ReportID),
+			SubmitLabel:     "Update Daily Entry",
+			Values:          clinicianEntryValuesFromReport(report),
+			IsEdit:          true,
+			StatusLabel:     clinicianEntryStatusLabel(report.HistoryStatus),
+			ReturnURL:       returnURL,
+			WeekDays:        weekDays,
+			OnLeave:         onLeave,
+			AttendanceOnly:  false,
+			HideCoreSection: draftHideCore,
 		}
 
 		if report.WeekStart.Valid && report.WeekStop.Valid {
@@ -364,39 +367,40 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			}
 		}
 
-		sections := buildClinicianEntrySections(c.Request.Context(), db, existingReport.DepartmentID, labels)
+		existingSections, existingHideCore := resolveClinicianEntryConfig(c.Request.Context(), db, existingReport.DepartmentID, labels)
 		if approverSelfEntry {
-			sections = nil
+			existingSections = nil
 		}
 
 		entryForm := ClinicianEntryView{
-			EmployeeID:     empID,
-			EmployeeName:   employeeName,
-			DepartmentID:   existingReport.DepartmentID,
-			DepartmentName: reportDepartmentName,
-			FacilityName:   facilityName,
-			Labels:         labels,
-			Sections:       sections,
-			PageTitle:      entryTitle,
-			StartDate:      formatNullDate(existingReport.WeekStart),
-			StopDate:       formatNullDate(existingReport.WeekStop),
-			ReportID:       existingReport.ReportID,
-			ActionURL:      "/reports/zave",
-			SubmitLabel:    "Update Weekly Entry",
-			Values:         values,
-			IsEdit:         true,
-			ReadOnly:       !existingReport.Actionable,
-			StatusLabel:    clinicianEntryStatusLabel(existingReport.HistoryStatus),
-			ReturnURL:      returnURL,
-			WeekDays:       buildWeekDayChecks(selectedWeekStart, selectedWeekEnd, existingReport.DaysWorked.String),
-			WeekOptions:    weekOptions,
-			SelectedWeek:   selectedWeekLabel,
-			OnLeave:        onLeave,
-			AttendanceOnly: approverSelfEntry,
+			EmployeeID:      empID,
+			EmployeeName:    employeeName,
+			DepartmentID:    existingReport.DepartmentID,
+			DepartmentName:  reportDepartmentName,
+			FacilityName:    facilityName,
+			Labels:          labels,
+			Sections:        existingSections,
+			PageTitle:       entryTitle,
+			StartDate:       formatNullDate(existingReport.WeekStart),
+			StopDate:        formatNullDate(existingReport.WeekStart),
+			ReportID:        existingReport.ReportID,
+			ActionURL:       "/reports/zave",
+			SubmitLabel:     "Update Daily Entry",
+			Values:          values,
+			IsEdit:          true,
+			ReadOnly:        !existingReport.Actionable,
+			StatusLabel:     clinicianEntryStatusLabel(existingReport.HistoryStatus),
+			ReturnURL:       returnURL,
+			WeekDays:        buildWeekDayChecks(selectedWeekStart, selectedWeekEnd, existingReport.DaysWorked.String),
+			WeekOptions:     weekOptions,
+			SelectedWeek:    selectedWeekLabel,
+			OnLeave:         onLeave,
+			AttendanceOnly:  approverSelfEntry,
+			HideCoreSection: existingHideCore && !approverSelfEntry,
 		}
 
 		if existingReport.Actionable {
-			entryForm.SubmitLabel = "Update Existing Entry"
+			entryForm.SubmitLabel = "Update Daily Entry"
 		} else {
 			entryForm.SubmitLabel = "Already Submitted"
 		}
@@ -410,36 +414,37 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	}
 
 	defaultValues := defaultClinicianEntryValues()
-	sections := buildClinicianEntrySections(c.Request.Context(), db, departmentID, labels)
+	newSections, newHideCore := resolveClinicianEntryConfig(c.Request.Context(), db, departmentID, labels)
 	if approverSelfEntry {
 		for key := range defaultValues {
 			if key != "attendance" {
 				defaultValues[key] = "0"
 			}
 		}
-		sections = nil
+		newSections = nil
 	}
 
 	sessionData.Form = ClinicianEntryView{
-		EmployeeID:     empID,
-		EmployeeName:   employeeName,
-		DepartmentID:   departmentID,
-		DepartmentName: department.DepartmentName.String,
-		FacilityName:   facilityName,
-		Labels:         labels,
-		Sections:       sections,
-		PageTitle:      entryTitle,
-		StartDate:      selectedWeekStart.Format("2006-01-02"),
-		StopDate:       selectedWeekEnd.Format("2006-01-02"),
-		ActionURL:      "/reports/zave",
-		SubmitLabel:    "Save Weekly Entry",
-		Values:         defaultValues,
-		ReturnURL:      returnURL,
-		WeekDays:       weekDays,
-		WeekOptions:    weekOptions,
-		SelectedWeek:   selectedWeekLabel,
-		OnLeave:        onLeave,
-		AttendanceOnly: approverSelfEntry,
+		EmployeeID:      empID,
+		EmployeeName:    employeeName,
+		DepartmentID:    departmentID,
+		DepartmentName:  department.DepartmentName.String,
+		FacilityName:    facilityName,
+		Labels:          labels,
+		Sections:        newSections,
+		PageTitle:       entryTitle,
+		StartDate:       selectedWeekStart.Format("2006-01-02"),
+		StopDate:        selectedWeekEnd.Format("2006-01-02"),
+		ActionURL:       "/reports/zave",
+		SubmitLabel:     "Save Daily Entry",
+		Values:          defaultValues,
+		ReturnURL:       returnURL,
+		WeekDays:        weekDays,
+		WeekOptions:     weekOptions,
+		SelectedWeek:    selectedWeekLabel,
+		OnLeave:         onLeave,
+		AttendanceOnly:  approverSelfEntry,
+		HideCoreSection: newHideCore && !approverSelfEntry,
 	}
 
 	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
@@ -604,7 +609,7 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 
 		if existingReport != nil {
 			if !existingReport.Actionable {
-				c.JSON(http.StatusConflict, gin.H{"error": "A submitted or approved report already exists for this week."})
+				c.JSON(http.StatusConflict, gin.H{"error": "A submitted or approved report already exists for this date."})
 				return
 			}
 			report.ID = existingReport.ReportID
@@ -614,8 +619,8 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 				return
 			}
 		} else {
-			if !isCompletedReportingWeekRange(periodStart, periodStop, time.Now()) {
-				c.String(http.StatusForbidden, "Only completed reporting weeks can be entered.")
+			if periodStart.After(normalizeDateOnly(time.Now())) {
+				c.String(http.StatusForbidden, "Cannot enter data for a future date.")
 				return
 			}
 			if err := report.InsertNewRecord(c.Request.Context(), db); err != nil {
@@ -1020,6 +1025,25 @@ func clinicianEntryCoreKeys() []string {
 	}
 }
 
+// deptHidesCoreSection returns true for departments whose data collection
+// does not follow the standard clinical workflow (ward rounds, OPD, etc.).
+// For these departments all fields are rendered through the Sections system
+// and the hardcoded core-field block is hidden in the template.
+func deptHidesCoreSection(deptKeys []string) bool {
+	clinicalIndicators := map[string]bool{
+		"ward_rounds":       true,
+		"patients_reviewed": true,
+		"OPD_clinics":       true,
+		"OPD_patients":      true,
+	}
+	for _, k := range deptKeys {
+		if clinicalIndicators[k] {
+			return false
+		}
+	}
+	return true
+}
+
 func fallbackDepartmentDataPointKeys(departmentID int64) []string {
 	switch departmentID {
 	case 1:
@@ -1053,17 +1077,36 @@ func departmentMetricsTitle(departmentID int64, defaultName string) string {
 	}
 }
 
-func buildClinicianEntrySections(ctx context.Context, db *sql.DB, departmentID int64, labels map[string]string) []ClinicianEntrySection {
+// resolveClinicianEntryConfig returns the department-specific form sections
+// and a flag indicating whether the hardcoded clinical-core fields in the
+// template should be hidden (true for non-clinical departments such as
+// Pathology, Pharmacy, Radiologist, and Laboratory).
+func resolveClinicianEntryConfig(ctx context.Context, db *sql.DB, departmentID int64, labels map[string]string) (sections []ClinicianEntrySection, hideCoreSection bool) {
+	deptKeys, err := models.GetDepartmentRoleDataPoints(ctx, db, departmentID)
+	if err != nil || len(deptKeys) == 0 {
+		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
+	}
+	hideCoreSection = deptHidesCoreSection(deptKeys)
+	sections = buildClinicianEntrySections(ctx, db, departmentID, labels, hideCoreSection)
+	return
+}
+
+func buildClinicianEntrySections(ctx context.Context, db *sql.DB, departmentID int64, labels map[string]string, hideCoreSection bool) []ClinicianEntrySection {
 	deptKeys, err := models.GetDepartmentRoleDataPoints(ctx, db, departmentID)
 	if err != nil || len(deptKeys) == 0 {
 		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
 	}
 
-	core := map[string]struct{}{}
-	for _, key := range clinicianEntryCoreKeys() {
-		core[key] = struct{}{}
+	// When hideCoreSection is true the template hides the hardcoded clinical-
+	// core block, so ALL dept keys (except attendance itself) must appear in
+	// the section. When false, core keys are already shown by the template and
+	// must be excluded from the section to avoid duplication.
+	skipKeys := map[string]struct{}{"attendance": {}}
+	if !hideCoreSection {
+		for _, key := range clinicianEntryCoreKeys() {
+			skipKeys[key] = struct{}{}
+		}
 	}
-	core["attendance"] = struct{}{}
 
 	fields := make([]ClinicianEntryField, 0)
 	seen := map[string]struct{}{}
@@ -1072,7 +1115,7 @@ func buildClinicianEntrySections(ctx context.Context, db *sql.DB, departmentID i
 		if key == "" {
 			continue
 		}
-		if _, isCore := core[key]; isCore {
+		if _, skip := skipKeys[key]; skip {
 			continue
 		}
 		if _, exists := seen[key]; exists {
@@ -1663,14 +1706,11 @@ func isCompletedReportingWeekRange(start, stop, now time.Time) bool {
 }
 
 func resolveClinicianEntryWeekSelection(requestedStart string, pendingWeeks []models.ClinicianWeekOption, now time.Time) (time.Time, time.Time, string) {
-	defaultStart, defaultStop := previousReportingWeekRange(now)
-	defaultLabel := fmt.Sprintf("Week %02d (%s - %s)", func() int {
-		_, wk := defaultStart.ISOWeek()
-		return wk
-	}(), defaultStart.Format("02 Jan 2006"), defaultStop.Format("02 Jan 2006"))
+	today := normalizeDateOnly(now)
+	defaultLabel := today.Format("Mon 02 Jan 2006")
 
 	if len(pendingWeeks) == 0 {
-		return defaultStart, defaultStop, defaultLabel
+		return today, today, defaultLabel
 	}
 
 	selected := pendingWeeks[0]
@@ -1686,16 +1726,15 @@ func resolveClinicianEntryWeekSelection(requestedStart string, pendingWeeks []mo
 
 	start, err := parseISODate(selected.StartDate)
 	if err != nil {
-		return defaultStart, defaultStop, defaultLabel
+		return today, today, defaultLabel
 	}
-	stop := start.AddDate(0, 0, 6)
 	label := strings.TrimSpace(selected.Label)
 	if label == "" {
-		_, weekVal := start.ISOWeek()
-		label = fmt.Sprintf("Week %02d (%s - %s)", weekVal, start.Format("02 Jan 2006"), stop.Format("02 Jan 2006"))
+		label = start.Format("Mon 02 Jan 2006")
 	}
 
-	return start, stop, label
+	// Daily records: stop equals start.
+	return start, start, label
 }
 
 func buildClinicianEntryWeekOptions(reportID int, employeeID int, returnURL string, pendingWeeks []models.ClinicianWeekOption, selectedStart time.Time) []ClinicianEntryWeekOption {
@@ -1714,8 +1753,10 @@ func buildClinicianEntryWeekOptions(reportID int, employeeID int, returnURL stri
 		}
 		params.Set("start", option.StartDate)
 		optionLabel := strings.TrimSpace(option.Label)
-		if option.StartDate != "" && option.EndDate != "" {
+		if option.StartDate != "" && option.EndDate != "" && option.StartDate != option.EndDate {
 			optionLabel = fmt.Sprintf("%s to %s", formatISODateToDMY(option.StartDate), formatISODateToDMY(option.EndDate))
+		} else if option.StartDate != "" && optionLabel == "" {
+			optionLabel = formatISODateToDMY(option.StartDate)
 		}
 		options = append(options, ClinicianEntryWeekOption{
 			StartDate: option.StartDate,

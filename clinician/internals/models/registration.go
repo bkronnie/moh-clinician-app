@@ -241,7 +241,7 @@ func CreateInitialAdminAccount(ctx context.Context, db *sql.DB, firstName, lastN
 	if err := tx.QueryRowContext(ctx, `
 		SELECT id
 		FROM clinician_app.rights
-		WHERE rights = 'National Admin'
+		WHERE rights = 'Admin'
 		LIMIT 1
 	`).Scan(&rightsID); err != nil {
 		return err
@@ -306,4 +306,78 @@ func validateRegistrationInput(tx *sql.Tx, ctx context.Context, input ClinicianR
 	}
 
 	return nil
+}
+
+// CreateClinicianAdminRegistration creates a new staff account on behalf of an admin.
+// It is identical to CreateClinicianSelfRegistration except that:
+//   - createdByEmpID is used as the created_by value (the admin's employee ID, not the new employee).
+//   - roleName controls which role is assigned ("Staff", "Facility Admin", etc.).
+func CreateClinicianAdminRegistration(ctx context.Context, db *sql.DB, input ClinicianRegistrationInput, createdByEmpID int64, roleName string) (RegistrationAccountResult, error) {
+	var result RegistrationAccountResult
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback()
+
+	if err := validateRegistrationInput(tx, ctx, input); err != nil {
+		return result, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE clinician_app.employees IN EXCLUSIVE MODE`); err != nil {
+		return result, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(id), 1000) + 1
+		FROM clinician_app.employees
+	`).Scan(&result.EmployeeID); err != nil {
+		return result, err
+	}
+
+	now := time.Now()
+	var dob interface{}
+	if input.DateOfBirth != nil {
+		dob = *input.DateOfBirth
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.employees (
+			id, fname, lname, oname, specialisation, department, facility,
+			created_by, created_on, title, employee_number, date_of_birth, phone_number
+		) VALUES (
+			$1, $2, $3, NULLIF($4,''), NULLIF($5,''), $6, $7,
+			$8, $9, $10, NULLIF($11,''), $12, NULLIF($13,'')
+		)
+	`, result.EmployeeID, input.FirstName, input.LastName, input.OtherName, input.Specialisation,
+		input.DepartmentID, input.FacilityID,
+		createdByEmpID, now, input.TitleID, input.EmployeeNumber, dob, input.PhoneNumber,
+	); err != nil {
+		return result, err
+	}
+
+	var rightsID int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT id FROM clinician_app.rights WHERE rights = $1 LIMIT 1
+	`, roleName).Scan(&rightsID); err != nil {
+		return result, fmt.Errorf("role %q not found: %w", roleName, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO clinician_app.employeerights (employee, rights)
+		VALUES ($1, $2)
+	`, result.EmployeeID, rightsID); err != nil {
+		return result, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+		INSERT INTO clinician_app.users (username, pssword, employees, created_by, created_on)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`, input.Email, input.PasswordHash, result.EmployeeID, createdByEmpID, now).Scan(&result.UserID); err != nil {
+		return result, err
+	}
+
+	return result, tx.Commit()
 }

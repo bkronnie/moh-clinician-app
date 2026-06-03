@@ -74,9 +74,9 @@
                     </select>
                 </div>
                 <div class="account-field">
-                    <label for="title_id">Specialist Title</label>
+                    <label for="title_id">Cadre</label>
                     <select id="title_id" name="title_id" class="form-control form-control-sm">
-                        <option value="">Select title</option>
+                        <option value="">Select cadre</option>
                         {{ range $view.Titles }}
                         <option value="{{ .ID }}" {{ if eq (printf "%d" .ID) (index $view.Values "title") }}selected{{ end }}>{{ .Title }}</option>
                         {{ end }}

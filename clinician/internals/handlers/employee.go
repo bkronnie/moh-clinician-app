@@ -51,6 +51,8 @@ type EmployeePageView struct {
 	OnDutyURL          string
 	OnLeaveURL         string
 	ClearURL           string
+	Message            string
+	AddStaffURL        string
 	Dashboard          models.DashboardData
 	TopEmployees       []*models.Employee
 	Employees          []*models.Employee
@@ -311,6 +313,8 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		OnDutyURL:          buildEmployeeTabURL("on_duty", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		OnLeaveURL:         buildEmployeeTabURL("on_leave", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		ClearURL:           buildEmployeeTabURL(activeTab, 0, 0, "", showFacilityFilter),
+		Message:            strings.TrimSpace(c.Query("message")),
+		AddStaffURL:        "/employee/staff/new",
 		Dashboard:          dashboard,
 		TopEmployees:       topEmployees,
 		Employees:          employees,
@@ -1167,4 +1171,180 @@ func exportLeaveComment(value sql.NullString) string {
 		return "-"
 	}
 	return value.String
+}
+
+// AddStaffView is the view model for the admin create-staff form.
+type AddStaffView struct {
+	Error          string
+	Values         map[string]string
+	Facilities     []models.RegistrationOption
+	Departments    []models.RegistrationOption
+	Titles         []models.SpecialistTitleOption
+	FacilityFixed  bool
+	ShowRolePicker bool
+}
+
+// HandlerAdminAddUserForm renders the admin form for creating a new staff account.
+func HandlerAdminAddUserForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.String(http.StatusInternalServerError, "session error")
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.String(http.StatusInternalServerError, "session error")
+		return
+	}
+
+	isNationalAdmin := utilities.RoleMatches(sesDetails.Rights, "National Admin")
+	isAdmin := isNationalAdmin || utilities.RoleMatches(sesDetails.Rights, "Facility Admin")
+
+	facilities, departments, titles, err := models.RegistrationOptions(c.Request.Context(), db)
+	if err != nil {
+		log.Printf("HandlerAdminAddUserForm: RegistrationOptions error: %v", err)
+		c.String(http.StatusInternalServerError, "Error loading form options")
+		return
+	}
+
+	if !isNationalAdmin {
+		facilities = []models.RegistrationOption{{ID: sesDetails.HFID, Name: sesDetails.HFName}}
+	}
+
+	view := AddStaffView{
+		Values:         map[string]string{},
+		Facilities:     facilities,
+		Departments:    departments,
+		Titles:         titles,
+		FacilityFixed:  !isNationalAdmin,
+		ShowRolePicker: isAdmin,
+	}
+
+	data := Get_Session_Data(c, db, sessionManager, view)
+	utilities.GenerateHTML(c, data, "base", "add-staff")
+}
+
+// HandlerAdminAddUserSave handles the POST form submission for admin-created staff accounts.
+func HandlerAdminAddUserSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.String(http.StatusInternalServerError, "session error")
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.String(http.StatusInternalServerError, "session error")
+		return
+	}
+
+	isNationalAdmin := utilities.RoleMatches(sesDetails.Rights, "National Admin")
+	isAdmin := isNationalAdmin || utilities.RoleMatches(sesDetails.Rights, "Facility Admin")
+
+	values := map[string]string{
+		"firstname":      strings.TrimSpace(c.PostForm("firstname")),
+		"lastname":       strings.TrimSpace(c.PostForm("lastname")),
+		"othername":      strings.TrimSpace(c.PostForm("othername")),
+		"employeeNumber": strings.TrimSpace(c.PostForm("employee_number")),
+		"dateOfBirth":    strings.TrimSpace(c.PostForm("date_of_birth")),
+		"phoneNumber":    strings.TrimSpace(c.PostForm("phone_number")),
+		"email":          strings.TrimSpace(c.PostForm("email")),
+		"specialisation": strings.TrimSpace(c.PostForm("specialisation")),
+		"facility":       strings.TrimSpace(c.PostForm("facility_id")),
+		"department":     strings.TrimSpace(c.PostForm("department_id")),
+		"title":          strings.TrimSpace(c.PostForm("title_id")),
+		"role":           strings.TrimSpace(c.PostForm("role")),
+	}
+
+	// Security: Facility Admin may only create accounts within their own facility.
+	if !isNationalAdmin {
+		values["facility"] = fmt.Sprintf("%d", sesDetails.HFID)
+	}
+
+	password := c.PostForm("password")
+	confirmPassword := c.PostForm("confirm_password")
+
+	renderError := func(errMsg string) {
+		facilities, departments, titles, err := models.RegistrationOptions(c.Request.Context(), db)
+		if err != nil {
+			log.Printf("HandlerAdminAddUserSave renderError: RegistrationOptions error: %v", err)
+			c.String(http.StatusInternalServerError, "Error loading form options")
+			return
+		}
+		if !isNationalAdmin {
+			facilities = []models.RegistrationOption{{ID: sesDetails.HFID, Name: sesDetails.HFName}}
+		}
+		view := AddStaffView{
+			Error:          errMsg,
+			Values:         values,
+			Facilities:     facilities,
+			Departments:    departments,
+			Titles:         titles,
+			FacilityFixed:  !isNationalAdmin,
+			ShowRolePicker: isAdmin,
+		}
+		data := Get_Session_Data(c, db, sessionManager, view)
+		utilities.GenerateHTML(c, data, "base", "add-staff")
+	}
+
+	if values["firstname"] == "" || values["lastname"] == "" || values["employeeNumber"] == "" || values["email"] == "" {
+		renderError("First name, last name, medical officer ID, and email are required.")
+		return
+	}
+	if password == "" {
+		renderError("An initial password is required.")
+		return
+	}
+	if password != confirmPassword {
+		renderError("Passwords do not match.")
+		return
+	}
+
+	facilityID, departmentID, titleID, parseErr := parseRegistrationIDs(values["facility"], values["department"], values["title"])
+	if parseErr != nil {
+		renderError(parseErr.Error())
+		return
+	}
+
+	var dob *time.Time
+	if values["dateOfBirth"] != "" {
+		parsedDOB, err := time.Parse("2006-01-02", values["dateOfBirth"])
+		if err != nil {
+			renderError("Date of birth must use the YYYY-MM-DD format.")
+			return
+		}
+		dob = &parsedDOB
+	}
+
+	roleName := "Staff"
+	if isAdmin && values["role"] == "Admin" {
+		// A Facility Admin creating "Admin" produces a Facility Admin account.
+		// A National Admin creating "Admin" produces a National Admin account.
+		if utilities.RoleMatches(sesDetails.Rights, "Facility Admin") {
+			roleName = "Facility Admin"
+		} else {
+			roleName = "Admin"
+		}
+	}
+
+	_, err := models.CreateClinicianAdminRegistration(c.Request.Context(), db, models.ClinicianRegistrationInput{
+		FirstName:      values["firstname"],
+		LastName:       values["lastname"],
+		OtherName:      values["othername"],
+		EmployeeNumber: values["employeeNumber"],
+		DateOfBirth:    dob,
+		PhoneNumber:    values["phoneNumber"],
+		Email:          values["email"],
+		PasswordHash:   models.Encrypt(password),
+		FacilityID:     facilityID,
+		DepartmentID:   departmentID,
+		TitleID:        titleID,
+		Specialisation: values["specialisation"],
+	}, sesDetails.EmpID, roleName)
+	if err != nil {
+		renderError(err.Error())
+		return
+	}
+
+	successMsg := url.QueryEscape(values["firstname"] + " " + values["lastname"] + " has been added successfully.")
+	c.Redirect(http.StatusFound, "/employee/list?tab=list&message="+successMsg)
 }

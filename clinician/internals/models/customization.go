@@ -75,9 +75,9 @@ type CustomizationView struct {
 }
 
 var immutableRoleNames = map[string]struct{}{
-	"National Admin": {},
-	"Facility Admin": {},
-	"Staff":          {},
+	"admin":          {},
+	"facility admin": {},
+	"staff":          {},
 }
 
 func EnsureCustomizationAuditSchema(ctx context.Context, db *sql.DB) error {

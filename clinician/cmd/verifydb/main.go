@@ -197,7 +197,7 @@ func checkRequiredColumns(db *sql.DB, schema string) checkResult {
 }
 
 func checkCanonicalRights(db *sql.DB, schema string) checkResult {
-	expected := []string{"Facility Admin", "National Admin", "Staff"}
+	expected := []string{"Admin", "Facility Admin", "Staff"}
 	actual := []string{}
 	rightsColumn, err := detectFirstExistingColumn(db, schema, "rights", []string{"rights", "r_name"})
 	if err != nil {

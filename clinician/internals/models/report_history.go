@@ -501,6 +501,82 @@ func DeleteClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 	return rowsAffected > 0, nil
 }
 
+// InsertClinicianReport inserts a new record from a populated ClinicianReportHistoryRow.
+// FacilityID and DepartmentID are resolved from the employee record when zero.
+// row.ReportID is set to the newly assigned ID on success.
+func InsertClinicianReport(ctx context.Context, db *sql.DB, row *ClinicianReportHistoryRow) error {
+	if !row.WeekStart.Valid {
+		return fmt.Errorf("report start date is required")
+	}
+
+	facilityID := row.FacilityID
+	departmentID := row.DepartmentID
+	if facilityID == 0 || departmentID == 0 {
+		const empQuery = `SELECT facility, department FROM clinician_app.employees WHERE id = $1`
+		if err := db.QueryRowContext(ctx, empQuery, row.EmployeeID).Scan(&facilityID, &departmentID); err != nil {
+			return fmt.Errorf("resolving employee facility/department: %w", err)
+		}
+	}
+
+	var newID int
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) + 1 FROM clinician_app.weeklyreport`).Scan(&newID); err != nil {
+		return fmt.Errorf("generating report id: %w", err)
+	}
+
+	nullInt := func(n sql.NullInt64) interface{} {
+		if n.Valid {
+			return n.Int64
+		}
+		return nil
+	}
+
+	start := row.WeekStart.Time
+	stop := start
+	if row.WeekStop.Valid {
+		stop = row.WeekStop.Time
+	}
+
+	daysWorked := ""
+	if row.DaysWorked.Valid {
+		daysWorked = row.DaysWorked.String
+	}
+
+	createdOn := time.Now()
+	if row.EnteredOn.Valid {
+		createdOn = row.EnteredOn.Time
+	}
+
+	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
+		`id, hospital, department, employee, start, stop, ` +
+		`attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, ` +
+		`teaching_rounds, students_taught, mortality_reviews, maternal, perinatal, surgical, medical, paed, labs_requests, imaging_requests, ` +
+		`lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain, ` +
+		`culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans, ` +
+		`created_on, days_worked` +
+		`) VALUES (` +
+		`$1, $2, $3, $4, $5, $6, ` +
+		`$7, $8, $9, $10, $11, $12, $13, $14, $15, $16, ` +
+		`$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, ` +
+		`$27, $28, $29, $30, $31, $32, $33, $34, $35, $36, ` +
+		`$37, $38, $39, $40, $41, $42, $43, $44, ` +
+		`$45, $46` +
+		`)`
+
+	_, err := db.ExecContext(ctx, sqlstr,
+		newID, facilityID, departmentID, row.EmployeeID, start, stop,
+		nullInt(row.Qn01), nullInt(row.Qn02), nullInt(row.Qn03), nullInt(row.Qn04), nullInt(row.Qn05), nullInt(row.Qn06), nullInt(row.Qn07), nullInt(row.Qn08), nullInt(row.Qn09), nullInt(row.Qn10),
+		nullInt(row.Qn11), nullInt(row.Qn12), nullInt(row.Qn13), nullInt(row.Qn14), nullInt(row.Qn15), nullInt(row.Qn16), nullInt(row.Qn17), nullInt(row.Qn18), nullInt(row.Qn19), nullInt(row.Qn20),
+		nullInt(row.Qn21), nullInt(row.Qn22), nullInt(row.Qn23), nullInt(row.Qn24), nullInt(row.Qn25), nullInt(row.Qn26), nullInt(row.Qn27), nullInt(row.Qn28), nullInt(row.Qn29), nullInt(row.Qn30),
+		nullInt(row.Qn31), nullInt(row.Qn32), nullInt(row.Qn33), nullInt(row.Qn34), nullInt(row.Qn35), nullInt(row.Qn36), nullInt(row.Qn37), nullInt(row.Qn38),
+		createdOn, daysWorked,
+	)
+	if err != nil {
+		return err
+	}
+	row.ReportID = newID
+	return nil
+}
+
 func GetFacilityReportReview(ctx context.Context, db *sql.DB, facilityID int64, filterStatus string, year int, week int) ([]*FacilityReportReviewRow, error) {
 	whereClause := `WHERE w.hospital = $1 AND COALESCE(w.submit_status, '') = 'Submitted'`
 	args := []interface{}{facilityID}

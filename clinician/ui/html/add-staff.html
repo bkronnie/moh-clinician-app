@@ -1,0 +1,155 @@
+{{ define "title" }}Add Staff Member{{ end }}
+
+{{ define "header" }}Add Staff Member{{ end }}
+
+{{ define "pageActions" }}
+<a class="btn btn-outline-secondary btn-sm" href="/employee/list">Back to Staff</a>
+{{ end }}
+
+{{ define "content" }}
+<div class="entry-shell">
+    {{ if .Form.Error }}
+    <div class="alert alert-danger mb-3" role="alert">{{ .Form.Error }}</div>
+    {{ end }}
+
+    <form method="post" action="/employee/staff/new" class="entry-form-panel">
+
+        <div class="entry-section">
+            <h3 class="entry-section-title">Personal Information</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label for="firstname">First Name <span class="text-danger">*</span></label>
+                    <input type="text" id="firstname" name="firstname"
+                        value="{{ index .Form.Values "firstname" }}"
+                        required class="form-control" autocomplete="given-name">
+                </div>
+                <div class="entry-field">
+                    <label for="lastname">Last Name <span class="text-danger">*</span></label>
+                    <input type="text" id="lastname" name="lastname"
+                        value="{{ index .Form.Values "lastname" }}"
+                        required class="form-control" autocomplete="family-name">
+                </div>
+                <div class="entry-field">
+                    <label for="othername">Other Name</label>
+                    <input type="text" id="othername" name="othername"
+                        value="{{ index .Form.Values "othername" }}"
+                        class="form-control" autocomplete="additional-name">
+                </div>
+                <div class="entry-field">
+                    <label for="employee_number">Medical Officer ID <span class="text-danger">*</span></label>
+                    <input type="text" id="employee_number" name="employee_number"
+                        value="{{ index .Form.Values "employeeNumber" }}"
+                        required class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label for="date_of_birth">Date of Birth</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth"
+                        value="{{ index .Form.Values "dateOfBirth" }}"
+                        class="form-control">
+                </div>
+                <div class="entry-field">
+                    <label for="phone_number">Phone Number</label>
+                    <input type="tel" id="phone_number" name="phone_number"
+                        value="{{ index .Form.Values "phoneNumber" }}"
+                        class="form-control" autocomplete="tel">
+                </div>
+            </div>
+        </div>
+
+        <div class="entry-section">
+            <h3 class="entry-section-title">Placement &amp; Role</h3>
+            <div class="entry-grid">
+                {{ if .Form.FacilityFixed }}
+                <div class="entry-field">
+                    <label>Facility</label>
+                    <input type="hidden" name="facility_id" value="{{ (index .Form.Facilities 0).ID }}">
+                    <input type="text" class="form-control" value="{{ (index .Form.Facilities 0).Name }}" readonly>
+                </div>
+                {{ else }}
+                <div class="entry-field">
+                    <label for="facility_id">Facility <span class="text-danger">*</span></label>
+                    <select id="facility_id" name="facility_id" required class="form-control">
+                        <option value="">Select facility</option>
+                        {{ range .Form.Facilities }}
+                        <option value="{{ .ID }}"
+                            {{ if eq (printf "%d" .ID) (index $.Form.Values "facility") }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                {{ end }}
+
+                <div class="entry-field">
+                    <label for="department_id">Department <span class="text-danger">*</span></label>
+                    <select id="department_id" name="department_id" required class="form-control">
+                        <option value="">Select department</option>
+                        {{ range .Form.Departments }}
+                        <option value="{{ .ID }}"
+                            {{ if eq (printf "%d" .ID) (index $.Form.Values "department") }}selected{{ end }}>{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+
+                <div class="entry-field">
+                    <label for="title_id">Cadre <span class="text-danger">*</span></label>
+                    <select id="title_id" name="title_id" required class="form-control">
+                        <option value="">Select cadre</option>
+                        {{ range .Form.Titles }}
+                        <option value="{{ .ID }}"
+                            {{ if eq (printf "%d" .ID) (index $.Form.Values "title") }}selected{{ end }}>{{ .Title }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+
+                <div class="entry-field">
+                    <label for="specialisation">Specialisation</label>
+                    <input type="text" id="specialisation" name="specialisation"
+                        value="{{ index .Form.Values "specialisation" }}"
+                        class="form-control">
+                </div>
+
+                {{ if .Form.ShowRolePicker }}
+                <div class="entry-field">
+                    <label for="role">Account Role</label>
+                    <select id="role" name="role" class="form-control">
+                        <option value="Staff"
+                            {{ if ne (index $.Form.Values "role") "Admin" }}selected{{ end }}>Staff</option>
+                        <option value="Admin"
+                            {{ if eq (index $.Form.Values "role") "Admin" }}selected{{ end }}>Admin</option>
+                    </select>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="entry-section">
+            <h3 class="entry-section-title">Login Credentials</h3>
+            <div class="entry-grid">
+                <div class="entry-field">
+                    <label for="email">Email Address <span class="text-danger">*</span></label>
+                    <input type="email" id="email" name="email"
+                        value="{{ index .Form.Values "email" }}"
+                        required class="form-control" autocomplete="off">
+                    <small class="form-text text-muted">This email becomes the staff member's login username.</small>
+                </div>
+                <div class="entry-field">
+                    <label for="password">Initial Password <span class="text-danger">*</span></label>
+                    <input type="password" id="password" name="password"
+                        required class="form-control" autocomplete="new-password">
+                    <small class="form-text text-muted">The staff member should change this after first login.</small>
+                </div>
+                <div class="entry-field">
+                    <label for="confirm_password">Confirm Password <span class="text-danger">*</span></label>
+                    <input type="password" id="confirm_password" name="confirm_password"
+                        required class="form-control" autocomplete="new-password">
+                </div>
+            </div>
+        </div>
+
+        <div class="entry-actions">
+            <button type="submit" class="btn btn-primary">Create Account</button>
+            <a class="btn btn-outline-secondary" href="/employee/list">Cancel</a>
+        </div>
+
+    </form>
+</div>
+{{ end }}

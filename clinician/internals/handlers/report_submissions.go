@@ -484,23 +484,25 @@ func HandlerReportSubmissionView(c *gin.Context, db *sql.DB, sessionManager *scs
 	}
 
 	labels := resolveClinicianEntryLabels(c.Request.Context(), db)
+	subSections, subHideCore := resolveClinicianEntryConfig(c.Request.Context(), db, report.DepartmentID, labels)
 	entryForm := ClinicianEntryView{
-		EmployeeID:     report.EmployeeID,
-		EmployeeName:   fmt.Sprintf("%s %s", employee.Fname.String, employee.Lname.String),
-		DepartmentID:   report.DepartmentID,
-		DepartmentName: department.DepartmentName.String,
-		FacilityName:   facility.FacilityName,
-		Labels:         labels,
-		Sections:       buildClinicianEntrySections(c.Request.Context(), db, report.DepartmentID, labels),
-		StartDate:      formatNullDate(report.WeekStart),
-		StopDate:       formatNullDate(report.WeekStop),
-		ReportID:       report.ReportID,
-		Values:         clinicianEntryValuesFromReport(report),
-		IsEdit:         true,
-		StatusLabel:    reportSubmissionStatusLabel(report.SubmitStatus, report.ReportStatus),
-		ReturnURL:      sanitizeReportSubmissionURL(c.Query("return_to")),
-		ReadOnly:       true,
-		WeekDays:       buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String),
+		EmployeeID:      report.EmployeeID,
+		EmployeeName:    fmt.Sprintf("%s %s", employee.Fname.String, employee.Lname.String),
+		DepartmentID:    report.DepartmentID,
+		DepartmentName:  department.DepartmentName.String,
+		FacilityName:    facility.FacilityName,
+		Labels:          labels,
+		Sections:        subSections,
+		StartDate:       formatNullDate(report.WeekStart),
+		StopDate:        formatNullDate(report.WeekStop),
+		ReportID:        report.ReportID,
+		Values:          clinicianEntryValuesFromReport(report),
+		IsEdit:          true,
+		StatusLabel:     reportSubmissionStatusLabel(report.SubmitStatus, report.ReportStatus),
+		ReturnURL:       sanitizeReportSubmissionURL(c.Query("return_to")),
+		ReadOnly:        true,
+		WeekDays:        buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String),
+		HideCoreSection: subHideCore,
 	}
 	applyDynamicReportValues(c.Request.Context(), db, report.ReportID, resolveClinicianEntryKeys(c.Request.Context(), db, report.DepartmentID), entryForm.Values)
 	sessionData.Form = entryForm

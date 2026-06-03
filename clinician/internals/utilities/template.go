@@ -268,7 +268,7 @@ func NormalizeRoleKey(role string) string {
 	}
 
 	switch compact {
-	case "nationaladmin", "nationaladministrator", "nationalsupervisor":
+	case "nationaladmin", "nationaladministrator", "nationalsupervisor", "admin", "administrator":
 		return RoleNationalAdmin
 	case "facilityadmin", "facilityadministrator", "facilitymanager", "hospitaladmin", "hospitaladministrator", "hospitalmanager":
 		return RoleFacilityAdmin

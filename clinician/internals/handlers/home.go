@@ -336,6 +336,13 @@ func SES_SET(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) (ut
 		}
 	}
 
+	// Map "Admin" DB label to the internal National Admin constant.
+	// Facility-level admins are stored as "Facility Admin" in the DB and are
+	// handled correctly by NormalizeRoleKey without an explicit mapping here.
+	if ses.Rights == "Admin" {
+		ses.Rights = utilities.RoleNationalAdmin
+	}
+
 	return ses, nil
 
 }

@@ -10,22 +10,27 @@ func TestEvaluateCanonicalRightsDrift(t *testing.T) {
 	}{
 		{
 			name:    "canonical set no drift",
-			actual:  []string{"National Admin", "Facility Admin", "Staff"},
+			actual:  []string{"Admin", "Facility Admin", "Staff"},
 			wantLen: 0,
 		},
 		{
-			name:    "missing staff",
-			actual:  []string{"National Admin", "Facility Admin"},
+			name:    "missing facility admin",
+			actual:  []string{"Admin", "Staff"},
 			wantLen: 2,
 		},
 		{
 			name:    "unexpected legacy roles",
-			actual:  []string{"National Admin", "Facility Admin", "Staff", "admin", "approver"},
+			actual:  []string{"Admin", "Facility Admin", "Staff", "approver"},
+			wantLen: 2,
+		},
+		{
+			name:    "old national admin name causes drift",
+			actual:  []string{"National Admin", "Facility Admin", "Staff"},
 			wantLen: 2,
 		},
 		{
 			name:    "case and spacing tolerated",
-			actual:  []string{" national admin ", "FACILITY ADMIN", "staff"},
+			actual:  []string{" admin ", "FACILITY ADMIN", "STAFF"},
 			wantLen: 0,
 		},
 	}

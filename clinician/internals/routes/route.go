@@ -164,6 +164,8 @@ func RouteEmployeee(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionM
 		v.POST("/delete/:id", func(c *gin.Context) { handlers.HandlerEmployeeDelete(c, db, sessionManager) })
 		v.POST("/filter", func(c *gin.Context) { handlers.HandlerEmployeeList(c, db, sessionManager) })
 		v.GET("/list", func(c *gin.Context) { handlers.HandlerEmployeeList(c, db, sessionManager) })
+		v.GET("/staff/new", func(c *gin.Context) { handlers.HandlerAdminAddUserForm(c, db, sessionManager) })
+		v.POST("/staff/new", func(c *gin.Context) { handlers.HandlerAdminAddUserSave(c, db, sessionManager) })
 		v.GET("/leave/form", func(c *gin.Context) { handlers.HandlerEmployeeLeaveForm(c, db, sessionManager) })
 		v.POST("/leave/save", func(c *gin.Context) { handlers.HandlerEmployeeLeaveSave(c, db, sessionManager) })
 		v.GET("/leave/staffonleave", func(c *gin.Context) { handlers.HandlerLeaveList(c, db, sessionManager) })

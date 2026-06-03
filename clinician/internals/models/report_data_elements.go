@@ -73,6 +73,8 @@ var defaultReportDataElements = []defaultReportDataElement{
 	{38, "abdominal_scans", "abdominal_scans", "Abdominal Scans", true},
 	{39, "custom_metric_39", "custom_metric_39", "Custom Metric 39", false},
 	{40, "custom_metric_40", "custom_metric_40", "Custom Metric 40", false},
+	{41, "prescriptions_received", "prescriptions_received", "Prescriptions Received", false},
+	{42, "patients_prescribed", "patients_prescribed", "Patients That Got Medicines", false},
 }
 
 var weeklyreportLegacyColumns = []struct {
