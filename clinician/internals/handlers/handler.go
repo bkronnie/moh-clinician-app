@@ -113,8 +113,21 @@ func LoginHandler(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager
 		sessionData := Get_Session_Data(c, db, sessionManager, nil)
 		log.Printf("Session Data Login Handler: %+v", sessionData)
 
-		// Redirect to the home page after successful login
+		// Redirect staff members directly to the data entry form
 		utilities.Info("Login successful")
+		roleName, roleErr := models.UserRoleNameByID(c.Request.Context(), db, user.ID)
+		if roleErr == nil && utilities.RoleMatches(roleName, utilities.RoleStaff) {
+			c.Redirect(http.StatusFound, "/reports/new/0")
+			return
+		}
+		if roleErr == nil && utilities.RoleMatches(roleName, utilities.RoleFacilityAdmin) {
+			c.Redirect(http.StatusFound, "/reports/analysis")
+			return
+		}
+		if roleErr == nil && utilities.RoleMatches(roleName, utilities.RoleNationalAdmin) {
+			c.Redirect(http.StatusFound, "/reports/analysis?view=facility")
+			return
+		}
 		c.Redirect(http.StatusFound, "/")
 		return
 	} else {

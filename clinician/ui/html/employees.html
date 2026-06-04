@@ -22,9 +22,6 @@ Staff Management
         <div class="dashboard-tabs-row mb-3">
         <ul class="nav section-tabs app-filter-bar mb-0" style="border-bottom:0;padding-bottom:0;">
             <li class="nav-item">
-                <a class="nav-link {{ if eq .Form.ActiveTab "dashboard" }}active{{ end }}" href="/employee/list?tab=dashboard{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Dashboard</a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link {{ if eq .Form.ActiveTab "list" }}active{{ end }}" href="/employee/list?tab=list{{ if gt .Form.SelectedFacility 0 }}&facility={{ .Form.SelectedFacility }}{{ end }}{{ if gt .Form.SelectedDepartment 0 }}&department={{ .Form.SelectedDepartment }}{{ end }}{{ if .Form.SearchTerm }}&search={{ urlquery .Form.SearchTerm }}{{ end }}">Staff List</a>
             </li>
             <li class="nav-item">
@@ -37,7 +34,6 @@ Staff Management
         <a class="btn btn-primary btn-sm" href="{{ .Form.AddStaffURL }}" style="flex-shrink:0;">+ Add Staff</a>
         </div>
 
-        {{ if ne .Form.ActiveTab "dashboard" }}
         <form class="filter-form" method="get" action="/employee/list">
             <input type="hidden" name="tab" value="{{ .Form.ActiveTab }}">
             {{ if .Form.ShowFacilityFilter }}
@@ -77,56 +73,8 @@ Staff Management
             <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
             <a class="btn btn-outline-secondary btn-sm" href="/employee/list?tab={{ .Form.ActiveTab }}">Clear</a>
         </form>
-        {{ end }}
 
-        {{ if eq .Form.ActiveTab "dashboard" }}
-        <div class="employee-dashboard-cards">
-            <div class="employee-card">
-                <h4>Total employees</h4>
-                <span>{{ .Form.Dashboard.TotalStaff }}</span>
-            </div>
-            <div class="employee-card">
-                <h4>Active leave</h4>
-                <span>{{ .Form.Dashboard.StaffOnLeave }}</span>
-            </div>
-            <div class="employee-card">
-                <h4>Current on duty</h4>
-                <span>{{ .Form.Dashboard.StaffPresent }}</span>
-            </div>
-            <div class="employee-card">
-                <h4>Facilities</h4>
-                <span>{{ .Form.Dashboard.FacilitiesCount }}</span>
-            </div>
-        </div>
-
-        <div class="app-list-grid employees-grid">
-            <div class="app-list-grid-header">
-                <div>Top Performing Staff</div>
-                <div>Cadre</div>
-                <div>Department</div>
-                <div>Facility</div>
-                <div>Actions</div>
-            </div>
-            {{ if .Form.TopEmployees }}
-                {{ range $employee := .Form.TopEmployees }}
-                <div class="app-list-grid-row">
-                    <div class="app-list-cell">
-                        <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }}</strong>
-                        <span>ID {{ $employee.EmpID }}</span>
-                    </div>
-                    <div class="app-list-cell">{{ $employee.EmpTitle.String }}</div>
-                    <div class="app-list-cell">{{ $employee.EmpDepartmentName.String }}</div>
-                    <div class="app-list-cell">{{ $employee.EmpFacilityName.String }}</div>
-                    <div class="app-row-actions">
-                        <a href="/employee/edit/{{ $employee.EmpID }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                    </div>
-                </div>
-                {{ end }}
-            {{ else }}
-            <div class="app-list-empty">No top employees found.</div>
-            {{ end }}
-        </div>
-        {{ else if eq .Form.ActiveTab "list" }}
+        {{ if eq .Form.ActiveTab "list" }}
         {{ template "employeeTable" (dict "Employees" .Form.Employees "CurrentURL" .Form.CurrentURL) }}
         {{ else if eq .Form.ActiveTab "on_duty" }}
         {{ template "employeeTable" (dict "Employees" .Form.OnDuty "CurrentURL" .Form.CurrentURL) }}

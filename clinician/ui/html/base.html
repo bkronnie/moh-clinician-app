@@ -78,7 +78,7 @@
                 {{ end }}
                 {{ if or $isManager $isAdmin }}
                 <li class="nav-item">
-                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
+                    <a class="nav-link" href="/employee/list?tab=list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                 </li>
                 {{ end }}
                 {{ if $isAdmin }}
@@ -168,7 +168,7 @@
                     <a class="nav-link" href="/analysis/tables"><span class="nav-link-icon">{{ navIcon "table" }}</span><span>Analysis Tables</span></a>
                     {{ end }}
                     {{ if or $isManager $isAdmin }}
-                    <a class="nav-link" href="/employee/list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
+                    <a class="nav-link" href="/employee/list?tab=list"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                     {{ end }}
                     {{ if $isAdmin }}
                     <a class="nav-link" href="/customization"><span class="nav-link-icon">{{ navIcon "customization" }}</span><span>Customization</span></a>
@@ -220,7 +220,7 @@
                         {{ end }}
                         {{ if or $isManager $isAdmin }}
                         <li class="nav-item">
-                            <a class="nav-link" href="/employee/list" data-tooltip="Staff"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
+                            <a class="nav-link" href="/employee/list?tab=list" data-tooltip="Staff"><span class="nav-link-icon">{{ navIcon "employees" }}</span><span>Staff</span></a>
                         </li>
                         {{ end }}
                         {{ if $isAdmin }}
@@ -311,9 +311,196 @@
     <script src="/static/js/sortable.js"></script>
     <script>
     (() => {
+        const storageKey = 'pageViewState:' + (window.location.pathname || '/');
+
+        const cssEscape = (value) => {
+            if (window.CSS && typeof window.CSS.escape === 'function') {
+                return window.CSS.escape(value);
+            }
+            return String(value).replace(/([ #;?%&,.+*~\':"!^$\[\]()=>|\/\\@])/g, '\\$1');
+        };
+
+        const findAccordionTarget = (row) => {
+            if (!row || !row.dataset || !row.dataset.toggleTarget) {
+                return null;
+            }
+            return document.getElementById(row.dataset.toggleTarget);
+        };
+
+        const isAccordionOpen = (row) => {
+            const target = findAccordionTarget(row);
+            return !!(target && window.getComputedStyle(target).display !== 'none');
+        };
+
+        const collectViewState = () => {
+            const openAccordions = Array.from(document.querySelectorAll('.content .analysis-accordion-row'))
+                .filter(isAccordionOpen)
+                .map((row) => row.dataset.stateId || row.dataset.toggleTarget)
+                .filter(Boolean);
+
+            const openCollapses = Array.from(document.querySelectorAll('.content .collapse.show[id]'))
+                .map((element) => element.id)
+                .filter(Boolean);
+
+            const activeTabs = Array.from(document.querySelectorAll('.content [data-toggle="tab"].active[href^="#"]'))
+                .map((element) => element.getAttribute('href'))
+                .filter(Boolean);
+
+            return {
+                accordions: openAccordions,
+                collapses: openCollapses,
+                tabs: activeTabs,
+                scroll: window.scrollY || window.pageYOffset || 0,
+            };
+        };
+
+        const saveViewState = () => {
+            try {
+                sessionStorage.setItem(storageKey, JSON.stringify(collectViewState()));
+            } catch (error) {}
+        };
+
+        const restoreViewState = () => {
+            let raw = null;
+            try {
+                raw = sessionStorage.getItem(storageKey);
+            } catch (error) {
+                return;
+            }
+            if (!raw) {
+                return;
+            }
+
+            let state = null;
+            try {
+                state = JSON.parse(raw);
+            } catch (error) {
+                state = null;
+            }
+            try {
+                sessionStorage.removeItem(storageKey);
+            } catch (error) {}
+            if (!state) {
+                return;
+            }
+
+            (state.tabs || []).forEach((href) => {
+                const tab = document.querySelector('.content [data-toggle="tab"][href="' + cssEscape(href) + '"]');
+                if (!tab) {
+                    return;
+                }
+                if (window.jQuery && typeof window.jQuery(tab).tab === 'function') {
+                    window.jQuery(tab).tab('show');
+                    return;
+                }
+                tab.click();
+            });
+
+            (state.collapses || []).forEach((id) => {
+                const selector = '#' + cssEscape(id);
+                const panel = document.querySelector(selector);
+                if (!panel) {
+                    return;
+                }
+                if (window.jQuery && typeof window.jQuery(panel).collapse === 'function') {
+                    window.jQuery(panel).collapse('show');
+                    return;
+                }
+                panel.classList.add('show');
+            });
+
+            (state.accordions || []).forEach((stateId) => {
+                const row = document.querySelector('.content .analysis-accordion-row[data-state-id="' + cssEscape(stateId) + '"]')
+                    || document.querySelector('.content .analysis-accordion-row[data-toggle-target="' + cssEscape(stateId) + '"]');
+                if (row && !isAccordionOpen(row)) {
+                    row.click();
+                }
+            });
+
+            if (typeof state.scroll === 'number') {
+                setTimeout(() => window.scrollTo(0, state.scroll), 60);
+            }
+        };
+
+        document.querySelectorAll('form.dashboard-auto-submit, form.filter-form').forEach((form) => {
+            form.addEventListener('submit', saveViewState);
+        });
+
+        window._savePageViewState = saveViewState;
+        window.addEventListener('load', () => {
+            setTimeout(restoreViewState, 0);
+        });
+    })();
+    </script>
+    <script>
+    (() => {
         const path = window.location.pathname || "/";
 
         const scoreMatch = (href) => {
+
+    (() => {
+        const storageKey = 'page-ui-state:' + (window.location.pathname || '/');
+        const forms = document.querySelectorAll('form.dashboard-auto-submit, form.filter-form');
+
+        const saveState = () => {
+            try {
+                const state = {
+                    collapseIds: Array.from(document.querySelectorAll('.collapse.show[id]')).map((element) => element.id),
+                    tabHrefs: Array.from(document.querySelectorAll('[data-toggle="tab"].active[href^="#"]')).map((element) => element.getAttribute('href')),
+                    scroll: window.scrollY || window.pageYOffset || 0,
+                };
+                sessionStorage.setItem(storageKey, JSON.stringify(state));
+            } catch (error) {}
+        };
+
+        forms.forEach((form) => {
+            form.addEventListener('submit', saveState);
+        });
+
+        window.addEventListener('load', () => {
+            try {
+                const raw = sessionStorage.getItem(storageKey);
+                if (!raw) {
+                    return;
+                }
+                sessionStorage.removeItem(storageKey);
+                const state = JSON.parse(raw);
+
+                if (Array.isArray(state.tabHrefs)) {
+                    state.tabHrefs.forEach((href) => {
+                        const tab = document.querySelector('[data-toggle="tab"][href="' + href + '"]');
+                        if (!tab) {
+                            return;
+                        }
+                        if (window.jQuery && window.jQuery.fn && typeof window.jQuery(tab).tab === 'function') {
+                            window.jQuery(tab).tab('show');
+                        } else {
+                            tab.click();
+                        }
+                    });
+                }
+
+                if (Array.isArray(state.collapseIds)) {
+                    state.collapseIds.forEach((id) => {
+                        const selector = '#' + id;
+                        const panel = document.querySelector(selector);
+                        if (!panel) {
+                            return;
+                        }
+                        if (window.jQuery && window.jQuery.fn && typeof window.jQuery(panel).collapse === 'function') {
+                            window.jQuery(panel).collapse('show');
+                        } else {
+                            panel.classList.add('show');
+                        }
+                    });
+                }
+
+                if (typeof state.scroll === 'number') {
+                    setTimeout(() => window.scrollTo(0, state.scroll), 60);
+                }
+            } catch (error) {}
+        });
+    })();
             if (!href || !href.startsWith("/")) {
                 return 0;
             }
@@ -466,7 +653,7 @@
             <span class="mobile-bottom-nav-icon">{{ navIcon "table" }}</span>
             <span>Tables</span>
         </a>
-        <a class="nav-link mobile-bottom-nav-item" href="/employee/list">
+        <a class="nav-link mobile-bottom-nav-item" href="/employee/list?tab=list">
             <span class="mobile-bottom-nav-icon">{{ navIcon "employees" }}</span>
             <span>Staff</span>
         </a>

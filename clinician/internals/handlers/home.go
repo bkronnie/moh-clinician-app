@@ -224,6 +224,12 @@ func HandlerHome(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager)
 
 	log.Printf("Session Data HandlerHome: %+v", sesDetails)
 
+	// Staff members should land on the data entry form, not the dashboard
+	if utilities.RoleMatches(sesDetails.Rights, utilities.RoleStaff) {
+		c.Redirect(http.StatusFound, "/reports/new/0")
+		return
+	}
+
 	viewModel, err := buildHomeViewModel(c, db, sesDetails)
 	if err != nil {
 		log.Printf("Error fetching dashboard data: %v", err)

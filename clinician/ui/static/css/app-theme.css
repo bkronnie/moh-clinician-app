@@ -936,18 +936,28 @@ table.table,
 
 .table thead th,
 .thead-light th,
+.table-light th,
 .div1 th {
     background: #edf4f2 !important;
-    color: var(--app-heading);
-    font-size: 0.82rem;
+    color: #12343b !important;
+    font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
+    border-bottom: 2px solid #c6ddd8 !important;
 }
 
+.table-hover tbody tr:hover td,
 .table-hover tbody tr:hover,
 .div1 tbody tr:hover td {
-    background: rgba(21, 107, 122, 0.05);
+    background: rgba(21, 107, 122, 0.05) !important;
+    transition: background 0.12s;
+}
+
+.table-bordered,
+.table-bordered td,
+.table-bordered th {
+    border-color: #d9e8ec !important;
 }
 
 .app-table-scroll,
@@ -1075,8 +1085,8 @@ table.table,
 }
 
 .app-list-grid-header {
-    background: #12343b;
-    color: #f4fbfc;
+    background: #edf4f2;
+    color: #12343b;
     font-size: 0.72rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -1084,18 +1094,25 @@ table.table,
     position: sticky;
     top: 0;
     z-index: 2;
+    border-bottom: 2px solid #c6ddd8;
 }
 
 .app-list-grid-row {
     border-top: 1px solid #d9e8ec;
+    background: #ffffff;
 }
 
 .app-list-grid-row:nth-child(even) {
-    background: #f8fbfc;
+    background: #ffffff;
 }
 
 .app-list-grid-row:nth-child(odd) {
-    background: #eef6f8;
+    background: #f7fbfa;
+}
+
+.app-list-grid-row:hover {
+    background: rgba(21, 107, 122, 0.05) !important;
+    transition: background 0.12s;
 }
 
 .app-list-cell strong {
@@ -2084,6 +2101,15 @@ table.table,
     color: #12343b;
 }
 
+.filter-field input[type="date"] {
+    width: 100%;
+    border: 1px solid #c5dadd;
+    border-radius: 12px;
+    padding: 0.52rem 0.68rem;
+    background: #ffffff;
+    color: #12343b;
+}
+
 .filter-hint {
     font-size: 0.76rem;
     color: #58727a;
@@ -2455,6 +2481,74 @@ table.table,
 
 .entry-field input {
     width: 100%;
+}
+
+/* Attendance state toggle */
+.attendance-state-group {
+    display: flex;
+    gap: 0;
+    margin-top: 0.25rem;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #d9e8ec;
+    width: fit-content;
+}
+
+.attendance-btn {
+    padding: 0.45rem 1.1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    background: #f8fbfc;
+    color: #58727a;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    outline: none;
+}
+
+.attendance-btn:not(:first-child) {
+    border-left: 1px solid #d9e8ec;
+}
+
+.attendance-btn.active[data-state="attended"] {
+    background: #1a7a4a;
+    color: #fff;
+}
+
+.attendance-btn.active[data-state="absent"] {
+    background: #c0392b;
+    color: #fff;
+}
+
+.attendance-btn:not(.active):hover {
+    background: #e8f4f7;
+}
+
+.attendance-badge {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+.attendance-badge.on-leave {
+    background: #e9ecef;
+    color: #495057;
+    border: 1px solid #ced4da;
+}
+
+.attendance-badge.attended {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.attendance-badge.absent {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 .days-worked-dropdown {

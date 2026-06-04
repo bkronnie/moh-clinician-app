@@ -1,14 +1,74 @@
 {{ define "title"}} Report Submissions {{ end }}
 
+{{ define "extraStyles" }}
+<style>
+.analysis-accordion-row { cursor: pointer; user-select: none; }
+.analysis-accordion-row:hover td { background: #f0f8f7; }
+.analysis-toggle-icon {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: #4a9aaa;
+    min-width: 1rem;
+    text-align: center;
+}
+.bulk-expand-td {
+    padding: 0 !important;
+    background: #f7fbfa !important;
+    border-top: none !important;
+}
+.bulk-entry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 0.65rem 1rem;
+    padding: 1rem 1.25rem 1.2rem;
+}
+.bulk-entry-field { display: flex; flex-direction: column; }
+.bulk-entry-label {
+    font-size: 0.76rem;
+    color: #204650;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+.day-staff-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1090;}
+.day-staff-overlay.open{display:block;}
+.day-staff-pane{position:fixed;top:0;right:-720px;width:min(720px,96vw);height:100vh;background:#fff;box-shadow:-4px 0 18px rgba(0,0,0,.18);z-index:1100;display:flex;flex-direction:column;transition:right .25s ease;overflow:hidden;}
+.day-staff-pane.open{right:0;}
+.day-staff-pane-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid #dee2e6;background:#f8f9fa;flex-shrink:0;}
+.day-staff-pane-body{flex:1;overflow-y:auto;padding:1rem;}
+.day-staff-pane-footer{flex-shrink:0;padding:.75rem 1rem;border-top:1px solid #dee2e6;background:#f8f9fa;}
+.dsp-toggle-btn{background:none;border:none;padding:0;line-height:1;font-size:11px;color:#6c757d;cursor:pointer;width:18px;text-align:center;}
+.dsp-toggle-btn:hover{color:#0d6efd;}
+.dsp-entry-detail{background:#f8f9fa;}
+.dsp-entry-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px 14px;padding:8px 4px;}
+.dsp-entry-item>small{display:block;color:#6c757d;font-size:11px;}
+.dsp-entry-item>strong{display:block;font-size:14px;}
+.dsp-entry-item>input[type=number]{display:block;width:100%;font-size:14px;padding:2px 4px;border:1px solid #ced4da;border-radius:3px;}
+.dsp-entry-item>label.dsp-attend{display:flex;align-items:center;gap:4px;font-size:13px;}
+.dsp-review-actions{border-top:1px solid #dee2e6;padding-top:8px;}
+.week-day-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.week-day-table th,.week-day-table td{padding:.35rem .9rem;border-bottom:1px solid #e8f0f2;font-size:.875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.week-day-table thead th{background:#f0f7f8;font-weight:600;color:#204650;}
+.week-day-table tbody tr{cursor:pointer;}
+.week-day-table tbody tr:hover td{background:#e8f4f5;}
+.week-day-table td:first-child{white-space:normal;}
+.week-day-table th:nth-child(1),.week-day-table td:nth-child(1){width:20%;}
+.week-day-table th:nth-child(2),.week-day-table td:nth-child(2){width:11%;text-align:right;}
+.week-day-table th:nth-child(3),.week-day-table td:nth-child(3){width:11%;text-align:right;}
+.week-day-table th:nth-child(4),.week-day-table td:nth-child(4){width:12%;text-align:right;}
+.week-day-table th:nth-child(5),.week-day-table td:nth-child(5){width:12%;text-align:right;}
+.week-day-table th:nth-child(6),.week-day-table td:nth-child(6){width:14%;text-align:right;}
+.week-day-table th:nth-child(7),.week-day-table td:nth-child(7){width:16%;}
+.week-day-table th:nth-child(8),.week-day-table td:nth-child(8){width:12%;text-align:center;}
+.wdt-bar{height:4px;background:#e8f0f2;border-radius:2px;margin-top:3px;}
+.wdt-bar-fill{height:4px;background:#198754;border-radius:2px;}
+.week-day-table .wdt-bar{height:4px;background:#e8f0f2;border-radius:2px;margin-top:3px;}
+.week-day-table .wdt-bar-fill{height:4px;background:#198754;border-radius:2px;}
+</style>
+{{ end }}
 
 {{ define "header" }}Report Submissions{{ end }}
 
-{{ define "pageActions" }}
-<div class="app-list-actions">
-    <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary btn-sm">Download CSV</a>
-    <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary btn-sm">Download PDF</a>
-</div>
-{{ end }}
+{{ define "pageActions" }}{{ end }}
 
 {{ define "content" }}
 <div class="app-list-shell">
@@ -23,7 +83,7 @@
 
     <div class="app-list-panel">
         <div class="app-list-toolbar">
-            <p>{{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}{{ len .Form.WeekRows }} reporting week{{ if ne (len .Form.WeekRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
+            <p>{{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") .Form.ShowWeekSummary }}{{ len .Form.NationalFacilityGroups }} facilit{{ if eq (len .Form.NationalFacilityGroups) 1 }}y{{ else }}ies{{ end }} in this view.{{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else if and (eq .Form.Role "Staff") .Form.ShowWeekSummary }}{{ len .Form.StaffWeekRows }} reporting week{{ if ne (len .Form.StaffWeekRows) 1 }}s{{ end }} in this view.{{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}{{ len .Form.WeekRows }} reporting week{{ if ne (len .Form.WeekRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
             <div class="app-list-actions">
                 {{ if and (eq .Form.Role "Facility Admin") .Form.CanApproveAll }}
                 <form method="post" action="/reports/analysis/approve-all" onsubmit="return confirm('{{ if gt .Form.DraftCount 0 }}Submit and approve all draft and pending staff reports for this facility and week?{{ else }}Approve all pending submitted reports for this facility and week?{{ end }}');">
@@ -35,7 +95,7 @@
                     <button class="btn btn-success" type="submit" title="Step 1: {{ if gt .Form.DraftCount 0 }}Submit & approve every draft and pending staff report for this week{{ else }}Approve every submitted staff report for this week{{ end }}">Step 1 &mdash; Approve All Reports</button>
                 </form>
                 {{ end }}
-                {{ if and .Form.CanSubmitAll (gt .Form.SelectedYear 0) (gt .Form.SelectedWeek 0) }}
+                {{ if and .Form.CanSubmitAll (not .Form.ShowWeekSummary) (gt .Form.SelectedYear 0) (gt .Form.SelectedWeek 0) }}
                 <form method="post" action="{{ .Form.SubmitAllURL }}" onsubmit="return confirm('{{ if .Form.BatchDeclined }}Resubmit{{ else }}Submit{{ end }} all eligible staff reports for this facility and week?');">
                     <input type="hidden" name="department" value="0">
                     <input type="hidden" name="year" value="{{ .Form.SelectedYear }}">
@@ -50,36 +110,15 @@
                 {{ end }}
             </div>
         </div>
-        {{ if and .Form.CanSubmitAll (not .Form.CanSubmitToNational) .Form.SubmitBlockedReason }}
+        {{ if and .Form.CanSubmitAll (not .Form.ShowWeekSummary) (not .Form.CanSubmitToNational) .Form.SubmitBlockedReason }}
         <div class="px-3 pb-2">
             <small class="text-muted"><em>{{ .Form.SubmitBlockedReason }}</em></small>
         </div>
         {{ end }}
         <div class="dashboard-tabs-row">
-            <div class="nav section-tabs app-filter-bar">
-                <a href="{{ .Form.AllURL }}" class="nav-link {{ if eq .Form.SelectedStatus "all" }}active{{ end }}">All</a>
-                {{ if eq .Form.Role "Staff" }}
-                <a href="{{ .Form.SubmittedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "submitted" }}active{{ end }}">Submitted</a>
-                <a href="{{ .Form.ApprovedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "approved" }}active{{ end }}">Approved</a>
-                <a href="{{ .Form.DeclinedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "declined" }}active{{ end }}">Declined</a>
-                <a href="{{ .Form.DraftURL }}" class="nav-link {{ if eq .Form.SelectedStatus "draft" }}active{{ end }}">Draft</a>
-                {{ else if eq .Form.Role "Facility Admin" }}
-                <a href="{{ .Form.DraftURL }}" class="nav-link {{ if eq .Form.SelectedStatus "draft" }}active{{ end }}">Draft</a>
-                <a href="{{ .Form.PendingURL }}" class="nav-link {{ if eq .Form.SelectedStatus "pending" }}active{{ end }}">Pending</a>
-                <a href="{{ .Form.ApprovedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "approved" }}active{{ end }}">Approved</a>
-                <a href="{{ .Form.DeclinedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "declined" }}active{{ end }}">Declined</a>
-                {{ else }}
-                <a href="{{ .Form.PendingURL }}" class="nav-link {{ if eq .Form.SelectedStatus "pending" }}active{{ end }}">Pending</a>
-                <a href="{{ .Form.ApprovedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "approved" }}active{{ end }}">Approved</a>
-                <a href="{{ .Form.DeclinedURL }}" class="nav-link {{ if eq .Form.SelectedStatus "declined" }}active{{ end }}">Declined</a>
-                {{ end }}
-            </div>
             <form class="dashboard-inline-filters dashboard-auto-submit" method="GET" action="/reports/analysis">
                 {{ if ne .Form.ViewMode "staff" }}
                 <input type="hidden" name="view" value="{{ .Form.ViewMode }}">
-                {{ end }}
-                {{ if ne .Form.SelectedStatus "all" }}
-                <input type="hidden" name="status" value="{{ .Form.SelectedStatus }}">
                 {{ end }}
                 <span class="inline-filters-label">Filters:</span>
                 {{ if ne .Form.Role "Staff" }}
@@ -141,255 +180,669 @@
         </div>
         {{ end }}
 
-        {{ if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}
-        <div class="app-list-grid sortable report-submissions-grid report-submissions-facility-grid">
-            <div class="app-list-grid-header">
-                <div>Week</div>
-                <div>On Duty</div>
-                <div>On Leave</div>
-                <div>Submitted</div>
-                <div>Missing</div>
-                <div>Status</div>
-                <div data-nosort>Actions</div>
-            </div>
-            {{ if .Form.WeekRows }}
-                {{ range .Form.WeekRows }}
-                <div class="app-list-grid-row">
-                    <div class="app-list-cell" data-sort-value="{{ if .Summary.WeekStart.Valid }}{{ .Summary.WeekStart.Time.Unix }}{{ else }}0{{ end }}">
-                        <strong>
-                            {{ if and .Summary.WeekStart.Valid .Summary.WeekStop.Valid }}
-                            {{ .Summary.WeekStart.Time.Format "02 Jan 2006" }} - {{ .Summary.WeekStop.Time.Format "02 Jan 2006" }}
+        {{ if and (eq .Form.Role "Staff") .Form.ShowWeekSummary }}
+        <table class="table table-hover mb-0 mt-2">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width:2rem"></th>
+                    <th>Week</th>
+                    <th>Submitted</th>
+                    <th>Approved</th>
+                    <th>Not Submitted</th>
+                    <th>%</th>
+                    <th style="width:9rem"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if .Form.StaffWeekRows }}
+                    {{ range $wi, $wrow := .Form.StaffWeekRows }}
+                    {{ $wExpId := printf "staff-wk-%d" $wi }}
+                    <tr class="analysis-accordion-row" data-toggle-target="{{ $wExpId }}" data-state-id="staff-week-{{ $wrow.WeekStart.Format "2006-01-02" }}">
+                        <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                        <td>
+                            <strong>{{ $wrow.WeekStart.Format "02 Jan 2006" }} &ndash; {{ $wrow.WeekStop.Format "02 Jan 2006" }}</strong>
+                            <span class="d-block text-muted small">Reporting week</span>
+                        </td>
+                        <td><strong>{{ $wrow.SubmittedCount }}</strong></td>
+                        <td><strong>{{ $wrow.ApprovedCount }}</strong></td>
+                        <td><strong>{{ $wrow.NotSubmittedCount }}</strong></td>
+                        <td>
+                            <strong>{{ $wrow.SubmissionPct }}%</strong>
+                            <div class="wdt-bar"><div class="wdt-bar-fill" style="width:{{ $wrow.SubmissionPct }}%"></div></div>
+                        </td>
+                        <td>
+                            {{ if eq $wrow.ApprovalStatus "Approved" }}
+                            <span class="status-chip approved" style="font-size:.78rem;padding:.2rem .55rem;">&#10003;&nbsp;Approved</span>
+                            {{ else if eq $wrow.ApprovalStatus "Submitted" }}
+                            <span class="status-chip pending" style="font-size:.78rem;padding:.2rem .55rem;">Submitted</span>
                             {{ else }}
-                            -
+                            <span class="status-chip draft" style="font-size:.78rem;padding:.2rem .55rem;">Draft</span>
                             {{ end }}
-                        </strong>
-                        <span>Reporting week</span>
-                    </div>
-                    <div class="app-list-cell"><strong>{{ .Summary.OnDutyCount }}</strong></div>
-                    <div class="app-list-cell"><strong>{{ .Summary.OnLeaveCount }}</strong></div>
-                    <div class="app-list-cell">
-                        <strong>{{ .Summary.SubmittedCount }}</strong>
-                        <span>Submitted {{ if .Summary.SubmittedOn.Valid }}{{ humanDate .Summary.SubmittedOn.Time }}{{ else }}-{{ end }}</span>
-                    </div>
-                    <div class="app-list-cell"><strong>{{ .Summary.MissingCount }}</strong></div>
-                    <div>
-                        <span class="status-chip {{ if eq .Summary.ApprovalStatus "Approved" }}approved{{ else if eq .Summary.ApprovalStatus "Declined" }}declined{{ else if eq .Summary.ApprovalStatus "Submitted" }}submitted{{ else }}draft{{ end }}">{{ .Summary.ApprovalStatus }}</span>
-                        {{ if and .Summary.StatusOn.Valid (ne .Summary.ApprovalStatus "Draft") }}
-                        <span class="d-block text-muted small mt-1">
-                            {{ if eq .Summary.ApprovalStatus "Submitted" }}Submitted to national{{ else if eq .Summary.ApprovalStatus "Approved" }}Approved at national{{ else }}Declined at national{{ end }} on {{ humanDate .Summary.StatusOn.Time }}{{ if .Summary.StatusBy }} by {{ .Summary.StatusBy }}{{ end }}
-                        </span>
-                        {{ else if eq .Summary.ApprovalStatus "Draft" }}
-                        <span class="d-block text-muted small mt-1">Awaiting facility weekly submission to national review.</span>
-                        {{ end }}
-                    </div>
-                    <div class="app-row-actions">
-                        <a class="btn btn-sm btn-outline-primary" href="{{ .DrilldownURL }}">Open Reports</a>
-                        {{ if and .Summary.WeekStart.Valid (eq .Summary.ApprovalStatus "Draft") }}
-                        {{ $weekYear := isoYear .Summary.WeekStart.Time }}
-                        {{ $weekNumber := isoWeek .Summary.WeekStart.Time }}
-                        <a class="btn btn-sm btn-outline-info mb-1" href="/reports/entry?facility={{ .Summary.FacilityID }}&year={{ $weekYear }}&month={{ .Summary.WeekStart.Time.Month }}&week={{ $weekNumber }}">
-                            Bulk Entry
-                        </a>
-                        <form method="post" action="{{ $.Form.SubmitAllURL }}" onsubmit="return confirm('Submit this weekly facility report to national review?');">
-                            <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
-                            <input type="hidden" name="year" value="{{ $weekYear }}">
-                            <input type="hidden" name="month" value="{{ .Summary.WeekStart.Time.Month }}">
-                            <input type="hidden" name="week" value="{{ $weekNumber }}">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-success" type="submit">Submit Weekly Report</button>
-                        </form>
-                        {{ end }}
-                    </div>
-                </div>
+                        </td>
+                    </tr>
+                    <tr id="{{ $wExpId }}" style="display:none">
+                        <td colspan="7" class="bulk-expand-td">
+                            <div style="padding:.6rem 1rem;">
+                                <table class="week-day-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Day</th>
+                                            <th>Status</th>
+                                            <th>Entered</th>
+                                            <th style="width:12rem"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {{ range $drow := $wrow.DayRows }}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ $drow.Date.Format "Monday" }}</strong><br>
+                                                <small class="text-muted">{{ $drow.Date.Format "02 Jan 2006" }}</small>
+                                            </td>
+                                            <td>
+                                                {{ if eq $drow.Status "Approved" }}
+                                                <span class="status-chip approved">Approved</span>
+                                                {{ else if eq $drow.Status "Declined" }}
+                                                <span class="status-chip declined">Declined</span>
+                                                {{ else if eq $drow.Status "Submitted" }}
+                                                <span class="status-chip pending">Submitted</span>
+                                                {{ else if eq $drow.Status "Not Submitted" }}
+                                                <span class="status-chip declined">Not Submitted</span>
+                                                {{ else }}
+                                                <span class="status-chip draft">Draft</span>
+                                                {{ end }}
+                                            </td>
+                                            <td>{{ if and $drow.Report $drow.Report.EnteredOn.Valid }}{{ humanDate $drow.Report.EnteredOn.Time }}{{ else }}-{{ end }}</td>
+                                            <td>
+                                                {{ if and $drow.Report $drow.Actionable }}
+                                                <a class="btn btn-sm btn-outline-primary" href="/reports/new/{{ $drow.Report.ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">Edit</a>
+                                                <form method="post" action="/reports/submit-self/{{ $drow.Report.ReportID }}" onsubmit="return confirm('Submit this report for review?');" style="display:inline;">
+                                                    <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                                    <button class="btn btn-sm btn-outline-success" type="submit">Submit</button>
+                                                </form>
+                                                <form method="post" action="/reports/delete-self/{{ $drow.Report.ReportID }}" onsubmit="return confirm('Delete this report?');" style="display:inline;">
+                                                    <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                                </form>
+                                                {{ else }}
+                                                <span class="text-muted small">No actions available</span>
+                                                {{ end }}
+                                            </td>
+                                        </tr>
+                                        {{ end }}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {{ end }}
+                {{ else }}
+                <tr><td colspan="7" class="text-center text-muted py-3">No weekly submissions were found for the selected filters.</td></tr>
                 {{ end }}
-            {{ else }}
-            <div class="app-list-empty">No weekly submissions were found for the selected filters.</div>
-            {{ end }}
-        </div>
-        {{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}
-        <div class="app-list-grid sortable report-submissions-grid report-submissions-facility-grid">
-            <div class="app-list-grid-header">
-                <div>Facility</div>
-            <div>Week</div>
-                <div>On Duty</div>
-                <div>On Leave</div>
-                <div>Submitted</div>
-                <div>Missing</div>
-                <div>Approval</div>
-                <div data-nosort>Actions</div>
-            </div>
-            {{ if .Form.FacilityRows }}
-                {{ range .Form.FacilityRows }}
-                <div class="app-list-grid-row">
-                    <div class="app-list-cell">
-                        <strong>{{ .FacilityName }}</strong>
-                        <span>Facility ID {{ .FacilityID }}</span>
-                    </div>
-                    <div class="app-list-cell" data-sort-value="{{ if .WeekStart.Valid }}{{ .WeekStart.Time.Unix }}{{ else }}0{{ end }}">
-                        <strong>
-                            {{ if and .WeekStart.Valid .WeekStop.Valid }}
-                            {{ .WeekStart.Time.Format "02 Jan 2006" }} - {{ .WeekStop.Time.Format "02 Jan 2006" }}
-                            {{ else }}
-                            -
+            </tbody>
+        </table>
+        {{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") .Form.ShowWeekSummary }}
+        <table class="table table-hover mb-0 mt-2">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width:2rem"></th>
+                    <th>Facility</th>
+                    <th>Weeks</th>
+                    <th>Flow</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if .Form.NationalFacilityGroups }}
+                    {{ range $fi, $fgroup := .Form.NationalFacilityGroups }}
+                    {{ $fExpId := printf "nfac-%d" $fi }}
+                    <tr class="analysis-accordion-row" data-toggle-target="{{ $fExpId }}" data-state-id="national-facility-{{ $fgroup.FacilityID }}">
+                        <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                        <td>
+                            <strong>{{ $fgroup.FacilityName }}</strong>
+                            <span class="d-block text-muted small">Facility ID {{ $fgroup.FacilityID }}</span>
+                        </td>
+                        <td><strong>{{ len $fgroup.WeekRows }}</strong></td>
+                        <td><span class="text-muted small">Expand to review weekly and staff reports</span></td>
+                    </tr>
+                    <tr id="{{ $fExpId }}" style="display:none">
+                        <td colspan="4" class="bulk-expand-td">
+                            <div style="padding:.8rem 1rem;">
+                                <table class="table table-hover mb-0">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th style="width:2rem"></th>
+                                            <th>Week</th>
+                                            <th>Expected</th>
+                                            <th>Submitted</th>
+                                            <th>Approved</th>
+                                            <th>Not Submitted</th>
+                                            <th>%</th>
+                                            <th style="width:9rem"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {{ range $wi, $wrow := $fgroup.WeekRows }}
+                                        {{ $wExpId := printf "nfac-%d-week-%d" $fi $wi }}
+                                        {{ $wYear := 0 }}{{ $wWeek := 0 }}{{ if $wrow.Summary.WeekStart.Valid }}{{ $wYear = isoYear $wrow.Summary.WeekStart.Time }}{{ $wWeek = isoWeek $wrow.Summary.WeekStart.Time }}{{ end }}
+                                        <tr class="analysis-accordion-row" data-toggle-target="{{ $wExpId }}" data-state-id="national-facility-{{ $fgroup.FacilityID }}-week-{{ $wYear }}-{{ $wWeek }}">
+                                            <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                                            <td>
+                                                <strong>
+                                                    {{ if and $wrow.Summary.WeekStart.Valid $wrow.Summary.WeekStop.Valid }}
+                                                    {{ $wrow.Summary.WeekStart.Time.Format "02 Jan 2006" }} &ndash; {{ $wrow.Summary.WeekStop.Time.Format "02 Jan 2006" }}
+                                                    {{ else }}-{{ end }}
+                                                </strong>
+                                                <span class="d-block text-muted small">Reporting week</span>
+                                            </td>
+                                            <td><strong>{{ $wrow.ExpectedCount }}</strong></td>
+                                            <td><strong>{{ $wrow.Summary.SubmittedCount }}</strong></td>
+                                            <td><strong>{{ $wrow.Summary.ApprovedCount }}</strong></td>
+                                            <td><strong>{{ $wrow.NotSubmittedCount }}</strong></td>
+                                            <td>
+                                                <strong>{{ $wrow.SubmissionPct }}%</strong>
+                                                <div class="wdt-bar"><div class="wdt-bar-fill" style="width:{{ $wrow.SubmissionPct }}%"></div></div>
+                                            </td>
+                                            <td>
+                                                {{ $wStatus := $wrow.Summary.ApprovalStatus }}
+                                                {{ if eq $wStatus "Approved" }}
+                                                <span class="status-chip approved" style="font-size:.78rem;padding:.2rem .55rem;">&#10003;&nbsp;Approved</span>
+                                                {{ else if $wrow.Summary.CanApprove }}
+                                                <form method="post" action="/reports/analysis/facility/{{ $fgroup.FacilityID }}/approve"
+                                                    onsubmit="return confirm('Approve all submitted reports for this facility week at national level?');">
+                                                    <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                                                    <input type="hidden" name="year" value="{{ $wYear }}">
+                                                    <input type="hidden" name="week" value="{{ $wWeek }}">
+                                                    <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                                    <button class="btn btn-sm btn-outline-success"
+                                                        style="font-size:.78rem;padding:.2rem .55rem;"
+                                                        type="submit"
+                                                        title="Mark this facility week as approved at national level">
+                                                        Approve Week
+                                                    </button>
+                                                </form>
+                                                {{ else if eq $wStatus "Declined" }}
+                                                <span class="status-chip declined" style="font-size:.78rem;padding:.2rem .55rem;">Declined</span>
+                                                {{ else if eq $wStatus "Submitted" }}
+                                                <span class="status-chip pending" style="font-size:.78rem;padding:.2rem .55rem;">Submitted</span>
+                                                {{ else }}
+                                                <span class="status-chip draft" style="font-size:.78rem;padding:.2rem .55rem;">Draft</span>
+                                                {{ end }}
+                                            </td>
+                                        </tr>
+                                        <tr id="{{ $wExpId }}" style="display:none">
+                                            <td colspan="8" class="bulk-expand-td">
+                                                <div style="padding:.8rem 1rem;">
+                                                    <table class="table table-sm table-hover mb-0">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="width:2rem"></th>
+                                                                <th>Day</th>
+                                                                <th>Submitted</th>
+                                                                <th>Approved</th>
+                                                                <th>Declined</th>
+                                                                <th>Draft</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {{ if $wrow.DayGroups }}
+                                                                {{ range $di, $dgroup := $wrow.DayGroups }}
+                                                                {{ $dExpId := printf "nfac-%d-week-%d-day-%d" $fi $wi $di }}
+                                                                <tr class="analysis-accordion-row" data-toggle-target="{{ $dExpId }}" data-state-id="national-facility-{{ $fgroup.FacilityID }}-week-{{ $wYear }}-{{ $wWeek }}-day-{{ $dgroup.Date.Format "2006-01-02" }}">
+                                                                    <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                                                                    <td>
+                                                                        <strong>{{ $dgroup.DayName }}</strong>
+                                                                        <span class="d-block text-muted small">{{ $dgroup.Date.Format "02 Jan 2006" }}</span>
+                                                                    </td>
+                                                                    <td><strong>{{ $dgroup.SubmittedCount }}</strong></td>
+                                                                    <td><strong>{{ $dgroup.ApprovedCount }}</strong></td>
+                                                                    <td><strong>{{ $dgroup.DeclinedCount }}</strong></td>
+                                                                    <td><strong>{{ $dgroup.DraftCount }}</strong></td>
+                                                                </tr>
+                                                                <tr id="{{ $dExpId }}" style="display:none">
+                                                                    <td colspan="6" class="bulk-expand-td">
+                                                                        <div style="padding:.8rem 1rem;">
+                                                                            <table class="table table-sm table-hover mb-0">
+                                                                                <thead>
+                                                                                    <tr>
+                                                                                        <th>Staff</th>
+                                                                                        <th>Department</th>
+                                                                                        <th>Status</th>
+                                                                                        <th>Entered</th>
+                                                                                        <th style="width:7rem"></th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                    {{ if $dgroup.StaffRows }}
+                                                                                        {{ range $srow := $dgroup.StaffRows }}
+                                                                                        {{ $submitStatus := $srow.SubmitStatus.String }}
+                                                                                        {{ $reportStatus := $srow.ReportStatus.String }}
+                                                                                        <tr>
+                                                                                            <td>
+                                                                                                <strong>{{ $srow.EmployeeName }}</strong>
+                                                                                                {{ if $srow.IsOnLeave }}<span class="status-chip draft" style="font-size:.72rem;padding:.15rem .5rem;">On Leave</span>{{ end }}
+                                                                                            </td>
+                                                                                            <td>{{ $srow.DepartmentName }}</td>
+                                                                                            <td>
+                                                                                                {{ if $srow.Missing }}
+                                                                                                <span class="status-chip declined">Not Submitted</span>
+                                                                                                {{ else if eq $reportStatus "Approved" }}
+                                                                                                <span class="status-chip approved">Approved</span>
+                                                                                                {{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}
+                                                                                                <span class="status-chip declined">Declined</span>
+                                                                                                {{ else if eq $submitStatus "Submitted" }}
+                                                                                                <span class="status-chip pending">Submitted</span>
+                                                                                                {{ else }}
+                                                                                                <span class="status-chip draft">Draft</span>
+                                                                                                {{ end }}
+                                                                                            </td>
+                                                                                            <td>{{ if and (not $srow.Missing) $srow.EnteredOn.Valid }}{{ humanDate $srow.EnteredOn.Time }}{{ else }}-{{ end }}</td>
+                                                                                            <td>
+                                                                                                {{ if $srow.Missing }}
+                                                                                                <span class="text-muted small">No report</span>
+                                                                                                {{ else }}
+                                                                                                <a class="btn btn-sm btn-outline-primary" href="/reports/analysis/view/{{ $srow.ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">View</a>
+                                                                                                {{ end }}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                        {{ end }}
+                                                                                    {{ else }}
+                                                                                    <tr><td colspan="5" class="text-center text-muted py-3">No staff submissions were found for this day.</td></tr>
+                                                                                    {{ end }}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                {{ end }}
+                                                            {{ else }}
+                                                            <tr><td colspan="6" class="text-center text-muted py-3">No day groups were found for this week.</td></tr>
+                                                            {{ end }}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {{ end }}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {{ end }}
+                {{ else }}
+                <tr><td colspan="4" class="text-center text-muted py-3">No facility submissions were found for the selected filters.</td></tr>
+                {{ end }}
+            </tbody>
+        </table>
+        {{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}
+        <table class="table table-hover mb-0 mt-2">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width:2rem"></th>
+                    <th>Week</th>
+                    <th>Expected</th>
+                    <th>On Leave</th>
+                    <th>Submitted</th>
+                    <th>Approved</th>
+                    <th>Not Submitted</th>
+                    <th>%</th>
+                    <th style="width:9rem"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if .Form.WeekRows }}
+                    {{ range $wi, $wrow := .Form.WeekRows }}
+                    {{ $wExpId := printf "wk-%d" $wi }}
+                    {{ $wYear := 0 }}{{ $wWeek := 0 }}{{ if $wrow.Summary.WeekStart.Valid }}{{ $wYear = isoYear $wrow.Summary.WeekStart.Time }}{{ $wWeek = isoWeek $wrow.Summary.WeekStart.Time }}{{ end }}
+                    <tr class="analysis-accordion-row" data-toggle-target="{{ $wExpId }}" data-state-id="facility-week-{{ $.Form.SelectedFacility }}-{{ $wYear }}-{{ $wWeek }}" data-year="{{ $wYear }}" data-week="{{ $wWeek }}" data-facility="{{ $.Form.SelectedFacility }}" data-dept="{{ $.Form.SelectedDepartment }}" data-status="{{ $wrow.Summary.ApprovalStatus }}">
+                        <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                        <td>
+                            <strong>
+                                {{ if and $wrow.Summary.WeekStart.Valid $wrow.Summary.WeekStop.Valid }}
+                                {{ $wrow.Summary.WeekStart.Time.Format "02 Jan 2006" }} &ndash; {{ $wrow.Summary.WeekStop.Time.Format "02 Jan 2006" }}
+                                {{ else }}-{{ end }}
+                            </strong>
+                            <span class="d-block text-muted small">Reporting week</span>
+                        </td>
+                        <td><strong>{{ $wrow.ExpectedCount }}</strong></td>
+                        <td><strong>{{ $wrow.Summary.OnLeaveCount }}</strong></td>
+                        <td>
+                            <strong>{{ $wrow.Summary.SubmittedCount }}</strong>
+                            <span class="d-block text-muted small">{{ if $wrow.Summary.SubmittedOn.Valid }}{{ humanDate $wrow.Summary.SubmittedOn.Time }}{{ else }}-{{ end }}</span>
+                        </td>
+                        <td><strong>{{ $wrow.Summary.ApprovedCount }}</strong></td>
+                        <td><strong>{{ $wrow.NotSubmittedCount }}</strong></td>
+                        <td>
+                            <strong>{{ $wrow.SubmissionPct }}%</strong>
+                            <div class="wdt-bar"><div class="wdt-bar-fill" style="width:{{ $wrow.SubmissionPct }}%"></div></div>
+                        </td>
+                        <td>
+                            {{ $wStatus := $wrow.Summary.ApprovalStatus }}
+                            {{ if eq $wStatus "Approved" }}
+                            <span class="status-chip approved" style="font-size:.78rem;padding:.2rem .55rem;">&#10003;&nbsp;Approved</span>
+                            {{ else if and (eq $.Form.Role "National Admin") $wrow.Summary.CanApprove }}
+                            <form method="post" action="/reports/analysis/facility/{{ $wrow.Summary.FacilityID }}/approve"
+                                onsubmit="return confirm('Approve all submitted reports for this facility week at national level?');">
+                                <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                                <input type="hidden" name="year" value="{{ $wYear }}">
+                                <input type="hidden" name="week" value="{{ $wWeek }}">
+                                <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                <button class="btn btn-sm btn-outline-success"
+                                    style="font-size:.78rem;padding:.2rem .55rem;"
+                                    type="submit"
+                                    title="Mark this facility week as approved at national level">
+                                    Approve Week
+                                </button>
+                            </form>
+                            {{ else if eq $wStatus "Declined" }}
+                            <span class="status-chip declined" style="font-size:.78rem;padding:.2rem .55rem;">Declined</span>
+                            {{ else if eq $wStatus "Submitted" }}
+                            <span class="status-chip pending" style="font-size:.78rem;padding:.2rem .55rem;">Submitted</span>
+                            {{ else if $.Form.CanSubmitAll }}
+                            <form method="post" action="/reports/analysis/submit-all"
+                                onsubmit="return confirm('{{ if eq $wStatus "Declined" }}Resubmit{{ else if eq $wStatus "Submitted" }}Edit and resubmit{{ else }}Submit{{ end }} all approved reports for this week to national review?');">
+                                <input type="hidden" name="year" value="{{ $wYear }}">
+                                <input type="hidden" name="week" value="{{ $wWeek }}">
+                                <input type="hidden" name="department" value="{{ $.Form.SelectedDepartment }}">
+                                <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                <button class="btn btn-sm {{ if eq $wStatus "Declined" }}btn-warning{{ else if eq $wStatus "Submitted" }}btn-outline-primary{{ else }}btn-primary{{ end }}"
+                                    style="font-size:.78rem;padding:.2rem .55rem;"
+                                    type="submit"
+                                    title="{{ if eq $wStatus "Submitted" }}Edit — resubmit to national{{ else if eq $wStatus "Declined" }}Batch declined — resubmit{{ else }}Send approved batch to national review{{ end }}">
+                                    {{ if eq $wStatus "Declined" }}Resubmit Week{{ else if eq $wStatus "Submitted" }}Edit Week{{ else }}Submit Week{{ end }}
+                                </button>
+                            </form>
                             {{ end }}
-                        </strong>
-                        <span>Reporting week</span>
+                        </td>
+                    </tr>
+                    <tr id="{{ $wExpId }}" style="display:none">
+                        <td colspan="9" class="bulk-expand-td">
+                            <div class="week-days-container" style="padding:.6rem 1rem;">
+                                <em class="text-muted small">Loading&hellip;</em>
+                            </div>
+                        </td>
+                    </tr>
+                    {{ end }}
+                {{ else }}
+                <tr><td colspan="8" class="text-center text-muted py-3">No weekly submissions were found for the selected filters.</td></tr>
+                {{ end }}
+            </tbody>
+        </table>
+
+        {{/* Day staff slide-in pane — available for inline day view from week accordion */}}
+        <div id="dayStaffOverlay" class="day-staff-overlay" onclick="closeDayStaffPane()"></div>
+        <div id="dayStaffPane" class="day-staff-pane" role="dialog" aria-modal="true" aria-labelledby="dayStaffPaneTitle">
+            <div class="day-staff-pane-header">
+                <h6 id="dayStaffPaneTitle" class="mb-0 fw-semibold">Staff</h6>
+                <button type="button" class="btn-close" onclick="closeDayStaffPane()" aria-label="Close"></button>
+            </div>
+            <div id="dayStaffPaneBody" class="day-staff-pane-body">
+                <p class="text-muted">Click a day to view staff.</p>
+            </div>
+            <div id="dayStaffPaneFooter" class="day-staff-pane-footer d-none">
+                <button id="dspApproveAllBtn" class="btn btn-success w-100" onclick="window._dspApproveAll()">Approve All</button>
+            </div>
+        </div>
+        {{ else if .Form.ShowDayBreakdown }}
+        <div class="mb-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.BackToWeeksURL }}">&larr; Back to Weekly Summary</a>
+        </div>
+        <div class="app-list-grid sortable report-submissions-grid report-day-breakdown-grid">
+            <div class="app-list-grid-header">
+                <div>Day</div>
+                <div>On Duty</div>
+                <div>Submitted</div>
+                <div>Not Submitted</div>
+                <div>Submission %</div>
+            </div>
+            {{ if .Form.WeekDayRows }}
+                {{ range .Form.WeekDayRows }}
+                <div class="app-list-grid-row day-breakdown-row"
+                     data-date="{{ .Day.Format "2006-01-02" }}"
+                     data-label="{{ .DayName }}, {{ .Day.Format "02 Jan 2006" }}"
+                     data-facility="{{ $.Form.SelectedFacility }}"
+                     data-department="{{ $.Form.SelectedDepartment }}"
+                     title="Click to view staff for this day" style="cursor:pointer;">
+                    <div class="app-list-cell">
+                        <strong>{{ .DayName }}</strong>
+                        <span>{{ .Day.Format "02 Jan 2006" }}</span>
                     </div>
                     <div class="app-list-cell"><strong>{{ .OnDutyCount }}</strong></div>
-                    <div class="app-list-cell"><strong>{{ .OnLeaveCount }}</strong></div>
                     <div class="app-list-cell">
-                        <strong>{{ .SubmittedCount }}</strong>
-                        <span>Submitted {{ if .SubmittedOn.Valid }}{{ humanDate .SubmittedOn.Time }}{{ else }}-{{ end }}</span>
+                        <strong {{ if gt .Submitted 0 }}class="text-success"{{ end }}>{{ .Submitted }}</strong>
                     </div>
-                    <div class="app-list-cell"><strong>{{ .MissingCount }}</strong></div>
-                    <div>
-                        <span class="status-chip {{ if eq .ApprovalStatus "Approved" }}approved{{ else if eq .ApprovalStatus "Declined" }}declined{{ else }}pending{{ end }}">{{ .ApprovalStatus }}</span>
+                    <div class="app-list-cell">
+                        <strong {{ if gt .NotSubmitted 0 }}class="text-danger"{{ end }}>{{ .NotSubmitted }}</strong>
                     </div>
-                    <div class="app-row-actions">
-                        <a class="btn btn-sm btn-outline-primary" href="/reports/analysis?view=staff&facility={{ .FacilityID }}{{ if gt $.Form.SelectedYear 0 }}&year={{ $.Form.SelectedYear }}{{ end }}{{ if gt $.Form.SelectedMonth 0 }}&month={{ $.Form.SelectedMonth }}{{ end }}{{ if gt $.Form.SelectedWeek 0 }}&week={{ $.Form.SelectedWeek }}{{ end }}{{ if ne $.Form.SelectedStatus "all" }}&status={{ $.Form.SelectedStatus }}{{ end }}">Open Staff Reports</a>
-                        {{ if .CanApprove }}
-                        <form method="post" action="/reports/analysis/facility/{{ .FacilityID }}/approve" onsubmit="return confirm('Approve all pending submitted reports for this facility and period?');">
-                            <input type="hidden" name="department" value="0">
-                            <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
-                            <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
-                            <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-success" type="submit">Approve Facility</button>
-                        </form>
-                        <form method="post" action="/reports/analysis/facility/{{ .FacilityID }}/decline" onsubmit="return confirm('Decline all pending submitted reports for this facility and period?');">
-                            <input type="hidden" name="department" value="0">
-                            <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
-                            <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
-                            <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Decline Facility</button>
-                        </form>
-                        {{ end }}
+                    <div class="app-list-cell">
+                        <strong>{{ .Percentage }}%</strong>
+                        <div class="progress mt-1" style="height:6px;min-width:80px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width:{{ .Percentage }}%" aria-valuenow="{{ .Percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
                     </div>
                 </div>
                 {{ end }}
             {{ else }}
-            <div class="app-list-empty">No facility submissions were found for the selected filters.</div>
+            <div class="app-list-empty">No data. Please filter by year and week to see the daily breakdown.</div>
             {{ end }}
         </div>
+
+        {{/* Day staff slide-in pane */}}
+        <div id="dayStaffOverlay" class="day-staff-overlay" onclick="closeDayStaffPane()"></div>
+        <div id="dayStaffPane" class="day-staff-pane" role="dialog" aria-modal="true" aria-labelledby="dayStaffPaneTitle">
+            <div class="day-staff-pane-header">
+                <h6 id="dayStaffPaneTitle" class="mb-0 fw-semibold">Staff</h6>
+                <button type="button" class="btn-close" onclick="closeDayStaffPane()" aria-label="Close"></button>
+            </div>
+            <div id="dayStaffPaneBody" class="day-staff-pane-body">
+                <p class="text-muted">Click a day row to view staff.</p>
+            </div>
+            <div id="dayStaffPaneFooter" class="day-staff-pane-footer d-none">
+                <button id="dspApproveAllBtn" class="btn btn-success w-100" onclick="window._dspApproveAll()">Approve All</button>
+            </div>
+        </div>
+
+
+        {{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}
+        <table class="table table-hover mb-0 mt-2">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width:2rem"></th>
+                    <th>Facility</th>
+                    <th>Week</th>
+                    <th>On Duty</th>
+                    <th>On Leave</th>
+                    <th>Submitted</th>
+                    <th>Missing</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if .Form.FacilityRows }}
+                    {{ range $fi, $frow := .Form.FacilityRows }}
+                    {{ $fExpId := printf "fac-%d" $fi }}
+                    <tr class="analysis-accordion-row" data-toggle-target="{{ $fExpId }}" data-state-id="facility-summary-{{ $frow.FacilityID }}-{{ if $frow.WeekStart.Valid }}{{ $frow.WeekStart.Time.Format "2006-01-02" }}{{ else }}none{{ end }}">
+                        <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                        <td>
+                            <strong>{{ $frow.FacilityName }}</strong>
+                            <span class="d-block text-muted small">Facility ID {{ $frow.FacilityID }}</span>
+                        </td>
+                        <td>
+                            <strong>
+                                {{ if and $frow.WeekStart.Valid $frow.WeekStop.Valid }}
+                                {{ $frow.WeekStart.Time.Format "02 Jan 2006" }} &ndash; {{ $frow.WeekStop.Time.Format "02 Jan 2006" }}
+                                {{ else }}-{{ end }}
+                            </strong>
+                        </td>
+                        <td><strong>{{ $frow.OnDutyCount }}</strong></td>
+                        <td><strong>{{ $frow.OnLeaveCount }}</strong></td>
+                        <td>
+                            <strong>{{ $frow.SubmittedCount }}</strong>
+                            <span class="d-block text-muted small">{{ if $frow.SubmittedOn.Valid }}{{ humanDate $frow.SubmittedOn.Time }}{{ else }}-{{ end }}</span>
+                        </td>
+                        <td><strong>{{ $frow.MissingCount }}</strong></td>
+                        <td>
+                            <span class="status-chip {{ if eq $frow.ApprovalStatus "Approved" }}approved{{ else if eq $frow.ApprovalStatus "Declined" }}declined{{ else }}pending{{ end }}">{{ $frow.ApprovalStatus }}</span>
+                        </td>
+                    </tr>
+                    <tr id="{{ $fExpId }}" style="display:none">
+                        <td colspan="8" class="bulk-expand-td">
+                            <div style="padding:.9rem 1.25rem;">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a class="btn btn-sm btn-outline-primary" href="/reports/analysis?view=staff&facility={{ $frow.FacilityID }}{{ if gt $.Form.SelectedYear 0 }}&year={{ $.Form.SelectedYear }}{{ end }}{{ if gt $.Form.SelectedMonth 0 }}&month={{ $.Form.SelectedMonth }}{{ end }}{{ if gt $.Form.SelectedWeek 0 }}&week={{ $.Form.SelectedWeek }}{{ end }}{{ if ne $.Form.SelectedStatus "all" }}&status={{ $.Form.SelectedStatus }}{{ end }}">Open Staff Reports</a>
+                                    {{ if $frow.CanApprove }}
+                                    <form method="post" action="/reports/analysis/facility/{{ $frow.FacilityID }}/approve" onsubmit="return confirm('Approve all pending submitted reports for this facility and period?');" style="display:inline;">
+                                        <input type="hidden" name="department" value="0">
+                                        <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
+                                        <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
+                                        <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
+                                        <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                        <button class="btn btn-sm btn-outline-success" type="submit">Approve Facility</button>
+                                    </form>
+                                    <form method="post" action="/reports/analysis/facility/{{ $frow.FacilityID }}/decline" onsubmit="return confirm('Decline all pending submitted reports for this facility and period?');" style="display:inline;">
+                                        <input type="hidden" name="department" value="0">
+                                        <input type="hidden" name="year" value="{{ $.Form.SelectedYear }}">
+                                        <input type="hidden" name="month" value="{{ $.Form.SelectedMonth }}">
+                                        <input type="hidden" name="week" value="{{ $.Form.SelectedWeek }}">
+                                        <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Decline Facility</button>
+                                    </form>
+                                    {{ end }}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {{ end }}
+                {{ else }}
+                <tr><td colspan="8" class="text-center text-muted py-3">No facility submissions were found for the selected filters.</td></tr>
+                {{ end }}
+            </tbody>
+        </table>
         {{ else }}
         {{ if and (eq .Form.Role "Facility Admin") (eq .Form.Mode "reports") }}
         <div class="mb-2">
             <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.BackToWeeksURL }}">Back To Weekly Summary</a>
         </div>
         {{ end }}
-        <div class="app-list-grid sortable has-server-pagination report-submissions-grid">
-            <div class="app-list-grid-header">
-                <div>Staff</div>
-                {{ if ne .Form.Role "Staff" }}<div>Facility</div>{{ else }}<div>Status</div>{{ end }}
-                <div>Department</div>
-                <div>Week</div>
-                <div>Status</div>
-                <div>Activity</div>
-                <div data-nosort>Actions</div>
-            </div>
-
-            {{ if .Form.Rows }}
-                {{ range .Form.Rows }}
-                {{ $submitStatus := .SubmitStatus.String }}
-                {{ $reportStatus := .ReportStatus.String }}
-                <div class="app-list-grid-row">
-                    <div class="app-list-cell">
-                        <strong>{{ .EmployeeName }}</strong>
-                        {{ if .Missing }}<span>No report yet</span>{{ else }}<span>Report ID {{ .ReportID }}</span>{{ end }}
-                        {{ if .IsOnLeave }}<span class="status-chip draft ml-2">On Leave</span>{{ end }}
-                    </div>
-                    {{ if ne $.Form.Role "Staff" }}
-                    <div class="app-list-cell">
-                        <strong>{{ .FacilityName }}</strong>
-                        <span>Facility ID {{ .FacilityID }}</span>
-                    </div>
-                    {{ else }}
-                    <div>
-                        <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else if eq $submitStatus "Submitted" }}submitted{{ else }}draft{{ end }}">
-                            {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
-                        </span>
-                        {{ if and (or (eq $reportStatus "Approved") (eq $reportStatus "Rejected") (eq $reportStatus "Declined")) .DecisionOn.Valid }}
-                        <span class="d-block text-muted small mt-1">{{ if eq $reportStatus "Approved" }}Approved{{ else }}Declined{{ end }} on {{ humanDate .DecisionOn.Time }}</span>
+        <table class="table table-hover mb-0 mt-2">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width:2rem"></th>
+                    <th>Staff</th>
+                    {{ if ne .Form.Role "Staff" }}<th>Facility</th>{{ end }}
+                    <th>Department</th>
+                    <th>Week</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if .Form.Rows }}
+                    {{ range $ri, $rrow := .Form.Rows }}
+                    {{ $submitStatus := $rrow.SubmitStatus.String }}
+                    {{ $reportStatus := $rrow.ReportStatus.String }}
+                    {{ $rExpId := printf "rrow-%d" $ri }}
+                    <tr class="analysis-accordion-row" data-toggle-target="{{ $rExpId }}" data-state-id="{{ if $rrow.Missing }}report-missing-{{ $rrow.EmployeeID }}-{{ if $rrow.WeekStart.Valid }}{{ $rrow.WeekStart.Time.Format "2006-01-02" }}{{ else }}none{{ end }}{{ else }}report-{{ $rrow.ReportID }}{{ end }}">
+                        <td class="text-center"><span class="analysis-toggle-icon">&#9658;</span></td>
+                        <td>
+                            <strong>{{ $rrow.EmployeeName }}</strong>
+                            {{ if $rrow.IsOnLeave }}<span class="status-chip draft" style="font-size:.72rem;padding:.15rem .5rem;">On Leave</span>{{ end }}
+                        </td>
+                        {{ if ne $.Form.Role "Staff" }}
+                        <td>{{ $rrow.FacilityName }}</td>
                         {{ end }}
-                    </div>
+                        <td>{{ $rrow.DepartmentName }}</td>
+                        <td>
+                            {{ if and $rrow.WeekStart.Valid $rrow.WeekStop.Valid }}
+                            {{ $rrow.WeekStart.Time.Format "02 Jan 2006" }} &ndash; {{ $rrow.WeekStop.Time.Format "02 Jan 2006" }}
+                            {{ else }}-{{ end }}
+                        </td>
+                        <td>
+                            {{ if $rrow.Missing }}
+                            <span class="status-chip declined">Not Submitted</span>
+                            {{ else if eq $reportStatus "Approved" }}
+                            <span class="status-chip approved">Approved</span>
+                            {{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}
+                            <span class="status-chip declined">Declined</span>
+                            {{ else if eq $submitStatus "Submitted" }}
+                            <span class="status-chip pending">Submitted</span>
+                            {{ else }}
+                            <span class="status-chip draft">Draft</span>
+                            {{ end }}
+                        </td>
+                    </tr>
+                    {{ $rRowCols := 5 }}{{ if ne $.Form.Role "Staff" }}{{ $rRowCols = 6 }}{{ end }}
+                    <tr id="{{ $rExpId }}" style="display:none">
+                        <td colspan="{{ $rRowCols }}" class="bulk-expand-td">
+                            <div style="padding:.9rem 1.25rem;">
+                                {{ if not $rrow.Missing }}
+                                <div class="bulk-entry-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:.75rem;">
+                                    <div class="bulk-entry-field">
+                                        <span class="bulk-entry-label">Patients Reviewed</span>
+                                        <strong>{{ $rrow.PatientsReviewed }}</strong>
+                                    </div>
+                                    <div class="bulk-entry-field">
+                                        <span class="bulk-entry-label">Attendance Days</span>
+                                        <strong>{{ $rrow.Attendance }}</strong>
+                                    </div>
+                                    <div class="bulk-entry-field">
+                                        <span class="bulk-entry-label">Procedures</span>
+                                        <strong>{{ $rrow.Procedures }}</strong>
+                                    </div>
+                                    <div class="bulk-entry-field">
+                                        <span class="bulk-entry-label">Entered</span>
+                                        <strong>{{ if $rrow.EnteredOn.Valid }}{{ humanDate $rrow.EnteredOn.Time }}{{ else }}-{{ end }}</strong>
+                                    </div>
+                                    {{ if and (or (eq $reportStatus "Approved") (eq $reportStatus "Rejected") (eq $reportStatus "Declined")) $rrow.DecisionOn.Valid }}
+                                    <div class="bulk-entry-field">
+                                        <span class="bulk-entry-label">Decision</span>
+                                        <strong>{{ humanDate $rrow.DecisionOn.Time }}</strong>
+                                    </div>
+                                    {{ end }}
+                                </div>
+                                {{ else }}
+                                <p class="text-muted small mb-2">No report submitted for this period.</p>
+                                {{ end }}
+                                <div class="d-flex gap-2 flex-wrap align-items-center">
+                                    {{ if $rrow.Missing }}
+                                    <span class="text-muted small">No actions available</span>
+                                    {{ else if eq $.Form.Role "Staff" }}
+                                        {{ if $rrow.Actionable }}
+                                        <a class="btn btn-sm btn-outline-primary" href="/reports/new/{{ $rrow.ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">Edit</a>
+                                        <form method="post" action="/reports/submit-self/{{ $rrow.ReportID }}" onsubmit="return confirm('Submit this report for review?');" style="display:inline;">
+                                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                            <button class="btn btn-sm btn-outline-success" type="submit">Submit</button>
+                                        </form>
+                                        <form method="post" action="/reports/delete-self/{{ $rrow.ReportID }}" onsubmit="return confirm('Delete this report?');" style="display:inline;">
+                                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                        </form>
+                                        {{ else }}
+                                        <span class="text-muted small">No actions available</span>
+                                        {{ end }}
+                                    {{ else }}
+                                    <a class="btn btn-sm btn-outline-primary" href="/reports/analysis/view/{{ $rrow.ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">View</a>
+                                    {{ if and (eq $.Form.Role "Facility Admin") $.Form.CanApprove $rrow.Actionable }}
+                                    <form method="post" action="/reports/analysis/{{ $rrow.ReportID }}/approve" style="display:inline;">
+                                        <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                        <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
+                                    </form>
+                                    <form method="post" action="/reports/analysis/{{ $rrow.ReportID }}/decline" onsubmit="return confirm('Decline this submitted report?');" style="display:inline;">
+                                        <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Decline</button>
+                                    </form>
+                                    {{ end }}
+                                    {{ end }}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                     {{ end }}
-                    <div class="app-list-cell">
-                        <strong>{{ .DepartmentName }}</strong>
-                        <span>{{ if .Missing }}Not yet entered{{ else }}Entered {{ if .EnteredOn.Valid }}{{ humanDate .EnteredOn.Time }}{{ else }}-{{ end }}{{ end }}</span>
-                    </div>
-                    <div class="app-list-cell" data-sort-value="{{ if .WeekStart.Valid }}{{ .WeekStart.Time.Unix }}{{ else }}0{{ end }}">
-                        <strong>
-                            {{ if and .WeekStart.Valid .WeekStop.Valid }}
-                            {{ .WeekStart.Time.Format "02 Jan 2006" }} - {{ .WeekStop.Time.Format "02 Jan 2006" }}
-                            {{ else }}
-                            -
-                            {{ end }}
-                        </strong>
-                        <span>{{ if .Missing }}Awaiting submission{{ else }}Submitted {{ if .SubmittedOn.Valid }}{{ humanDate .SubmittedOn.Time }}{{ else }}-{{ end }}{{ end }}</span>
-                    </div>
-                    <div>
-                        {{ if .Missing }}
-                        <span class="status-chip declined">Not Submitted</span>
-                        {{ else }}
-                        <span class="status-chip {{ if eq $reportStatus "Approved" }}approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}declined{{ else if eq $submitStatus "Submitted" }}pending{{ else }}draft{{ end }}">
-                            {{ if eq $.Form.Role "Staff" }}
-                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
-                            {{ else }}
-                                {{ if eq $reportStatus "Approved" }}Approved{{ else if or (eq $reportStatus "Rejected") (eq $reportStatus "Declined") }}Declined{{ else if eq $submitStatus "Submitted" }}Submitted{{ else }}Draft{{ end }}
-                            {{ end }}
-                        </span>
-                        {{ if and (or (eq $reportStatus "Approved") (eq $reportStatus "Rejected") (eq $reportStatus "Declined")) .DecisionOn.Valid }}
-                        <span class="d-block text-muted small mt-1">{{ if eq $reportStatus "Approved" }}Approved{{ else }}Declined{{ end }} on {{ humanDate .DecisionOn.Time }}</span>
-                        {{ end }}
-                        {{ end }}
-                    </div>
-                    <div class="app-list-cell">
-                        {{ if .Missing }}
-                        <strong class="text-muted">-</strong>
-                        <span>No data entered</span>
-                        {{ else }}
-                        <strong>{{ .PatientsReviewed }} patients</strong>
-                        <span>Attendance {{ .Attendance }} | Procedures {{ .Procedures }}</span>
-                        {{ end }}
-                    </div>
-                    <div class="app-row-actions">
-                        {{ if .Missing }}
-                        <span class="text-muted">No actions available</span>
-                        {{ else if eq $.Form.Role "Staff" }}
-                        {{ if .Actionable }}
-                        <a class="btn btn-sm btn-outline-primary" href="/reports/new/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">Edit</a>
-                        <form method="post" action="/reports/submit-self/{{ .ReportID }}" onsubmit="return confirm('Submit this report for review?');">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-success" type="submit">Submit</button>
-                        </form>
-                        <form method="post" action="/reports/delete-self/{{ .ReportID }}" onsubmit="return confirm('Delete this report?');">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                        </form>
-                        {{ else }}
-                        <span class="text-muted">No actions available</span>
-                        {{ end }}
-                        {{ else }}
-                        <a class="btn btn-sm btn-outline-primary" href="/reports/analysis/view/{{ .ReportID }}?return_to={{ urlquery $.Form.CurrentURL }}">View</a>
-                        {{ if and (eq $.Form.Role "Facility Admin") $.Form.CanApprove .Actionable }}
-                        <form method="post" action="/reports/analysis/{{ .ReportID }}/approve">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
-                        </form>
-                        <form method="post" action="/reports/analysis/{{ .ReportID }}/decline" onsubmit="return confirm('Decline this submitted report?');">
-                            <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Decline</button>
-                        </form>
-                        {{ end }}
-                        {{ end }}
-                    </div>
-                </div>
+                {{ else }}
+                {{ $emptyCols := 5 }}{{ if ne .Form.Role "Staff" }}{{ $emptyCols = 6 }}{{ end }}
+                <tr><td colspan="{{ $emptyCols }}" class="text-center text-muted py-3">No report submissions were found for the selected filters.</td></tr>
                 {{ end }}
-            {{ else }}
-            <div class="app-list-empty">No report submissions were found for the selected filters.</div>
-            {{ end }}
-        </div>
+            </tbody>
+        </table>
         {{ end }}
 
         {{ if gt .Form.TotalPages 1 }}
@@ -422,10 +875,448 @@
 
 {{ define "extraJS" }}
 <script>
-    document.querySelectorAll('.dashboard-auto-submit').forEach((form) => {
-        form.querySelectorAll('select').forEach((select) => {
-            select.addEventListener('change', () => form.requestSubmit());
+(function(){
+    // Auto-submit filter forms
+    document.querySelectorAll('.dashboard-auto-submit').forEach(function(form){
+        form.addEventListener('submit', function(){ _saveViewState(); });
+        form.querySelectorAll('select').forEach(function(select){
+            select.addEventListener('change', function(){ form.requestSubmit(); });
         });
     });
+
+    // Pane state (shared between day-breakdown and week-accordion inline views)
+    var _paneCurrentFacility = '0';
+    var _paneCurrentDate = '';
+    var _paneCurrentDept = '0';
+    var _isFacilityAdmin = {{ if eq .Form.Role "Facility Admin" }}true{{ else }}false{{ end }};
+
+    function _saveViewState(){
+        if(typeof window._savePageViewState === 'function'){
+            window._savePageViewState();
+        }
+    }
+
+    // === Accordion toggle ===
+    document.querySelectorAll('.analysis-accordion-row').forEach(function(row){
+        row.addEventListener('click', function(e){
+            if(e.target.closest('a, button, form')) return;
+            var targetId = row.dataset.toggleTarget;
+            var target = document.getElementById(targetId);
+            if(!target) return;
+            var isOpen = target.style.display !== 'none';
+            target.style.display = isOpen ? 'none' : 'table-row';
+            var icon = row.querySelector('.analysis-toggle-icon');
+            if(icon) icon.textContent = isOpen ? '\u25b6' : '\u25bc';
+            // Lazy-load week day breakdown on first open
+            if(!isOpen && row.dataset.year && !target.dataset.loaded){
+                target.dataset.loaded = '1';
+                loadWeekDays(row, target);
+            }
+        });
+    });
+
+    // Day rows rendered server-side (ShowDayBreakdown mode)
+    document.querySelectorAll('.day-breakdown-row').forEach(function(row){
+        row.addEventListener('click', function(){
+            openDayPane(this.dataset.date, this.dataset.label, this.dataset.facility, this.dataset.department);
+        });
+    });
+
+    // === Week days AJAX load ===
+    function loadWeekDays(summaryRow, expandRow){
+        var container = expandRow.querySelector('.week-days-container');
+        if(!container) return;
+        var year = summaryRow.dataset.year;
+        var week = summaryRow.dataset.week;
+        var facility = summaryRow.dataset.facility;
+        var dept = summaryRow.dataset.dept || '0';
+        var weekStatus = summaryRow.dataset.status || '';
+        container.innerHTML = '<em class="text-muted small">Loading\u2026</em>';
+        var url = '/reports/analysis/week-days?facility='+encodeURIComponent(facility)
+                  +'&year='+encodeURIComponent(year)+'&week='+encodeURIComponent(week);
+        if(dept && dept !== '0'){ url += '&department='+encodeURIComponent(dept); }
+        fetch(url, {credentials:'same-origin'})
+            .then(function(r){ return r.json(); })
+            .then(function(data){ renderWeekDays(container, data, weekStatus); })
+            .catch(function(){ container.innerHTML = '<em class="text-danger small">Failed to load days.</em>'; });
+    }
+
+    function renderWeekDays(container, data, weekStatus){
+        if(!data.days || data.days.length === 0){
+            container.innerHTML = '<em class="text-muted small">No data for this week.</em>';
+            return;
+        }
+        var fac = data.facility !== undefined ? data.facility : 0;
+        var dept = data.department !== undefined ? data.department : 0;
+        var wkApproved = (weekStatus === 'Approved');
+        var wkSubmitted = (weekStatus === 'Submitted');
+        var html = '<table class="week-day-table">';
+        html += '<thead><tr><th>Day</th><th>Expected</th><th>On Leave</th><th>Submitted</th><th>Approved</th><th>Not Submitted</th><th>%</th><th></th></tr></thead><tbody>';
+        data.days.forEach(function(d){
+            var notSubAttr = d.not_submitted > 0 ? ' style="color:#dc3545;font-weight:600"' : '';
+            var subAttr    = d.submitted > 0 ? ' style="color:#198754;font-weight:600"' : '';
+            var apvAttr    = d.approved > 0 ? ' style="color:#198754;font-weight:600"' : '';
+            var leaveAttr  = d.on_leave > 0 ? ' style="color:#6c757d;font-weight:600"' : '';
+            var pct = d.pct || 0;
+            html += '<tr class="week-day-row"'
+                  +' data-date="'+esc(d.date)+'"'
+                  +' data-label="'+esc(d.label)+'"'
+                  +' data-facility="'+fac+'"'
+                  +' data-department="'+dept+'">';
+            html += '<td><strong>'+esc(d.day_name)+'</strong><br><small class="text-muted">'+esc(d.date)+'</small></td>';
+            html += '<td>'+d.on_duty+'</td>';
+            html += '<td'+leaveAttr+'>'+(d.on_leave||0)+'</td>';
+            html += '<td'+subAttr+'>'+d.submitted+'</td>';
+            html += '<td'+apvAttr+'>'+(d.approved||0)+'</td>';
+            html += '<td'+notSubAttr+'>'+d.not_submitted+'</td>';
+            html += '<td>'+pct+'%<div class="wdt-bar"><div class="wdt-bar-fill" style="width:'+pct+'%"></div></div></td>';
+            var submitId = 'wdt-submit-'+esc(d.date).replace(/-/g,'');
+            if(!_isFacilityAdmin){
+                html += '<td></td>';
+            } else if(wkApproved){
+                html += '<td><span class="status-chip approved" style="font-size:.75rem;padding:.18rem .5rem;">&#10003;&nbsp;Approved</span></td>';
+            } else if(wkSubmitted){
+                html += '<td><button id="'+submitId+'" class="btn btn-sm btn-outline-primary" style="font-size:.75rem;padding:.18rem .5rem;white-space:nowrap;" onclick="window._submitDay(this,\''+esc(d.date)+'\','+fac+','+dept+')" title="Edit and resubmit reports for this day">Edit Day</button></td>';
+            } else {
+                html += '<td><button id="'+submitId+'" class="btn btn-sm btn-primary" style="font-size:.75rem;padding:.18rem .5rem;white-space:nowrap;" onclick="window._submitDay(this,\''+esc(d.date)+'\','+fac+','+dept+')" title="Submit approved reports for this day to national review">Submit Day</button></td>';
+            }
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        container.querySelectorAll('.week-day-row').forEach(function(row){
+            row.addEventListener('click', function(){
+                openDayPane(row.dataset.date, row.dataset.label, row.dataset.facility, row.dataset.department);
+            });
+        });
+    }
+
+    // === Day staff pane ===
+    function openDayPane(date, label, facilityId, departmentId){
+        _paneCurrentFacility = facilityId;
+        _paneCurrentDate = date;
+        _paneCurrentDept = departmentId || '0';
+        var paneFooter = document.getElementById('dayStaffPaneFooter');
+        if(paneFooter) paneFooter.classList.add('d-none');
+        var pane = document.getElementById('dayStaffPane');
+        var overlay = document.getElementById('dayStaffOverlay');
+        var title = document.getElementById('dayStaffPaneTitle');
+        var body = document.getElementById('dayStaffPaneBody');
+        if(!pane||!body) return;
+        title.textContent = label;
+        body.innerHTML = '<p class="text-center text-muted py-3"><em>Loading\u2026</em></p>';
+        pane.classList.add('open');
+        if(overlay) overlay.classList.add('open');
+        var url = '/reports/analysis/day-staff?facility='+encodeURIComponent(facilityId)+'&date='+encodeURIComponent(date);
+        if(departmentId && departmentId !== '0'){ url += '&department='+encodeURIComponent(departmentId); }
+        fetch(url, {credentials:'same-origin'})
+            .then(function(r){ return r.json(); })
+            .then(function(data){ renderStaff(body, data, facilityId); })
+            .catch(function(){ body.innerHTML = '<p class="text-danger">Failed to load staff data.</p>'; });
+    }
+    window._openDayPane = openDayPane;
+    window.closeDayStaffPane = function(){
+        var pane = document.getElementById('dayStaffPane');
+        var overlay = document.getElementById('dayStaffOverlay');
+        if(pane) pane.classList.remove('open');
+        if(overlay) overlay.classList.remove('open');
+    };
+
+    function renderStaff(body, data, facilityId){
+        if(!data.staff||data.staff.length===0){
+            body.innerHTML='<p class="text-muted">No staff found for this facility.</p>';
+            return;
+        }
+        var submitted=data.staff.filter(function(s){return s.HasSubmitted;}).length;
+        var total=data.staff.length;
+        var pct=total>0?Math.round(submitted*100/total):0;
+        var returnTo=encodeURIComponent(window.location.href);
+        var html='<p class="mb-2 text-muted small">'+submitted+' of '+total+' staff submitted ('+pct+'%).</p>';
+        html+='<table class="table table-sm mb-0" style="border-collapse:separate;">';
+        html+='<thead class="table-light"><tr><th style="width:18px;"></th><th>Name</th><th>Department</th><th>Status</th><th></th></tr></thead>';
+        html+='<tbody>';
+        data.staff.forEach(function(s, idx){
+            var chip,cls;
+            if(s.IsOnLeave){chip='On Leave';cls='status-chip draft';}
+            else if(!s.HasSubmitted){chip='Not Submitted';cls='status-chip declined';}
+            else if(s.ReportStatus==='Approved'){chip='Approved';cls='status-chip approved';}
+            else if(s.ReportStatus==='Rejected'||s.ReportStatus==='Declined'){chip='Declined';cls='status-chip declined';}
+            else if(s.SubmitStatus==='Submitted'){chip='Submitted';cls='status-chip submitted';}
+            else{chip='Draft';cls='status-chip draft';}
+            var canExpand=s.HasSubmitted&&!s.IsOnLeave&&s.ReportID>0;
+            var canEnterData=!s.HasSubmitted&&!s.IsOnLeave&&s.ReportStatus!=='Approved';
+            var detailId='dsp-detail-'+idx;
+            var chipId='dsp-chip-'+idx;
+            var toggleBtn='';
+            if(canExpand){
+                toggleBtn='<button class="dsp-toggle-btn" onclick="window._dspToggle(this,'+s.ReportID+',\''+facilityId+'\',\''+detailId+'\')" title="View entries">&#9660;</button>';
+            } else if(canEnterData){
+                toggleBtn='<button class="dsp-toggle-btn" onclick="window._dspOpenEntryInline(this,'+s.EmployeeID+',\''+_paneCurrentDate+'\',\''+facilityId+'\',\''+detailId+'\')" title="Enter data for this staff">&#9660;</button>';
+            }
+            // Edit link for submitted-but-not-approved staff
+            var actionBtn='';
+            if(!s.IsOnLeave&&s.HasSubmitted&&s.ReportStatus!=='Approved'&&s.ReportID>0){
+                var editUrl='/reports/new/'+s.ReportID+'?employee='+encodeURIComponent(s.EmployeeID)+'&return_to='+returnTo;
+                actionBtn='<a href="'+editUrl+'" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem;padding:.15rem .45rem;white-space:nowrap;">Edit</a>';
+            }
+            html+='<tr>';
+            html+='<td class="align-middle text-center" style="width:18px;">'+toggleBtn+'</td>';
+            html+='<td>'+esc(s.EmployeeName)+'</td>';
+            html+='<td>'+esc(s.DepartmentName)+'</td>';
+            html+='<td><span id="'+chipId+'" class="'+cls+'">'+chip+'</span></td>';
+            html+='<td class="text-end" style="white-space:nowrap;">'+actionBtn+'</td>';
+            html+='</tr>';
+            if(canExpand||canEnterData){
+                html+='<tr id="'+detailId+'" class="dsp-entry-detail d-none"><td colspan="5"><div class="dsp-entry-body text-muted small p-2"><em>Loading\u2026</em></div></td></tr>';
+            }
+        });
+        html+='</tbody></table>';
+        body.innerHTML=html;
+        var onDuty=data.staff.filter(function(s){return !s.IsOnLeave;});
+        var notSubmitted=onDuty.filter(function(s){return !s.HasSubmitted;});
+        var approvable=onDuty.filter(function(s){
+            return s.ReportID>0&&['Approved','Declined','Rejected'].indexOf(s.ReportStatus)===-1;
+        });
+        var footer=document.getElementById('dayStaffPaneFooter');
+        var approveAllBtn=document.getElementById('dspApproveAllBtn');
+        if(!_isFacilityAdmin){
+            if(footer) footer.classList.add('d-none');
+        } else {
+            if(footer) footer.classList.remove('d-none');
+            if(approveAllBtn){
+            if(notSubmitted.length===0&&approvable.length>0){
+                approveAllBtn.disabled=false;
+                approveAllBtn.textContent='Approve All ('+approvable.length+')';
+                approveAllBtn.title='';
+            } else if(notSubmitted.length>0){
+                approveAllBtn.disabled=true;
+                approveAllBtn.textContent='Approve All';
+                approveAllBtn.title=notSubmitted.length+' staff member(s) have not submitted yet.';
+            } else {
+                approveAllBtn.disabled=true;
+                approveAllBtn.textContent='Approve All';
+                approveAllBtn.title='All reports have already been reviewed.';
+            }
+        }
+        }
+    }
+
+    window._dspOpenEntryInline=function(btn,employeeId,date,facilityId,detailId){
+        var row=document.getElementById(detailId);
+        if(!row) return;
+        var isOpen=!row.classList.contains('d-none');
+        if(isOpen){row.classList.add('d-none');btn.innerHTML='&#9660;';return;}
+        row.classList.remove('d-none');btn.innerHTML='&#9650;';
+        var entryBody=row.querySelector('.dsp-entry-body');
+        if(!entryBody||entryBody.dataset.loaded) return;
+        entryBody.dataset.loaded='1';
+        var chipId=detailId.replace('dsp-detail-','dsp-chip-');
+        fetch('/reports/analysis/day-staff/entry?employee='+encodeURIComponent(employeeId)+'&date='+encodeURIComponent(date)+'&facility='+encodeURIComponent(facilityId),{credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(d){renderEntryInputs(entryBody,d,employeeId,date,facilityId,chipId,detailId);})
+            .catch(function(){entryBody.innerHTML='<span class="text-danger">Failed to load.</span>';});
+    };
+
+    function renderEntryInputs(body,data,employeeId,date,facilityId,chipId,detailId){
+        if(!data.fields||data.fields.length===0){
+            body.innerHTML='<em class="text-muted">No data points configured for this department.</em>';
+            return;
+        }
+        var html='<div class="dsp-entry-grid">';
+        data.fields.forEach(function(f){
+            if(f.attendance){
+                html+='<div class="dsp-entry-item"><small>'+esc(f.label)+'</small>'
+                    +'<label class="dsp-attend"><input type="checkbox" data-key="attendance" data-attendance="1"> On duty</label>'
+                    +'</div>';
+            } else {
+                html+='<div class="dsp-entry-item"><small>'+esc(f.label)+'</small>'
+                    +'<input type="number" min="0" step="1" data-key="'+esc(f.key)+'" value="">'
+                    +'</div>';
+            }
+        });
+        html+='</div>';
+        html+='<div class="dsp-review-actions mt-2 d-flex gap-2">'
+            +'<button class="btn btn-sm btn-success" onclick="window._dspSaveEntry(this,'+employeeId+',\''+date+'\',\''+facilityId+'\',\''+chipId+'\',\''+detailId+'\')">Save</button>'
+            +'<button class="btn btn-sm btn-outline-secondary" onclick="window._dspCancelEntry(\''+detailId+'\')">Cancel</button>'
+            +'</div>';
+        body.innerHTML=html;
+    }
+
+    window._dspCancelEntry=function(detailId){
+        var row=document.getElementById(detailId);
+        if(!row) return;
+        row.classList.add('d-none');
+        var toggle=document.querySelector('button[onclick*="'+detailId+'"]');
+        if(toggle) toggle.innerHTML='&#9660;';
+    };
+
+    window._dspSaveEntry=function(btn,employeeId,date,facilityId,chipId,detailId){
+        var row=document.getElementById(detailId);
+        if(!row) return;
+        var inputs=row.querySelectorAll('[data-key]');
+        var fd=new FormData();
+        fd.append('start',date);
+        fd.append('stop',date);
+        fd.append('return_to','/reports/analysis');
+        var attendOn=false;
+        inputs.forEach(function(inp){
+            var key=inp.getAttribute('data-key');
+            if(inp.getAttribute('data-attendance')==='1'){
+                if(inp.checked){
+                    attendOn=true;
+                    fd.append('input['+employeeId+'][days_worked][]',date);
+                }
+                return;
+            }
+            var v=(inp.value||'').trim();
+            if(v==='') v='0';
+            fd.append('input['+employeeId+']['+key+']',v);
+        });
+        if(!attendOn){
+            // Server treats no days_worked as 0 attendance; that's OK for "not on duty" entries.
+        }
+        btn.disabled=true;
+        var orig=btn.textContent;
+        btn.textContent='Saving\u2026';
+        var sibling=btn.parentElement.querySelector('button.btn-outline-secondary');
+        if(sibling) sibling.disabled=true;
+        fetch('/reports/zave',{method:'POST',credentials:'same-origin',body:fd,redirect:'follow'})
+            .then(function(r){
+                if(!r.ok) throw new Error('save failed ('+r.status+')');
+                // Refresh the staff pane to reflect the new draft
+                _paneRefreshAfterSave(facilityId);
+            })
+            .catch(function(err){
+                btn.disabled=false;btn.textContent=orig;
+                if(sibling) sibling.disabled=false;
+                alert('Could not save entry: '+(err&&err.message||'unknown error'));
+            });
+    };
+
+    function _paneRefreshAfterSave(facilityId){
+        var body=document.getElementById('dayStaffPaneBody');
+        if(!body||!_paneCurrentDate) return;
+        body.innerHTML='<p class="text-muted small mb-0">Refreshing\u2026</p>';
+        var url='/reports/analysis/day-staff?date='+encodeURIComponent(_paneCurrentDate)
+            +'&facility='+encodeURIComponent(facilityId)
+            +'&department='+encodeURIComponent(_paneCurrentDept||'');
+        fetch(url,{credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(d){renderStaff(body,d,facilityId);})
+            .catch(function(){body.innerHTML='<p class="text-danger">Failed to refresh.</p>';});
+    }
+
+    window._dspToggle=function(btn,reportId,facilityId,detailId){
+        var row=document.getElementById(detailId);
+        if(!row) return;
+        var isOpen=!row.classList.contains('d-none');
+        if(isOpen){row.classList.add('d-none');btn.innerHTML='&#9660;';return;}
+        row.classList.remove('d-none');btn.innerHTML='&#9650;';
+        var entryBody=row.querySelector('.dsp-entry-body');
+        if(!entryBody||entryBody.dataset.loaded) return;
+        entryBody.dataset.loaded='1';
+        var chipId=detailId.replace('dsp-detail-','dsp-chip-');
+        fetch('/reports/analysis/day-staff/entry?report_id='+encodeURIComponent(reportId)+'&facility='+encodeURIComponent(facilityId),{credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(d){renderEntryFields(entryBody,d,reportId,facilityId,chipId);})
+            .catch(function(){entryBody.innerHTML='<span class="text-danger">Failed to load.</span>';});
+    };
+
+    function renderEntryFields(body,data,reportId,facilityId,chipId){
+        var canReview=['Approved','Declined','Rejected'].indexOf(data.report_status)===-1;
+        if(!data.fields||data.fields.length===0){
+            var html='<em class="text-muted">No data recorded.</em>';
+            if(canReview){html+=buildReviewButtons(reportId,facilityId,chipId);}
+            body.innerHTML=html;
+            return;
+        }
+        var html='<div class="dsp-entry-grid">';
+        data.fields.forEach(function(f){html+='<div class="dsp-entry-item"><small>'+esc(f.label)+'</small><strong>'+esc(f.value)+'</strong></div>';});
+        html+='</div>';
+        if(canReview){html+=buildReviewButtons(reportId,facilityId,chipId);}
+        body.innerHTML=html;
+    }
+
+    function buildReviewButtons(reportId,facilityId,chipId){
+        return '<div class="dsp-review-actions mt-2 d-flex gap-2">'
+            +'<button class="btn btn-sm btn-success" onclick="window._dspReview(this,'+reportId+',\''+facilityId+'\',\'approve\',\''+chipId+'\')" >Approve</button>'
+            +'<button class="btn btn-sm btn-outline-danger" onclick="window._dspReview(this,'+reportId+',\''+facilityId+'\',\'decline\',\''+chipId+'\')" >Decline</button>'
+            +'</div>';
+    }
+
+    window._dspApproveAll=function(){
+        var btn=document.getElementById('dspApproveAllBtn');
+        if(!btn||btn.disabled) return;
+        btn.disabled=true;
+        btn.textContent='Approving\u2026';
+        fetch('/reports/analysis/day-staff/approve-all',{
+            method:'POST',credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({date:_paneCurrentDate,department:parseInt(_paneCurrentDept,10)||0})
+        }).then(function(r){return r.json();})
+        .then(function(d){
+            if(d.ok){
+                _saveViewState();
+                closeDayStaffPane();
+                window.location.reload();
+            } else {
+                btn.disabled=false;btn.textContent='Approve All';
+                alert(d.error||'Could not approve all reports.');
+            }
+        }).catch(function(){btn.disabled=false;btn.textContent='Approve All';alert('Network error. Please try again.');});
+    };
+
+    window._dspReview=function(btn,reportId,facilityId,action,chipId){
+        btn.disabled=true;
+        var sibling=btn.parentElement.querySelector('button:not(:disabled)');
+        if(sibling) sibling.disabled=true;
+        fetch('/reports/analysis/day-staff/review',{
+            method:'POST',credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({report_id:reportId,action:action})
+        }).then(function(r){return r.json();})
+        .then(function(d){
+            if(d.ok){
+                var chip=document.getElementById(chipId);
+                if(chip){chip.className=d.status==='Approved'?'status-chip approved':'status-chip declined';chip.textContent=d.status;}
+                btn.parentElement.innerHTML='<span class="badge bg-'+(d.status==='Approved'?'success':'secondary')+'">'+ d.status+'</span>';
+            } else {
+                btn.disabled=false;if(sibling) sibling.disabled=false;
+                alert(d.error||'Could not update report.');
+            }
+        }).catch(function(){btn.disabled=false;if(sibling) sibling.disabled=false;alert('Network error. Please try again.');});
+    };
+
+    window._submitDay = function(btn, date, facilityId, departmentId){
+        if(btn.disabled) return;
+        if(!confirm('Submit all approved reports for '+date+' to national review?')) return;
+        btn.disabled = true;
+        var orig = btn.textContent;
+        btn.textContent = 'Submitting\u2026';
+        fetch('/reports/analysis/submit-day',{
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({date:date, department:parseInt(departmentId,10)||0})
+        }).then(function(r){return r.json();})
+        .then(function(d){
+            if(d.ok){
+                btn.textContent = 'Edit Day';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+                btn.disabled = false;
+            } else {
+                btn.disabled = false;
+                btn.textContent = orig;
+                alert(d.error || 'Could not submit daily reports.');
+            }
+        }).catch(function(){
+            btn.disabled = false;
+            btn.textContent = orig;
+            alert('Network error. Please try again.');
+        });
+    };
+
+    function esc(s){return s?(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';}
+}());
 </script>
 {{ end }}

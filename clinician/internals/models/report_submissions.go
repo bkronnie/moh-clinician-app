@@ -65,6 +65,7 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 	argPos := 1
 	adminMode := scopeFacilityID == 0 && scopeEmployeeID == 0
 	facilityApproverMode := scopeFacilityID > 0 && scopeEmployeeID == 0
+	staffViewerMode := scopeEmployeeID > 0
 	submitStatusExpr := "COALESCE(w.submit_status, '')"
 	reportStatusExpr := "COALESCE(w.report_status, '')"
 	decisionOnExpr := `CASE
@@ -107,6 +108,32 @@ func GetReportSubmissionsPaged(ctx context.Context, db *sql.DB, scopeFacilityID 
 		submitStatusExpr = `CASE
 				WHEN COALESCE(w.national_submission_status, '') = 'Submitted' THEN 'Submitted'
 				` + viewerSelfClause + `
+				ELSE COALESCE(w.submit_status, '')
+			END`
+		reportStatusExpr = `CASE
+				WHEN COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined')
+				THEN COALESCE(w.national_review_status, '')
+				WHEN COALESCE(w.national_submission_status, '') = 'Submitted'
+				THEN ''
+				ELSE COALESCE(w.report_status, '')
+			END`
+		decisionOnExpr = `CASE
+				WHEN COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined')
+				THEN COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on)
+				WHEN COALESCE(w.report_status, '') IN ('Approved', 'Rejected', 'Declined')
+				THEN COALESCE(w.facility_reviewed_on, w.last_updated_on, w.created_on)
+				ELSE NULL
+			END`
+		submittedOnExpr = `CASE
+				WHEN COALESCE(w.national_submission_status, '') = 'Submitted'
+				THEN COALESCE(w.national_submitted_on, w.last_updated_on, w.created_on)
+				WHEN COALESCE(w.submit_status, '') = 'Submitted'
+				THEN COALESCE(w.submitted_on, w.last_updated_on, w.created_on)
+				ELSE NULL
+			END`
+	} else if staffViewerMode {
+		submitStatusExpr = `CASE
+				WHEN COALESCE(w.national_submission_status, '') = 'Submitted' THEN 'Submitted'
 				ELSE COALESCE(w.submit_status, '')
 			END`
 		reportStatusExpr = `CASE
@@ -563,7 +590,7 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 			w.created_on,
 			` + submitStatusExpr + `,
 			` + reportStatusExpr + `,
-			w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+			w.attendance, w.ward_rounds, w.patients_reviewed, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
 			w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests,
 			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
 			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
@@ -586,7 +613,7 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 		&row.EnteredOn,
 		&submitStatusText,
 		&reportStatusText,
-		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn04, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
+		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
 		&row.Qn11, &row.Qn12, &row.Qn13, &row.Qn14, &row.Qn15, &row.Qn16, &row.Qn17, &row.Qn18, &row.Qn19, &row.Qn20,
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
@@ -765,6 +792,95 @@ func DeclineFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID 
 	return result.RowsAffected()
 }
 
+// ApproveFacilityReportDirect approves any report (including drafts) within a facility.
+// When approving a draft it also marks it as submitted.
+func ApproveFacilityReportDirect(ctx context.Context, db *sql.DB, reportID int, facilityID int64, approverID int64) (bool, error) {
+	const sqlstr = `
+		UPDATE clinician_app.weeklyreport
+		SET
+			submit_status = 'Submitted',
+			submitted_on = CASE WHEN COALESCE(submit_status,'') <> 'Submitted' THEN NOW() ELSE submitted_on END,
+			report_status = 'Approved',
+			facility_review_status = 'Approved',
+			facility_reviewed_by = $3,
+			facility_reviewed_on = NOW(),
+			approved_by = $3,
+			last_updated_on = NOW()
+		WHERE id = $1
+			AND hospital = $2
+			AND COALESCE(report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+	`
+	result, err := db.ExecContext(ctx, sqlstr, reportID, facilityID, approverID)
+	if err != nil {
+		return false, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
+}
+
+// DeclineFacilityReportDirect declines any report (including drafts) within a facility.
+func DeclineFacilityReportDirect(ctx context.Context, db *sql.DB, reportID int, facilityID int64, approverID int64) (bool, error) {
+	const sqlstr = `
+		UPDATE clinician_app.weeklyreport
+		SET
+			report_status = 'Declined',
+			facility_review_status = 'Declined',
+			facility_reviewed_by = $3,
+			facility_reviewed_on = NOW(),
+			approved_by = $3,
+			last_updated_on = NOW()
+		WHERE id = $1
+			AND hospital = $2
+			AND COALESCE(report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+	`
+	result, err := db.ExecContext(ctx, sqlstr, reportID, facilityID, approverID)
+	if err != nil {
+		return false, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
+}
+
+// ApproveFacilityReportsByDate approves (and auto-submits if draft) all
+// non-reviewed reports for a specific date within a facility.
+// departmentID = 0 means all departments.
+func ApproveFacilityReportsByDate(ctx context.Context, db *sql.DB, facilityID int64, departmentID int, date time.Time, approverID int64) (int64, error) {
+	args := []interface{}{facilityID, date, approverID}
+	deptFilter := ""
+	if departmentID > 0 {
+		deptFilter = " AND department = $4"
+		args = append(args, departmentID)
+	}
+
+	sqlstr := `
+		UPDATE clinician_app.weeklyreport
+		SET
+			submit_status = 'Submitted',
+			submitted_on = CASE WHEN COALESCE(submit_status,'') <> 'Submitted' THEN NOW() ELSE submitted_on END,
+			report_status = 'Approved',
+			facility_review_status = 'Approved',
+			facility_reviewed_by = $3,
+			facility_reviewed_on = NOW(),
+			approved_by = $3,
+			last_updated_on = NOW()
+		WHERE hospital = $1
+			AND start::date = $2::date
+			AND COALESCE(report_status, '') NOT IN ('Approved', 'Rejected', 'Declined')
+	` + deptFilter
+
+	result, err := db.ExecContext(ctx, sqlstr, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func IsEmployeeOnLeaveForPeriod(ctx context.Context, db *sql.DB, employeeID int64, weekStart time.Time, weekStop time.Time) (bool, error) {
 	var exists bool
 	err := db.QueryRowContext(ctx, `
@@ -788,27 +904,38 @@ func CountOnDutyEmployeesMissingWeeklyReport(ctx context.Context, db *sql.DB, fa
 		args = append(args, departmentID)
 	}
 
+	// Daily-report model: a staff member is "covered" for the week when, for
+	// every calendar day in [weekStart, weekStop] they are not on leave, a
+	// weeklyreport row exists for that day (start::date = day). We count the
+	// number of (employee, day) gaps and treat any gap > 0 as missing.
 	query := `
+		WITH days AS (
+			SELECT generate_series($2::date, $3::date, INTERVAL '1 day')::date AS day
+		),
+		on_duty_days AS (
+			SELECT e.id AS employee_id, d.day
+			FROM clinician_app.employees e
+			CROSS JOIN days d
+			WHERE e.facility = $1
+			` + departmentFilter + `
+			  AND NOT EXISTS (
+				SELECT 1
+				FROM clinician_app.staffleave sl
+				WHERE sl.employee_id = e.id
+				  AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+				  AND sl.start_date::date <= d.day
+				  AND sl.end_date::date >= d.day
+			  )
+		)
 		SELECT COUNT(*)
-		FROM clinician_app.employees e
-		WHERE e.facility = $1
-		` + departmentFilter + `
-		  AND NOT EXISTS (
-			SELECT 1
-			FROM clinician_app.staffleave sl
-			WHERE sl.employee_id = e.id
-			  AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
-			  AND sl.start_date::date <= $3::date
-			  AND sl.end_date::date >= $2::date
-		  )
-		  AND NOT EXISTS (
+		FROM on_duty_days odd
+		WHERE NOT EXISTS (
 			SELECT 1
 			FROM clinician_app.weeklyreport w
-			WHERE w.employee = e.id
+			WHERE w.employee = odd.employee_id
 			  AND w.hospital = $1
-			  AND w.start::date = $2::date
-			  AND w.stop::date = $3::date
-		  )
+			  AND w.start::date = odd.day
+		)
 	`
 
 	var count int
@@ -827,7 +954,7 @@ func EnsureOnLeaveZeroReports(ctx context.Context, db *sql.DB, facilityID int64,
 	query := `
 		INSERT INTO clinician_app.weeklyreport (
 			hospital, employee, department, start, stop,
-			attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients,
+			attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients,
 			teaching_rounds, students_taught, mortality_reviews, maternal, perinatal, surgical, medical, paed, labs_requests, imaging_requests,
 			lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain,
 			culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans,
@@ -840,7 +967,7 @@ func EnsureOnLeaveZeroReports(ctx context.Context, db *sql.DB, facilityID int64,
 			$2,
 			$3,
 			NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-			NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+			NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 			NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 			NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 			'Submitted', NULL, $4, $5, $5, $5, NULL
@@ -999,6 +1126,115 @@ func SubmitFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID i
 	return rowsAffected, nil
 }
 
+// SubmitFacilityReportsByDay escalates all locally-approved reports for a
+// specific calendar day (start::date = date) to national_submission_status =
+// 'Submitted'. Mirrors SubmitFacilityReportsByFilter but scoped to one day.
+// Any existing row that is not yet facility-approved blocks the operation.
+// The admin's own draft for that day is self-promoted before validation.
+func SubmitFacilityReportsByDay(ctx context.Context, db *sql.DB, facilityID int64, departmentID int, date time.Time, submittedBy int64) (int64, error) {
+	periodArgs := []interface{}{facilityID, date}
+	periodWhereParts := []string{
+		"hospital = $1",
+		"start::date = $2::date",
+	}
+	argPos := 3
+	if departmentID > 0 {
+		periodWhereParts = append(periodWhereParts, fmt.Sprintf("department = $%d", argPos))
+		periodArgs = append(periodArgs, departmentID)
+		argPos++
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// Self-promote the admin's own draft for that day so the validation below passes.
+	selfArgs := append([]interface{}{}, periodArgs...)
+	selfArgs = append(selfArgs, submittedBy)
+	selfActorArg := argPos
+	selfArgs = append(selfArgs, time.Now())
+	selfTimeArg := argPos + 1
+	selfQuery := `
+		UPDATE clinician_app.weeklyreport
+		SET
+			submit_status = 'Submitted',
+			report_status = 'Approved',
+			submitted_by = $` + fmt.Sprintf("%d", selfActorArg) + `,
+			submitted_on = $` + fmt.Sprintf("%d", selfTimeArg) + `,
+			facility_review_status = 'Approved',
+			facility_reviewed_by = $` + fmt.Sprintf("%d", selfActorArg) + `,
+			facility_reviewed_on = $` + fmt.Sprintf("%d", selfTimeArg) + `,
+			approved_by = $` + fmt.Sprintf("%d", selfActorArg) + `,
+			last_updated_on = $` + fmt.Sprintf("%d", selfTimeArg) + `
+		WHERE ` + strings.Join(periodWhereParts, " AND ") + `
+		  AND employee = $` + fmt.Sprintf("%d", selfActorArg) + `
+		  AND (
+			COALESCE(submit_status, '') <> 'Submitted'
+			OR COALESCE(report_status, '') <> 'Approved'
+			OR COALESCE(facility_review_status, '') <> 'Approved'
+		  )`
+	if _, err := tx.ExecContext(ctx, selfQuery, selfArgs...); err != nil {
+		return 0, err
+	}
+
+	// Reject if any existing row for this day is not fully facility-approved.
+	var pendingLocalApproval int
+	validationQuery := `
+		SELECT COUNT(*)
+		FROM clinician_app.weeklyreport
+		WHERE ` + strings.Join(periodWhereParts, " AND ") + `
+		  AND (
+			COALESCE(facility_review_status, '') <> 'Approved'
+			OR COALESCE(report_status, '') <> 'Approved'
+			OR COALESCE(submit_status, '') <> 'Submitted'
+		  )`
+	if err := tx.QueryRowContext(ctx, validationQuery, periodArgs...).Scan(&pendingLocalApproval); err != nil {
+		return 0, err
+	}
+	if pendingLocalApproval > 0 {
+		return 0, ErrFacilityBatchRequiresApprovedReports
+	}
+
+	// Escalate approved rows to national.
+	updateArgs := append([]interface{}{}, periodArgs...)
+	updateArgs = append(updateArgs, submittedBy)
+	submittedByArg := argPos
+	updateArgs = append(updateArgs, time.Now())
+	nowArg := argPos + 1
+	updateWhereParts := append([]string{}, periodWhereParts...)
+	updateWhereParts = append(updateWhereParts, "COALESCE(submit_status, '') = 'Submitted'")
+	query := `
+		UPDATE clinician_app.weeklyreport
+		SET
+			national_submission_status = 'Submitted',
+			national_submitted_by = $` + fmt.Sprintf("%d", submittedByArg) + `,
+			national_submitted_on = $` + fmt.Sprintf("%d", nowArg) + `,
+			national_review_status = NULL,
+			national_reviewed_by = NULL,
+			national_reviewed_on = NULL,
+			last_updated_on = $` + fmt.Sprintf("%d", nowArg) + `
+		WHERE ` + strings.Join(updateWhereParts, " AND ") + `
+		  AND COALESCE(facility_review_status, '') = 'Approved'
+		  AND (
+			COALESCE(national_submission_status, '') <> 'Submitted'
+			OR COALESCE(national_review_status, '') IN ('Rejected', 'Declined')
+		  )`
+	result, err := tx.ExecContext(ctx, query, updateArgs...)
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return rowsAffected, nil
+}
+
 func ApproveNationalFacilityReportsByFilter(ctx context.Context, db *sql.DB, facilityID int64, departmentID int, year int, month int, week int, approverID int64) (int64, error) {
 	_ = departmentID
 	args := []interface{}{facilityID}
@@ -1033,6 +1269,8 @@ func ApproveNationalFacilityReportsByFilter(ctx context.Context, db *sql.DB, fac
 	query := `
 		UPDATE clinician_app.weeklyreport
 		SET
+			report_status = 'Approved',
+			facility_review_status = 'Approved',
 			national_review_status = 'Approved',
 			national_reviewed_by = $` + fmt.Sprintf("%d", approverArg) + `,
 			national_reviewed_on = $` + fmt.Sprintf("%d", timeArg) + `,
@@ -1235,7 +1473,7 @@ func GetFacilitySubmissionSummaries(ctx context.Context, db *sql.DB, facilityID 
 			item.SubmissionState = "Complete"
 		}
 
-		item.CanApprove = item.PendingCount > 0
+		item.CanApprove = item.ApprovalStatus == "Submitted"
 
 		if selectedStatus != "all" {
 			switch selectedStatus {
@@ -1304,7 +1542,10 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 
 	query := `
 		WITH facility_weeks AS (
-			SELECT DISTINCT w.hospital AS facility_id, w.start::date AS week_start, w.stop::date AS week_stop
+			SELECT DISTINCT
+				w.hospital AS facility_id,
+				date_trunc('week', w.start)::date AS week_start,
+				(date_trunc('week', w.start) + INTERVAL '6 days')::date AS week_stop
 			FROM clinician_app.weeklyreport w
 			` + weekWhereClause + `
 		), on_leave AS (
@@ -1332,7 +1573,7 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 		), submissions AS (
 			SELECT
 				w.hospital AS facility_id,
-				w.start::date AS week_start,
+				date_trunc('week', w.start)::date AS week_start,
 				COUNT(*) FILTER (WHERE COALESCE(w.submit_status, '') = 'Submitted') AS submitted_count,
 				COUNT(*) FILTER (WHERE COALESCE(w.report_status, '') = 'Approved') AS approved_count,
 				COUNT(*) FILTER (WHERE COALESCE(w.report_status, '') IN ('Rejected', 'Declined')) AS declined_count,
@@ -1346,29 +1587,29 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 				COUNT(*) FILTER (WHERE COALESCE(w.national_review_status, '') IN ('Rejected', 'Declined')) AS national_declined_count
 			FROM clinician_app.weeklyreport w
 			` + weekWhereClause + `
-			GROUP BY w.hospital, w.start
+			GROUP BY w.hospital, date_trunc('week', w.start)::date
 		), national_submit_events AS (
-			SELECT DISTINCT ON (w.hospital, w.start::date)
+			SELECT DISTINCT ON (w.hospital, date_trunc('week', w.start)::date)
 				w.hospital AS facility_id,
-				w.start::date AS week_start,
+				date_trunc('week', w.start)::date AS week_start,
 				COALESCE(w.national_submitted_on, w.last_updated_on, w.created_on) AS submitted_on,
 				TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS submitted_by
 			FROM clinician_app.weeklyreport w
 			LEFT JOIN clinician_app.employees e ON e.id = w.national_submitted_by
 			` + weekWhereClause + `
 			  AND COALESCE(w.national_submission_status, '') = 'Submitted'
-			ORDER BY w.hospital, w.start::date, COALESCE(w.national_submitted_on, w.last_updated_on, w.created_on) DESC, w.id DESC
+			ORDER BY w.hospital, date_trunc('week', w.start)::date, COALESCE(w.national_submitted_on, w.last_updated_on, w.created_on) DESC, w.id DESC
 		), national_review_events AS (
-			SELECT DISTINCT ON (w.hospital, w.start::date)
+			SELECT DISTINCT ON (w.hospital, date_trunc('week', w.start)::date)
 				w.hospital AS facility_id,
-				w.start::date AS week_start,
+				date_trunc('week', w.start)::date AS week_start,
 				COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) AS reviewed_on,
 				TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS reviewed_by
 			FROM clinician_app.weeklyreport w
 			LEFT JOIN clinician_app.employees e ON e.id = w.national_reviewed_by
 			` + weekWhereClause + `
 			  AND COALESCE(w.national_review_status, '') IN ('Approved', 'Rejected', 'Declined')
-			ORDER BY w.hospital, w.start::date, COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) DESC, w.id DESC
+			ORDER BY w.hospital, date_trunc('week', w.start)::date, COALESCE(w.national_reviewed_on, w.last_updated_on, w.created_on) DESC, w.id DESC
 		)
 		SELECT
 			fw.facility_id,
@@ -1440,8 +1681,17 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 			return nil, err
 		}
 
+		// Expected non-leave daily reports for the week (7 days per on-duty staff).
+		expectedReports := (item.OnDutyCount - item.OnLeaveCount) * 7
+		if expectedReports < 0 {
+			expectedReports = 0
+		}
+		fullyNationalSubmitted := nationalSubmittedCount > 0 &&
+			expectedReports > 0 &&
+			nationalSubmittedCount >= expectedReports
+
 		switch {
-		case nationalApprovedCount > 0:
+		case nationalApprovedCount > 0 && nationalApprovedCount >= expectedReports && expectedReports > 0:
 			item.ApprovalStatus = "Approved"
 			item.StatusOn = nationalReviewedOn
 			item.StatusBy = strings.TrimSpace(nationalReviewedBy)
@@ -1449,11 +1699,14 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 			item.ApprovalStatus = "Declined"
 			item.StatusOn = nationalReviewedOn
 			item.StatusBy = strings.TrimSpace(nationalReviewedBy)
-		case nationalSubmittedCount > 0:
+		case fullyNationalSubmitted:
 			item.ApprovalStatus = "Submitted"
 			item.StatusOn = nationalSubmittedOn
 			item.StatusBy = strings.TrimSpace(nationalSubmittedBy)
 		default:
+			// Partial submissions (some days submitted, others not) are treated
+			// as Draft so the weekly action button continues to read
+			// "Submit Week" until every non-leave report has been escalated.
 			item.ApprovalStatus = "Draft"
 		}
 
@@ -1463,7 +1716,7 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 			item.SubmissionState = "Complete"
 		}
 
-		item.CanApprove = item.PendingCount > 0
+		item.CanApprove = item.ApprovalStatus == "Submitted"
 
 		if selectedStatus != "all" {
 			switch selectedStatus {
@@ -1493,5 +1746,206 @@ func GetFacilityWeeklySubmissionSummaries(ctx context.Context, db *sql.DB, facil
 		items = append(items, item)
 	}
 
+	return items, rows.Err()
+}
+
+// WeekDayRow holds per-day submission stats for a single day within an ISO week.
+type WeekDayRow struct {
+	Day          time.Time
+	DayName      string
+	TotalStaff   int
+	OnLeaveCount int
+	OnDutyCount  int
+	Submitted    int
+	Approved     int
+	NotSubmitted int
+	Percentage   int
+}
+
+// DayStaffRow holds a single staff member's report submission status for a given day.
+type DayStaffRow struct {
+	ReportID       int
+	EmployeeID     int64
+	EmployeeName   string
+	DepartmentName string
+	HasSubmitted   bool
+	SubmitStatus   string
+	ReportStatus   string
+	IsOnLeave      bool
+}
+
+// GetWeekDailyBreakdown returns one WeekDayRow per day (Monday–Sunday) for the ISO
+// week that starts at weekStart. Each row shows on-duty count, submitted count, and
+// the derived not-submitted count and submission percentage.
+func GetWeekDailyBreakdown(ctx context.Context, db *sql.DB, facilityID int, departmentID int, weekStart time.Time) ([]*WeekDayRow, error) {
+	if facilityID <= 0 {
+		return buildEmptyWeekDays(weekStart), nil
+	}
+
+	weekStop := weekStart.AddDate(0, 0, 6)
+
+	args := []interface{}{facilityID, weekStart, weekStop}
+	argPos := 4
+	employeeDeptFilter := ""
+	reportDeptFilter := ""
+	if departmentID > 0 {
+		employeeDeptFilter = fmt.Sprintf(" AND e.department = $%d", argPos)
+		reportDeptFilter = fmt.Sprintf(" AND w.department = $%d", argPos)
+		args = append(args, departmentID)
+	}
+
+	query := `
+		WITH day_series AS (
+			SELECT generate_series($2::date, $3::date, '1 day'::interval)::date AS day
+		), employee_base AS (
+			SELECT COUNT(DISTINCT e.id) AS total_staff
+			FROM clinician_app.employees e
+			WHERE e.facility = $1
+			` + employeeDeptFilter + `
+		), day_submissions AS (
+			SELECT
+				w.start::date AS report_day,
+				COUNT(*) AS submitted_count,
+				COUNT(*) FILTER (WHERE COALESCE(w.report_status,'') = 'Approved') AS approved_count
+			FROM clinician_app.weeklyreport w
+			WHERE w.hospital = $1
+			  AND w.start::date >= $2::date
+			  AND w.start::date <= $3::date
+			` + reportDeptFilter + `
+			GROUP BY w.start::date
+		), day_on_leave AS (
+			SELECT ds.day, COUNT(DISTINCT e.id) AS on_leave_count
+			FROM day_series ds
+			JOIN clinician_app.employees e ON e.facility = $1` + employeeDeptFilter + `
+			JOIN clinician_app.staffleave sl ON sl.employee_id = e.id
+			WHERE COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+			  AND sl.start_date::date <= ds.day
+			  AND sl.end_date::date >= ds.day
+			GROUP BY ds.day
+		)
+		SELECT
+			ds.day,
+			eb.total_staff,
+			COALESCE(dl.on_leave_count, 0) AS on_leave_count,
+			GREATEST(eb.total_staff - COALESCE(dl.on_leave_count, 0), 0) AS on_duty_count,
+			COALESCE(dsub.submitted_count, 0) AS submitted_count,
+			COALESCE(dsub.approved_count, 0) AS approved_count
+		FROM day_series ds
+		CROSS JOIN employee_base eb
+		LEFT JOIN day_submissions dsub ON dsub.report_day = ds.day
+		LEFT JOIN day_on_leave dl ON dl.day = ds.day
+		ORDER BY ds.day
+	`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	dayNames := [8]string{"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+	items := []*WeekDayRow{}
+	for rows.Next() {
+		item := &WeekDayRow{}
+		if err := rows.Scan(&item.Day, &item.TotalStaff, &item.OnLeaveCount, &item.OnDutyCount, &item.Submitted, &item.Approved); err != nil {
+			return nil, err
+		}
+		wd := int(item.Day.Weekday()) // Sunday=0
+		if wd == 0 {
+			wd = 7
+		}
+		item.DayName = dayNames[wd]
+		item.NotSubmitted = item.OnDutyCount - item.Submitted
+		if item.NotSubmitted < 0 {
+			item.NotSubmitted = 0
+		}
+		if item.OnDutyCount > 0 {
+			item.Percentage = item.Submitted * 100 / item.OnDutyCount
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func buildEmptyWeekDays(weekStart time.Time) []*WeekDayRow {
+	dayNames := [7]string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+	items := make([]*WeekDayRow, 7)
+	for i := 0; i < 7; i++ {
+		items[i] = &WeekDayRow{
+			Day:     weekStart.AddDate(0, 0, i),
+			DayName: dayNames[i],
+		}
+	}
+	return items
+}
+
+// GetDayStaffStatus returns every staff member at the facility with their
+// weeklyreport submission status for the given date. Staff with no report row
+// have HasSubmitted=false. The department filter is optional (0 = all).
+func GetDayStaffStatus(ctx context.Context, db *sql.DB, facilityID int, departmentID int, date time.Time) ([]*DayStaffRow, error) {
+	if facilityID <= 0 {
+		return []*DayStaffRow{}, nil
+	}
+
+	args := []interface{}{facilityID, date}
+	deptFilter := ""
+	if departmentID > 0 {
+		deptFilter = fmt.Sprintf(" AND e.department = $%d", 3)
+		args = append(args, departmentID)
+	}
+
+	query := `
+		SELECT
+			e.id AS employee_id,
+			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, ''))) AS employee_name,
+			COALESCE(d.d_name, '') AS department_name,
+			(w.id IS NOT NULL) AS has_submitted,
+			COALESCE(w.submit_status, '') AS submit_status,
+			COALESCE(w.report_status, '') AS report_status,
+			COALESCE(w.id, 0) AS report_id,
+			EXISTS (
+				SELECT 1 FROM clinician_app.staffleave sl
+				WHERE sl.employee_id = e.id
+				  AND COALESCE(sl.leave_status, '') IN ('Approved', 'Valid')
+				  AND sl.start_date::date <= $2::date
+				  AND sl.end_date::date >= $2::date
+			) AS is_on_leave
+		FROM clinician_app.employees e
+		LEFT JOIN clinician_app.departments d ON d.id = e.department
+		LEFT JOIN clinician_app.weeklyreport w
+			ON w.employee = e.id
+			AND w.hospital = $1
+			AND w.start::date = $2::date
+		WHERE e.facility = $1
+		` + deptFilter + `
+		ORDER BY employee_name
+	`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []*DayStaffRow{}
+	for rows.Next() {
+		item := &DayStaffRow{}
+		if err := rows.Scan(
+			&item.EmployeeID,
+			&item.EmployeeName,
+			&item.DepartmentName,
+			&item.HasSubmitted,
+			&item.SubmitStatus,
+			&item.ReportStatus,
+			&item.ReportID,
+			&item.IsOnLeave,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
 	return items, rows.Err()
 }

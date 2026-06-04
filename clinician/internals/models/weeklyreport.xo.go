@@ -31,7 +31,6 @@ type Weeklyreport struct {
 	Qn01           sql.NullInt64 `json:"attendance"`        // attendance
 	Qn02           sql.NullInt64 `json:"ward_rounds"`       // ward_rounds
 	Qn03           sql.NullInt64 `json:"patients_reviewed"` // patients_reviewed
-	Qn04           sql.NullInt64 `json:"theatre_days"`      // theatre_days
 	Qn05           sql.NullInt64 `json:"elective"`          // elective
 	Qn06           sql.NullInt64 `json:"emergency"`         // emergency
 	Qn07           sql.NullInt64 `json:"postmortems"`       // postmortems
@@ -65,7 +64,6 @@ type WeeklyReportExtended struct {
 	Qn01     sql.NullInt64 `json:"attendance"`         // attendance
 	Qn02     sql.NullInt64 `json:"ward_rounds"`        // ward_rounds
 	Qn03     sql.NullInt64 `json:"patients_reviewed"`  // patients_reviewed
-	Qn04     sql.NullInt64 `json:"theatre_days"`       // theatre_days
 	Qn05     sql.NullInt64 `json:"elective"`           // elective
 	Qn06     sql.NullInt64 `json:"emergency"`          // emergency
 	Qn07     sql.NullInt64 `json:"postmortems"`        // postmortems
@@ -203,13 +201,13 @@ func (w *Weeklyreport) Insert(ctx context.Context, db DB) error {
 
 	// Insert the Weeklyreport record
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
-		`hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on` +
+		`hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16` +
+		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15` +
 		`) RETURNING id`
 
-	logf(sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn)
-	if err := db.QueryRowContext(ctx, sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn).Scan(&w.ID); err != nil {
+	logf(sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn)
+	if err := db.QueryRowContext(ctx, sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn).Scan(&w.ID); err != nil {
 		return logerror(err)
 	}
 	// Set exists
@@ -248,20 +246,20 @@ func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error
 
 	// Insert the WeeklyReportExtended record
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
-		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, teaching_rounds, students_taught, mortality_reviews, maternal, ` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, teaching_rounds, students_taught, mortality_reviews, maternal, ` +
 		`perinatal, surgical, medical, paed, labs_requests, imaging_requests, lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain, ` +
 		`culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans, entered_by, created_on, days_worked ` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ` +
 		`$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, ` +
-		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47 ` +
+		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46 ` +
 		`)`
 
-	logf(sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+	logf(sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
 		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
 
-	_, err := db.ExecContext(ctx, sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08,
+	_, err := db.ExecContext(ctx, sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08,
 		w.Qn09, w.Qn10, w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26,
 		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
 	if err != nil {
@@ -285,11 +283,11 @@ func (w *Weeklyreport) Update(ctx context.Context, db DB) error {
 	}
 	// update with composite primary key
 	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
-		`hospital = $1, department = $2, employee = $3, start = $5, stop = $6, attendance = $7, ward_rounds = $8, patients_reviewed = $9, theatre_days = $10, elective = $11, emergency = $12, postmortems = $13, created_on = $17 ` +
-		`WHERE id = $18`
+		`hospital = $1, department = $2, employee = $3, start = $5, stop = $6, attendance = $7, ward_rounds = $8, patients_reviewed = $9, elective = $10, emergency = $11, postmortems = $12, created_on = $16 ` +
+		`WHERE id = $17`
 	// run
-	logf(sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn, w.ID)
-	if _, err := db.ExecContext(ctx, sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn, w.ID); err != nil {
+	logf(sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn, w.ID)
+	if _, err := db.ExecContext(ctx, sqlstr, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn, w.ID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -306,17 +304,17 @@ func (w *WeeklyReportExtended) Updatez(ctx context.Context, db DB) error {
 
 	// Update the WeeklyReportExtended record
 	const sqlstr = `UPDATE clinician_app.weeklyreport SET ` +
-		`start = $1, stop = $2, attendance = $3, ward_rounds = $4, patients_reviewed = $5, theatre_days =$6, elective = $7, emergency = $8, postmortems = $9, opd_clinics = $10, opd_patients = $11, anc_patients = $12, teaching_rounds = $13, students_taught = $14, mortality_reviews = $15, maternal = $16, ` +
-		`perinatal = $17, surgical = $18, medical = $19, paed = $20, labs_requests = $21, imaging_requests = $22, lab_investigations = $23, bs = $24, hiv = $25, malaria = $26, tb = $27, cbc = $28, chemistry = $29, hematology = $30, urinalysis = $31, gram_stain = $32, ` +
-		`culture = $33, microbiology = $34, sensitivity_tests = $35, diagnostics = $36, xrays = $37, ct_scans = $38, obstetrics_scans = $39, abdominal_scans = $40, ` +
-		`days_worked = $41, last_updated_on = $42 ` +
-		`WHERE id = $43 `
+		`start = $1, stop = $2, attendance = $3, ward_rounds = $4, patients_reviewed = $5, elective = $6, emergency = $7, postmortems = $8, opd_clinics = $9, opd_patients = $10, anc_patients = $11, teaching_rounds = $12, students_taught = $13, mortality_reviews = $14, maternal = $15, ` +
+		`perinatal = $16, surgical = $17, medical = $18, paed = $19, labs_requests = $20, imaging_requests = $21, lab_investigations = $22, bs = $23, hiv = $24, malaria = $25, tb = $26, cbc = $27, chemistry = $28, hematology = $29, urinalysis = $30, gram_stain = $31, ` +
+		`culture = $32, microbiology = $33, sensitivity_tests = $34, diagnostics = $35, xrays = $36, ct_scans = $37, obstetrics_scans = $38, abdominal_scans = $39, ` +
+		`days_worked = $40, last_updated_on = $41 ` +
+		`WHERE id = $42 `
 
-	logf(sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+	logf(sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
 		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
 
-	_, err := db.ExecContext(ctx, sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
+	_, err := db.ExecContext(ctx, sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
 		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
 	if err != nil {
@@ -350,16 +348,16 @@ func (w *Weeklyreport) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
-		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17` +
+		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`hospital = EXCLUDED.hospital, department = EXCLUDED.department, employee = EXCLUDED.employee, start = EXCLUDED.start, stop = EXCLUDED.stop, attendance = EXCLUDED.attendance, ward_rounds = EXCLUDED.ward_rounds, patients_reviewed = EXCLUDED.patients_reviewed, theatre_days = EXCLUDED.theatre_days, elective = EXCLUDED.elective, emergency = EXCLUDED.emergency, postmortems = EXCLUDED.postmortems, opd_clinics = EXCLUDED.opd_clinics, opd_patients = EXCLUDED.opd_patients, anc_patients = EXCLUDED.anc_patients, created_on = EXCLUDED.created_on `
+		`hospital = EXCLUDED.hospital, department = EXCLUDED.department, employee = EXCLUDED.employee, start = EXCLUDED.start, stop = EXCLUDED.stop, attendance = EXCLUDED.attendance, ward_rounds = EXCLUDED.ward_rounds, patients_reviewed = EXCLUDED.patients_reviewed, elective = EXCLUDED.elective, emergency = EXCLUDED.emergency, postmortems = EXCLUDED.postmortems, opd_clinics = EXCLUDED.opd_clinics, opd_patients = EXCLUDED.opd_patients, anc_patients = EXCLUDED.anc_patients, created_on = EXCLUDED.created_on `
 	// run
-	logf(sqlstr, w.ID, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn)
-	if _, err := db.ExecContext(ctx, sqlstr, w.ID, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn04, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn); err != nil {
+	logf(sqlstr, w.ID, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn)
+	if _, err := db.ExecContext(ctx, sqlstr, w.ID, w.Hospital, w.Dept, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.EntryCreatedOn); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -395,7 +393,7 @@ func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended
 
 	log.Printf("Record ID: %d", id)
 	// Expanded query to select all fields up to abdominal_scans, along with entered_by and created_on
-	const sqlstr = `SELECT w.id, w.hospital, w.department, w.employee, st.title, w.start, w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+	const sqlstr = `SELECT w.id, w.hospital, w.department, w.employee, st.title, w.start, w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
         w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests, w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry,
         w.hematology, w.urinalysis, w.gram_stain, w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans, w.entered_by, w.created_on
         FROM clinician_app.weeklyreport w
@@ -412,7 +410,7 @@ func WeeklyreportByID(ctx context.Context, db DB, id int) (*WeeklyReportExtended
 	// Execute the query and scan all selected fields into the WeeklyReportExtended struct
 	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(
 		&w.ID, &w.Hospital, &w.DeptID, &w.EmpID, &w.EmpTitle, &w.Start, &w.Stop,
-		&w.Qn01, &w.Qn02, &w.Qn03, &w.Qn04, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
+		&w.Qn01, &w.Qn02, &w.Qn03, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
 		&w.Qn11, &w.Qn12, &w.Qn13, &w.Qn14, &w.Qn15, &w.Qn16, &w.Qn17, &w.Qn18, &w.Qn19, &w.Qn20,
 		&w.Qn21, &w.Qn22, &w.Qn23, &w.Qn24, &w.Qn25, &w.Qn26, &w.Qn27, &w.Qn28, &w.Qn29, &w.Qn30,
 		&w.Qn31, &w.Qn32, &w.Qn33, &w.Qn34, &w.Qn35, &w.Qn36, &w.Qn37, &w.Qn38,
@@ -455,7 +453,7 @@ func Weeklyreports(ctx context.Context, db DB, flt string, start int, cnt int) (
 	}
 
 	sqlstr = `SELECT ` +
-		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on ` +
+		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, created_on ` +
 		`FROM clinician_app.weeklyreport ` + whereString + lmt
 
 	rows, err := db.QueryContext(ctx, sqlstr)
@@ -478,7 +476,6 @@ func Weeklyreports(ctx context.Context, db DB, flt string, start int, cnt int) (
 			&w.Qn01,
 			&w.Qn02,
 			&w.Qn03,
-			&w.Qn04,
 			&w.Qn05,
 			&w.Qn06,
 			&w.Qn07,
@@ -545,7 +542,7 @@ func WeeklyreportList(ctx context.Context, db DB, facilityID, departmentID strin
 	// SQL query with JOINs
 	sqlstr = `SELECT f.f_name, f.id, e.id, e.fname, e.lname, e.oname, st.title, d.d_name, 
               w.id, w.hospital, w.department, w.employee, w.start, 
-              w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, 
+              w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.elective, 
               w.emergency, w.postmortems, w.created_on, w.submit_status
               FROM clinician_app.weeklyreport w
               INNER JOIN clinician_app.employees e ON w.employee = e.id
@@ -584,7 +581,6 @@ func WeeklyreportList(ctx context.Context, db DB, facilityID, departmentID strin
 			&w.Qn01,
 			&w.Qn02,
 			&w.Qn03,
-			&w.Qn04,
 			&w.Qn05,
 			&w.Qn06,
 			&w.Qn07,
@@ -1537,7 +1533,7 @@ func GetReportAndDataPointsByDepartment(db *sql.DB, start string, facilityID, de
 
 	// Query to fetch staff for the department
 
-	staffQuery := `SELECT w.id, w.hospital, w.department, w.employee, CONCAT(e.fname, ' ', e.lname) AS staffname, st.title, w.start, w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+	staffQuery := `SELECT w.id, w.hospital, w.department, w.employee, CONCAT(e.fname, ' ', e.lname) AS staffname, st.title, w.start, w.stop, w.attendance, w.ward_rounds, w.patients_reviewed, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
         w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests, w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry,
         w.hematology, w.urinalysis, w.gram_stain, w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans, w.entered_by, w.created_on
         FROM clinician_app.weeklyreport w
@@ -1554,7 +1550,7 @@ func GetReportAndDataPointsByDepartment(db *sql.DB, start string, facilityID, de
 	for rows.Next() {
 		var w WeeklyReportExtended
 		if err := rows.Scan(&w.ID, &w.Hospital, &w.DeptID, &w.EmpID, &w.Fname, &w.EmpTitle, &w.Start, &w.Stop,
-			&w.Qn01, &w.Qn02, &w.Qn03, &w.Qn04, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
+			&w.Qn01, &w.Qn02, &w.Qn03, &w.Qn05, &w.Qn06, &w.Qn07, &w.Qn08, &w.Qn09, &w.Qn10,
 			&w.Qn11, &w.Qn12, &w.Qn13, &w.Qn14, &w.Qn15, &w.Qn16, &w.Qn17, &w.Qn18, &w.Qn19, &w.Qn20,
 			&w.Qn21, &w.Qn22, &w.Qn23, &w.Qn24, &w.Qn25, &w.Qn26, &w.Qn27, &w.Qn28, &w.Qn29, &w.Qn30,
 			&w.Qn31, &w.Qn32, &w.Qn33, &w.Qn34, &w.Qn35, &w.Qn36, &w.Qn37, &w.Qn38,

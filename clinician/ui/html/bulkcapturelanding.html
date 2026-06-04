@@ -1,8 +1,8 @@
 {{ define "title"}} Bulk Capture {{ end }}
 
 
-{{ define "header" }} 
-{{ .sessionData.Ses.HFName }} Hospital: Weekly Bulk Capture
+{{ define "header" }}
+{{ $ses := session . }}{{ $ses.HFName }} Hospital: Daily Bulk Capture
 {{ end }}
 
 {{ define "footer" }} 
@@ -17,7 +17,7 @@
 {{ define "content" }}
 <form id="bulkCaptureForm" method="post" action="/reports/zave" class="app-list-panel">
     <div class="app-list-toolbar">
-        <p>Load staff by department and week, enter all values in one table, then save once.</p>
+        <p>Enter all values in one table, then save once.</p>
         <div class="app-list-actions">
             <a href="/reports/bulk" class="btn btn-outline-secondary btn-sm">Open Staff List View</a>
         </div>
@@ -28,40 +28,28 @@
             <label for="department">Department</label>
             <select id="department" name="department">
                 <option value="">All departments (all facility staff)</option>
-                {{ range .departments }}
+                {{ range .Form.Departments }}
                 <option value="{{ .DeptID }}">{{ .DepartmentName.String }}</option>
                 {{ end }}
             </select>
         </div>
         <div class="filter-field">
-            <label for="weekSelector">Week</label>
-            <select id="weekSelector" name="week_selector">
-                {{ range .weekOptions }}
-                <option value="{{ .StartDate }}|{{ .EndDate }}" data-start="{{ .StartDate }}" data-end="{{ .EndDate }}" {{ if eq .StartDate $.weekStart }}selected{{ end }}>{{ .Label }}</option>
-                {{ end }}
-            </select>
-        </div>
-        <div class="filter-field">
-            <label for="start">Start Date</label>
-            <input type="date" id="start" name="start" value="{{ .weekStart }}" readonly required>
-        </div>
-        <div class="filter-field">
-            <label for="stop">End Date</label>
-            <input type="date" id="stop" name="stop" value="{{ .weekEnd }}" readonly required>
-        </div>
-        <div class="filter-field">
-            <label>&nbsp;</label>
-            <button type="button" id="loadData" class="btn btn-primary btn-block">Load Staff</button>
+            <label for="dateSelector">Date</label>
+            <input type="date" id="dateSelector" name="date" value="{{ .Form.SelectedDate }}" required>
         </div>
     </div>
 
-    <p id="bulkWeekLabel" class="app-list-note">Selected reporting period: {{ .weekLabel }}</p>
+    <input type="hidden" id="start" name="start" value="{{ .Form.SelectedDate }}">
+    <input type="hidden" id="stop" name="stop" value="{{ .Form.SelectedDate }}">
 
-    <div id="table-container" class="app-table-scroll mt-3">
-        <table id="staffTable" class="table table-hover table-bordered">
+    <p id="bulkDayLabel" class="app-list-note">Selected reporting date: {{ .Form.SelectedDate }}</p>
+
+    <div id="table-container" class="mt-3">
+        <table id="staffTable" class="table table-hover mb-0">
             <thead class="thead-light">
-                <tr id="dynamicHeaders">
-                    <th>SN</th>
+                <tr>
+                    <th style="width:2.5rem"></th>
+                    <th style="width:2.5rem">SN</th>
                     <th>Staff Name</th>
                     <th>Title</th>
                     <th>Status</th>
@@ -69,7 +57,7 @@
             </thead>
             <tbody id="bulkTableBody">
                 <tr>
-                    <td colspan="4" class="text-center text-muted">Select a department and click Load Staff.</td>
+                    <td colspan="5" class="text-center text-muted">Loading staff...</td>
                 </tr>
             </tbody>
         </table>
@@ -83,119 +71,294 @@
     </div>
 </form>
 
+<style>
+.bulk-summary-row { cursor: pointer; user-select: none; }
+.bulk-summary-row:hover td { background: #f0f8f7; }
+.bulk-toggle-icon {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: #4a9aaa;
+    transition: transform 0.15s;
+    min-width: 1rem;
+    text-align: center;
+}
+.bulk-expand-td {
+    padding: 0 !important;
+    background: #f7fbfa !important;
+    border-top: none !important;
+}
+.bulk-attendance-section {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding: 0.75rem 1.25rem 0.6rem;
+    border-bottom: 1px solid #daedf1;
+    background: #f0f8fa;
+}
+.bulk-attendance-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #204650;
+}
+.bulk-att-hint {
+    font-size: 0.78rem;
+    color: #58727a;
+}
+.bulk-entry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 0.65rem 1rem;
+    padding: 1rem 1.25rem 1.2rem;
+}
+.bulk-entry-field { display: flex; flex-direction: column; }
+.bulk-entry-label {
+    font-size: 0.76rem;
+    color: #204650;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bulk-entry-field--na .bulk-entry-label { color: #9ab5bc; }
+.bulk-entry-field--na span.na-dash { color: #b0c4ca; font-size: 0.9rem; }
+</style>
+
 {{end}}
 
 {{ define "extraJS" }}
 <script>
 (() => {
-    const loadButton = document.getElementById('loadData');
     const saveButton = document.getElementById('bulkSaveButton');
-    const weekSelector = document.getElementById('weekSelector');
+    const dateSelector = document.getElementById('dateSelector');
     const startInput = document.getElementById('start');
     const stopInput = document.getElementById('stop');
     const departmentInput = document.getElementById('department');
-    const headersRow = document.getElementById('dynamicHeaders');
     const body = document.getElementById('bulkTableBody');
-    const weekLabel = document.getElementById('bulkWeekLabel');
+    const dayLabel = document.getElementById('bulkDayLabel');
 
-    const updateSelectedWeekDates = () => {
-        const selected = weekSelector.options[weekSelector.selectedIndex];
-        if (!selected) {
+    // ---------------------------------------------------------------
+    // Accordion toggle + attendance toggle — event delegation on tbody
+    // ---------------------------------------------------------------
+    body.addEventListener('click', (e) => {
+        // Attendance toggle buttons
+        const attBtn = e.target.closest('.bulk-att-btn');
+        if (attBtn) {
+            const expandTd = attBtn.closest('td.bulk-expand-td');
+            if (!expandTd) return;
+            const empId = attBtn.dataset.empId;
+            setBulkAttendanceState(expandTd, empId, attBtn.dataset.state);
             return;
         }
-        const start = selected.getAttribute('data-start') || '';
-        const end = selected.getAttribute('data-end') || '';
-        startInput.value = start;
-        stopInput.value = end;
-        weekLabel.textContent = `Selected reporting period: ${selected.textContent}`;
+
+        // Expand/collapse summary row
+        const row = e.target.closest('.bulk-summary-row');
+        if (!row) return;
+        const empId = row.dataset.empId;
+        const expandRow = document.getElementById(`expand-${empId}`);
+        if (!expandRow) return;
+        const isOpen = expandRow.style.display !== 'none';
+        expandRow.style.display = isOpen ? 'none' : 'table-row';
+        const icon = row.querySelector('.bulk-toggle-icon');
+        if (icon) icon.textContent = isOpen ? '\u25b6' : '\u25bc';
+    });
+
+    function setBulkAttendanceState(expandTd, empId, state) {
+        // Toggle button active states
+        expandTd.querySelectorAll('.bulk-att-btn').forEach(btn => {
+            const isActive = btn.dataset.state === state;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        // Sync hidden days_worked checkbox and attendance number input
+        const dwCheckbox = expandTd.querySelector(`input[data-role="days-worked"]`);
+        const attInput   = expandTd.querySelector(`input[data-role="attendance"]`);
+        if (dwCheckbox) dwCheckbox.checked = state === 'attended';
+        if (attInput)   attInput.value     = state === 'attended' ? '1' : '0';
+
+        // Enable/disable clinical data inputs
+        expandTd.querySelectorAll('.bulk-data-inputs input[type="number"]').forEach(inp => {
+            inp.disabled = state !== 'attended';
+        });
+
+        // Update hint text
+        const hint = expandTd.querySelector('.bulk-att-hint');
+        if (hint) {
+            hint.textContent = state === 'attended'
+                ? 'Mark whether this staff attended on this date.'
+                : 'Data entry is disabled when staff is marked as absent.';
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Enforce max = today
+    // ---------------------------------------------------------------
+    const todayISO = new Date().toISOString().slice(0, 10);
+    dateSelector.setAttribute('max', todayISO);
+
+    const syncHiddenDates = () => {
+        const date = dateSelector.value || todayISO;
+        startInput.value = date;
+        stopInput.value  = date;
+        dayLabel.textContent = `Selected reporting date: ${date}`;
     };
 
+    // ---------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------
     const renderEmpty = (message, columnCount) => {
         body.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-muted">${message}</td></tr>`;
         saveButton.disabled = true;
     };
 
-    const renderTable = (staff, dataPoints) => {
-        let headers = '<th>SN</th><th>Staff Name</th><th>Title</th><th>Status</th>';
-        dataPoints.forEach((point) => {
-            headers += `<th>${point.label}</th>`;
-        });
-        headersRow.innerHTML = headers;
+    const buildStatusBadge = (label) => {
+        if (!label || label === '\u2014') return `<span class="text-muted">\u2014</span>`;
+        const colorMap = {
+            'Approved':  'success',
+            'Submitted': 'primary',
+            'Draft':     'warning',
+            'Declined':  'danger',
+            'On Leave':  'secondary',
+            'New':       'info',
+        };
+        const variant = colorMap[label] || 'secondary';
+        return `<span class="badge badge-${variant}">${label}</span>`;
+    };
 
+    // ---------------------------------------------------------------
+    // Render table
+    // ---------------------------------------------------------------
+    const renderTable = (staff, dataPoints) => {
         if (!staff || staff.length === 0) {
-            renderEmpty('No active staff records found for the selected department and week.', dataPoints.length + 4);
+            renderEmpty('No active staff records found for the selected department and date.', 5);
             return;
         }
 
+        // Exclude 'attendance' from the data grid — it is controlled by the toggle
+        const displayPoints = dataPoints.filter(p => p.key !== 'attendance');
+
+        const date = dateSelector.value || todayISO;
         let rows = '';
         let anyEditable = false;
+
         staff.forEach((member, index) => {
             const title = (member.title || '').trim() || 'Not set';
             const applicable = new Set(member.applicableKeys || []);
             const values = member.values || {};
-            const editable = member.editable !== false;
+            const editable  = member.editable !== false;
+            const onLeave   = !!member.onLeave;
             const statusLabel = (member.statusLabel || '').trim() || (editable ? 'New' : '\u2014');
-            const rowClass = editable ? '' : ' class="table-secondary text-muted"';
-            if (editable) {
-                anyEditable = true;
+            const statusBadge = buildStatusBadge(statusLabel);
+            const empId = member.employeeID;
+            if (editable) anyEditable = true;
+
+            // Determine initial attendance state
+            const isNew     = !Object.prototype.hasOwnProperty.call(values, 'attendance');
+            const isAttended = !onLeave && (isNew || (values.attendance || 0) > 0);
+
+            const rowClasses = ['bulk-summary-row'];
+            if (!editable) rowClasses.push('table-secondary', 'text-muted');
+
+            // --- Summary row ---
+            rows += `<tr class="${rowClasses.join(' ')}" data-emp-id="${empId}">
+                <td class="text-center"><span class="bulk-toggle-icon">\u25b6</span></td>
+                <td>${index + 1}</td>
+                <td><strong>${member.name}</strong></td>
+                <td>${title}</td>
+                <td>${statusBadge}</td>
+            </tr>`;
+
+            // --- Expandable entry row ---
+            rows += `<tr id="expand-${empId}" style="display:none"><td colspan="5" class="bulk-expand-td">`;
+
+            // Attendance section
+            if (onLeave) {
+                rows += `<div class="bulk-attendance-section">
+                    <span class="bulk-attendance-label">Attendance Status:</span>
+                    <span class="attendance-badge on-leave">On Leave</span>
+                    <input type="checkbox" name="input[${empId}][days_worked][]" value="${date}" data-role="days-worked" hidden disabled>
+                    <input type="number"   name="input[${empId}][attendance]"    value="0"      data-role="attendance"  hidden readonly>
+                </div>`;
+            } else if (!editable) {
+                // Read-only — show static badge, no hidden inputs (nothing will be saved)
+                rows += `<div class="bulk-attendance-section">
+                    <span class="bulk-attendance-label">Attendance Status:</span>
+                    <span class="attendance-badge ${isAttended ? 'attended' : 'absent'}">${isAttended ? 'Attended' : 'Absent'}</span>
+                </div>`;
+            } else {
+                rows += `<div class="bulk-attendance-section">
+                    <span class="bulk-attendance-label">Attendance Status:</span>
+                    <div class="attendance-state-group">
+                        <button type="button" class="attendance-btn bulk-att-btn${isAttended ? ' active' : ''}" data-state="attended" data-emp-id="${empId}" aria-pressed="${isAttended}">Attended</button>
+                        <button type="button" class="attendance-btn bulk-att-btn${!isAttended ? ' active' : ''}" data-state="absent"   data-emp-id="${empId}" aria-pressed="${!isAttended}">Absent</button>
+                    </div>
+                    <small class="bulk-att-hint">${isAttended ? 'Mark whether this staff attended on this date.' : 'Data entry is disabled when staff is marked as absent.'}</small>
+                    <input type="checkbox" name="input[${empId}][days_worked][]" value="${date}" data-role="days-worked" ${isAttended ? 'checked' : ''} hidden>
+                    <input type="number"   name="input[${empId}][attendance]"    value="${isAttended ? '1' : '0'}" data-role="attendance" hidden readonly>
+                </div>`;
             }
-            rows += `<tr${rowClass}><td>${index + 1}</td><td>${member.name}</td><td>${title}</td><td>${statusLabel}</td>`;
-            dataPoints.forEach((point) => {
-                const applies = applicable.has(point.key);
-                const hasValue = Object.prototype.hasOwnProperty.call(values, point.key);
-                const valueAttr = hasValue ? ` value="${values[point.key]}"` : '';
+
+            // Data entry grid — disable inputs when absent or on leave or not editable
+            const dataDisabled = !editable || onLeave || !isAttended;
+            rows += `<div class="bulk-data-inputs"><div class="bulk-entry-grid">`;
+            displayPoints.forEach((point) => {
+                const applies   = applicable.has(point.key);
+                const hasValue  = Object.prototype.hasOwnProperty.call(values, point.key);
+                const val       = hasValue ? values[point.key] : '';
+                const valueAttr = hasValue ? ` value="${val}"` : '';
                 if (!applies) {
-                    rows += `<td class="bg-light text-center text-muted" title="Not applicable for this department">&mdash;</td>`;
+                    rows += `<div class="bulk-entry-field bulk-entry-field--na"><span class="bulk-entry-label">${point.label}</span><span class="na-dash">\u2014</span></div>`;
                 } else if (!editable) {
-                    rows += `<td><input type="number" min="0" step="1" disabled${valueAttr} class="form-control form-control-sm" /></td>`;
+                    rows += `<div class="bulk-entry-field"><label class="bulk-entry-label">${point.label}</label><input type="number" min="0" step="1" disabled${valueAttr} class="form-control form-control-sm"></div>`;
                 } else {
-                    rows += `<td><input type="number" min="0" step="1" name="input[${member.employeeID}][${point.key}]"${valueAttr} class="form-control form-control-sm" /></td>`;
+                    rows += `<div class="bulk-entry-field"><label class="bulk-entry-label">${point.label}</label><input type="number" min="0" step="1" name="input[${empId}][${point.key}]"${valueAttr}${dataDisabled ? ' disabled' : ''} class="form-control form-control-sm"></div>`;
                 }
             });
-            rows += '</tr>';
+            rows += `</div></div>`;
+
+            rows += `</td></tr>`;
         });
+
         body.innerHTML = rows;
         saveButton.disabled = !anyEditable;
     };
 
-    loadButton.addEventListener('click', async () => {
+    // ---------------------------------------------------------------
+    // Load staff via API
+    // ---------------------------------------------------------------
+    const loadStaff = async () => {
         const departmentID = (departmentInput.value || '').trim();
-        const weekStart = startInput.value;
-        const weekEnd = stopInput.value;
+        const date = dateSelector.value || todayISO;
 
-        if (!weekStart || !weekEnd) {
-            alert('Select a reporting week first.');
-            return;
-        }
+        syncHiddenDates();
 
         try {
             const params = new URLSearchParams();
-            if (departmentID) {
-                params.set('departmentID', departmentID);
-            }
-            params.set('week_start', weekStart);
-            params.set('week_end', weekEnd);
+            if (departmentID) params.set('departmentID', departmentID);
+            params.set('date', date);
             const url = `/reports/entry?${params.toString()}`;
             const response = await fetch(url, { method: 'GET' });
-            if (!response.ok) {
-                throw new Error('Failed to load staff data.');
-            }
+            if (!response.ok) throw new Error('Failed to load staff data.');
             const payload = await response.json();
-            const staff = Array.isArray(payload.staff) ? payload.staff : [];
+            const staff      = Array.isArray(payload.staff)      ? payload.staff      : [];
             const dataPoints = Array.isArray(payload.dataPoints) ? payload.dataPoints : [];
             if (dataPoints.length === 0) {
-                renderEmpty('No data points are configured for this department.', 4);
-                headersRow.innerHTML = '<th>SN</th><th>Staff Name</th><th>Title</th><th>Status</th>';
+                renderEmpty('No data points are configured for this department.', 5);
                 return;
             }
             renderTable(staff, dataPoints);
         } catch (error) {
-            renderEmpty('Error loading data. Please try again.', 4);
+            renderEmpty('Error loading data. Please try again.', 5);
         }
-    });
+    };
 
-    weekSelector.addEventListener('change', updateSelectedWeekDates);
-    updateSelectedWeekDates();
+    dateSelector.addEventListener('change', loadStaff);
+    departmentInput.addEventListener('change', loadStaff);
+
+    syncHiddenDates();
+    loadStaff();
 })();
 </script>
 

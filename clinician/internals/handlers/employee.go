@@ -68,10 +68,10 @@ type EmployeePageView struct {
 
 func normalizeEmployeeTab(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "dashboard", "list", "on_duty", "on_leave":
+	case "list", "on_duty", "on_leave":
 		return strings.ToLower(strings.TrimSpace(value))
 	default:
-		return "dashboard"
+		return "list"
 	}
 }
 
@@ -245,7 +245,7 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		return
 	}
 
-	activeTab := normalizeEmployeeTab(c.DefaultQuery("tab", "dashboard"))
+	activeTab := normalizeEmployeeTab(c.DefaultQuery("tab", "list"))
 	selectedFacilityInt, _ := parseOptionalIntQuery(c, "facility")
 	selectedDepartmentInt, _ := parseOptionalIntQuery(c, "department")
 	selectedFacility := int64(selectedFacilityInt)
@@ -308,7 +308,6 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 	view := EmployeePageView{
 		ActiveTab:          activeTab,
 		CurrentURL:         buildEmployeeTabURL(activeTab, selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
-		DashboardURL:       buildEmployeeTabURL("dashboard", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		ListURL:            buildEmployeeTabURL("list", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		OnDutyURL:          buildEmployeeTabURL("on_duty", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),
 		OnLeaveURL:         buildEmployeeTabURL("on_leave", selectedFacility, selectedDepartment, searchTerm, showFacilityFilter),

@@ -49,6 +49,7 @@ type ClinicianEntrySection struct {
 type ClinicianEntryView struct {
 	EmployeeID      int64
 	EmployeeName    string
+	CadreName       string
 	DepartmentID    int64
 	DepartmentName  string
 	FacilityName    string
@@ -191,6 +192,17 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	empID := sesDetails.EmpID
 	entryTitle := "My Daily Data Entry"
 
+	// Bare mode renders just the entry form (no nav/header) for embedding in the
+	// report-analysis day-staff pane via iframe.
+	bareMode := c.Query("bare") == "1"
+	renderEntry := func() {
+		if bareMode {
+			utilities.GenerateHTML1(c, sessionData, "clinician-entry")
+		} else {
+			utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
+		}
+	}
+
 	requestedEmployeeID := 0
 	approverSelfEntry := utilities.RoleMatches(sesDetails.Rights, "Facility Admin")
 	if rawEmployeeID := strings.TrimSpace(c.Query("employee")); rawEmployeeID != "" {
@@ -263,6 +275,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		entryForm := ClinicianEntryView{
 			EmployeeID:      empID,
 			EmployeeName:    employeeName,
+			CadreName:       employee.EmpTitle.String,
 			DepartmentID:    report.DepartmentID,
 			DepartmentName:  reportDepartment.DepartmentName.String,
 			FacilityName:    facilityName,
@@ -304,7 +317,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 
 		sessionData.Form = entryForm
 
-		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
+		renderEntry()
 		return
 	}
 
@@ -375,6 +388,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		entryForm := ClinicianEntryView{
 			EmployeeID:      empID,
 			EmployeeName:    employeeName,
+			CadreName:       employee.EmpTitle.String,
 			DepartmentID:    existingReport.DepartmentID,
 			DepartmentName:  reportDepartmentName,
 			FacilityName:    facilityName,
@@ -409,7 +423,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		applyDynamicReportValues(c.Request.Context(), db, existingReport.ReportID, sectionKeys, entryForm.Values)
 
 		sessionData.Form = entryForm
-		utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
+		renderEntry()
 		return
 	}
 
@@ -427,6 +441,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 	sessionData.Form = ClinicianEntryView{
 		EmployeeID:      empID,
 		EmployeeName:    employeeName,
+		CadreName:       employee.EmpTitle.String,
 		DepartmentID:    departmentID,
 		DepartmentName:  department.DepartmentName.String,
 		FacilityName:    facilityName,
@@ -447,7 +462,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 		HideCoreSection: newHideCore && !approverSelfEntry,
 	}
 
-	utilities.GenerateHTML(c, sessionData, "base", "clinician-entry")
+	renderEntry()
 }
 
 /*
@@ -555,7 +570,6 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 			Qn01:  values["attendance"],
 			Qn02:  values["ward_rounds"],
 			Qn03:  values["patients_reviewed"],
-			Qn04:  values["theatre_days"],
 			Qn05:  values["elective"],
 			Qn06:  values["emergency"],
 			Qn07:  values["postmortems"],
@@ -972,7 +986,6 @@ func defaultClinicianEntryValues() map[string]string {
 		"attendance":         "0",
 		"ward_rounds":        "0",
 		"patients_reviewed":  "0",
-		"theatre_days":       "0",
 		"elective":           "0",
 		"emergency":          "0",
 		"postmortems":        "0",
@@ -1047,13 +1060,13 @@ func deptHidesCoreSection(deptKeys []string) bool {
 func fallbackDepartmentDataPointKeys(departmentID int64) []string {
 	switch departmentID {
 	case 1:
-		return []string{"theatre_days", "elective", "emergency", "postmortems", "xrays", "ct_scans"}
+		return []string{"elective", "emergency", "postmortems", "xrays", "ct_scans"}
 	case 2:
 		return []string{"medical", "CBC", "chemistry", "hematology", "urinalysis"}
 	case 3:
 		return []string{"paed", "malaria", "TB", "CBC"}
 	case 4:
-		return []string{"theatre_days", "elective", "emergency", "anc_patients", "maternal", "perinatal", "obstetrics_scans", "abdominal_scans"}
+		return []string{"elective", "emergency", "anc_patients", "maternal", "perinatal", "obstetrics_scans", "abdominal_scans"}
 	default:
 		return []string{}
 	}
@@ -1174,6 +1187,46 @@ func resolveClinicianEntryKeys(ctx context.Context, db *sql.DB, departmentID int
 	return keys
 }
 
+// resolveClinicianEntryDisplayKeys returns the ordered list of keys that should
+// appear in the inline data entry form for the given department. Mirrors the
+// logic used by the full entry form: clinical-core fields are dropped for
+// non-clinical departments (Lab, Pathology, Pharmacy, Radiology). Attendance
+// is always first.
+func resolveClinicianEntryDisplayKeys(ctx context.Context, db *sql.DB, departmentID int64) []string {
+	deptKeys, err := models.GetDepartmentRoleDataPoints(ctx, db, departmentID)
+	if err != nil || len(deptKeys) == 0 {
+		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
+	}
+	hideCore := deptHidesCoreSection(deptKeys)
+
+	keys := []string{"attendance"}
+	seen := map[string]struct{}{"attendance": {}}
+
+	if !hideCore {
+		for _, key := range clinicianEntryCoreKeys() {
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			keys = append(keys, key)
+		}
+	}
+
+	for _, key := range deptKeys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
 func applyDynamicReportValues(ctx context.Context, db *sql.DB, reportID int, extraKeys []string, values map[string]string) {
 	if reportID <= 0 {
 		return
@@ -1208,7 +1261,6 @@ func defaultClinicianEntryLabels() map[string]string {
 		"attendance":         "Attendance Days (Auto)",
 		"ward_rounds":        "Ward Rounds",
 		"patients_reviewed":  "Patients Reviewed",
-		"theatre_days":       "Theatre Days",
 		"elective":           "Elective Procedures",
 		"emergency":          "Emergency Procedures",
 		"postmortems":        "Postmortems",
@@ -1268,7 +1320,6 @@ func clinicianEntryValuesFromReport(report *models.ClinicianReportHistoryRow) ma
 	values["attendance"] = formatNullInt(report.Qn01)
 	values["ward_rounds"] = formatNullInt(report.Qn02)
 	values["patients_reviewed"] = formatNullInt(report.Qn03)
-	values["theatre_days"] = formatNullInt(report.Qn04)
 	values["elective"] = formatNullInt(report.Qn05)
 	values["emergency"] = formatNullInt(report.Qn06)
 	values["postmortems"] = formatNullInt(report.Qn07)
@@ -1871,7 +1922,6 @@ func bulkEntryCoreValuesFromReport(r *models.ClinicianReportHistoryRow) map[stri
 		{"attendance", r.Qn01},
 		{"ward_rounds", r.Qn02},
 		{"patients_reviewed", r.Qn03},
-		{"theatre_days", r.Qn04},
 		{"elective", r.Qn05},
 		{"emergency", r.Qn06},
 		{"postmortems", r.Qn07},
@@ -2122,7 +2172,7 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 	facilityID := sesDetails.HFID // Retrieve HFID from the session
 
 	departmentID := c.Query("departmentID")
-	if departmentID != "" || c.Query("week_start") != "" || c.Query("week_end") != "" {
+	if departmentID != "" || c.Query("date") != "" {
 		deptID := 0
 		if strings.TrimSpace(departmentID) != "" {
 			parsedDeptID, err := strconv.Atoi(departmentID)
@@ -2133,11 +2183,22 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 			deptID = parsedDeptID
 		}
 
-		weekStart, weekStop, err := parseBulkEntryWeekRange(c.Query("week_start"), c.Query("week_end"), time.Now())
+		dateRaw := strings.TrimSpace(c.Query("date"))
+		if dateRaw == "" {
+			dateRaw = normalizeDateOnly(time.Now()).Format("2006-01-02")
+		}
+		dayDate, err := parseISODate(dateRaw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid week selection"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date"})
 			return
 		}
+		dayDate = normalizeDateOnly(dayDate)
+		if dayDate.After(normalizeDateOnly(time.Now())) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot load data for a future date"})
+			return
+		}
+		weekStart := dayDate
+		weekStop := dayDate
 
 		staffList, err := models.WeeklyBulkCapture(c.Request.Context(), db, facilityID, int64(deptID), weekStart.Format("2006-01-02"), weekStop.Format("2006-01-02"))
 		if err != nil {
@@ -2263,34 +2324,24 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 		return
 	}
 
-	facilities, departments, err := models.GetFacilitiesAndDepartments(db)
+	_, departments, err := models.GetFacilitiesAndDepartments(db)
 	if err != nil {
-		log.Printf("Error loading facilities or departments: %v", err)
-		c.String(http.StatusInternalServerError, "Error loading facilities or departments")
+		log.Printf("Error loading departments: %v", err)
+		c.String(http.StatusInternalServerError, "Error loading departments")
 		return
 	}
 
-	weekOptions := buildBulkEntryWeekOptions(time.Now(), 16)
-	selectedWeekStart, selectedWeekStop, selectedWeekLabel, err := resolveBulkEntryWeekSelection(c.Query("week_start"), weekOptions)
-	if err != nil {
-		c.String(http.StatusBadRequest, "Invalid week selection")
-		return
+	today := normalizeDateOnly(time.Now())
+
+	sessionData.Form = struct {
+		Departments  interface{}
+		SelectedDate string
+	}{
+		Departments:  departments,
+		SelectedDate: today.Format("2006-01-02"),
 	}
 
-	// Prepare data to pass to the template
-	data := gin.H{
-		"sessionData": sessionData,
-		"facilities":  facilities,
-		"departments": departments,
-		"weekOptions": weekOptions,
-		"weekStart":   selectedWeekStart.Format("2006-01-02"),
-		"weekEnd":     selectedWeekStop.Format("2006-01-02"),
-		"weekLabel":   selectedWeekLabel,
-		"zdata":       nil, // Default empty data on initial load
-	}
-
-	// Render the template
-	utilities.GenerateHTML(c, data, "base", "bulkcapturelanding")
+	utilities.GenerateHTML(c, sessionData, "base", "bulkcapturelanding")
 }
 
 // Handler to generate capture form to collect data - Recode this for single entry form
@@ -2810,7 +2861,6 @@ func HandlerReportEntryUpdate(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 			Qn01:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][attendance]")), Valid: true},
 			Qn02:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][ward_rounds]")), Valid: true},
 			Qn03:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][patients_reviewed]")), Valid: true},
-			Qn04:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][theatre_days]")), Valid: true},
 			Qn05:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][elective]")), Valid: true},
 			Qn06:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][emergency]")), Valid: true},
 			Qn07:         sql.NullInt64{Int64: parseInt(c.PostForm("input[" + empID + "][postmortems]")), Valid: true},
@@ -3060,7 +3110,6 @@ func HandlerReportData2(c *gin.Context, db *sql.DB, sessionManager *scs.SessionM
 		transformedEntry["attendance"] = staff.Qn01.Int64
 		transformedEntry["ward_rounds"] = staff.Qn02.Int64
 		transformedEntry["patients_reviewed"] = staff.Qn03.Int64
-		transformedEntry["theatre_days"] = staff.Qn04.Int64
 		transformedEntry["elective"] = staff.Qn05.Int64
 		transformedEntry["emergency"] = staff.Qn06.Int64
 		transformedEntry["postmortems"] = staff.Qn07.Int64

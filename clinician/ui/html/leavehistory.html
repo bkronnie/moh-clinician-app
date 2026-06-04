@@ -21,14 +21,10 @@ Leave History
         </div>
         {{ if hasRole . "Staff" }}
         <div class="app-list-actions">
-            <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
-            <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
             <a href="/leave/form" class="btn btn-primary">Apply for Office Leave</a>
         </div>
         {{ else }}
         <div class="app-list-actions">
-            <a href="{{ .Form.ExportCSVURL }}" class="btn btn-outline-secondary">Download CSV</a>
-            <a href="{{ .Form.ExportPDFURL }}" class="btn btn-outline-secondary">Download PDF</a>
             <a href="{{ .Form.BackURL }}" class="btn btn-outline-secondary">Back to Employees</a>
         </div>
         {{ end }}

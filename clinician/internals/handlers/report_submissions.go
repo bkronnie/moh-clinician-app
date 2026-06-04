@@ -18,61 +18,356 @@ import (
 )
 
 type ReportSubmissionsView struct {
-	Role                string
-	ViewMode            string
-	Mode                string
-	ShowWeekSummary     bool
-	ScopeTitle          string
-	ScopeSubtitle       string
-	FilterSummary       string
-	SelectedFacility    int
-	FacilityOptions     []models.DashboardFilterOption
-	SelectedDepartment  int
-	DepartmentOptions   []models.DashboardFilterOption
-	SelectedStatus      string
-	SelectedYear        int
-	SelectedMonth       int
-	SelectedWeek        int
-	SelectedWeekLabel   string
-	AvailableYears      []int
-	AvailableMonths     []models.DashboardFilterOption
-	AvailableWeeks      []models.ClinicianWeekOption
-	Rows                []*models.ReportSubmissionListRow
-	FacilityRows        []*models.FacilitySubmissionSummaryRow
-	WeekRows            []*ReportSubmissionWeekSummaryRow
-	CurrentURL          string
-	AllURL              string
-	SubmittedURL        string
-	PendingURL          string
-	ApprovedURL         string
-	DeclinedURL         string
-	DraftURL            string
-	ExportCSVURL        string
-	ExportPDFURL        string
-	CanApprove          bool
-	CanView             bool
-	CanSubmitAll        bool
-	SubmitAllURL        string
-	PendingCount        int
-	ClearFiltersURL     string
-	FacilityModeURL     string
-	BackToWeeksURL      string
-	Page                int
-	PageSize            int
-	TotalRows           int
-	TotalPages          int
-	PrevPageURL         string
-	NextPageURL         string
-	BatchDeclined       bool
-	CanSubmitToNational bool
-	SubmitBlockedReason string
-	DraftCount          int
-	CanApproveAll       bool
+	Role                   string
+	ViewMode               string
+	Mode                   string
+	ShowWeekSummary        bool
+	ShowDayBreakdown       bool
+	ScopeTitle             string
+	ScopeSubtitle          string
+	FilterSummary          string
+	SelectedFacility       int
+	FacilityOptions        []models.DashboardFilterOption
+	SelectedDepartment     int
+	DepartmentOptions      []models.DashboardFilterOption
+	SelectedStatus         string
+	SelectedYear           int
+	SelectedMonth          int
+	SelectedWeek           int
+	SelectedWeekLabel      string
+	AvailableYears         []int
+	AvailableMonths        []models.DashboardFilterOption
+	AvailableWeeks         []models.ClinicianWeekOption
+	Rows                   []*models.ReportSubmissionListRow
+	FacilityRows           []*models.FacilitySubmissionSummaryRow
+	NationalFacilityGroups []*ReportSubmissionNationalFacilityGroup
+	WeekRows               []*ReportSubmissionWeekSummaryRow
+	StaffWeekRows          []*ReportSubmissionStaffWeekSummaryRow
+	WeekDayRows            []*models.WeekDayRow
+	CurrentURL             string
+	AllURL                 string
+	SubmittedURL           string
+	PendingURL             string
+	ApprovedURL            string
+	DeclinedURL            string
+	DraftURL               string
+	ExportCSVURL           string
+	ExportPDFURL           string
+	CanApprove             bool
+	CanView                bool
+	CanSubmitAll           bool
+	SubmitAllURL           string
+	PendingCount           int
+	ClearFiltersURL        string
+	FacilityModeURL        string
+	BackToWeeksURL         string
+	Page                   int
+	PageSize               int
+	TotalRows              int
+	TotalPages             int
+	PrevPageURL            string
+	NextPageURL            string
+	BatchDeclined          bool
+	CanSubmitToNational    bool
+	SubmitBlockedReason    string
+	DraftCount             int
+	CanApproveAll          bool
 }
 
 type ReportSubmissionWeekSummaryRow struct {
-	Summary      *models.FacilitySubmissionSummaryRow
-	DrilldownURL string
+	Summary           *models.FacilitySubmissionSummaryRow
+	DrilldownURL      string
+	SubmissionPct     int
+	ExpectedCount     int
+	NotSubmittedCount int
+	StaffRows         []*models.ReportSubmissionListRow
+	DayGroups         []*ReportSubmissionNationalDayGroup
+}
+
+type ReportSubmissionNationalFacilityGroup struct {
+	FacilityID   int
+	FacilityName string
+	WeekRows     []*ReportSubmissionWeekSummaryRow
+}
+
+type ReportSubmissionNationalDayGroup struct {
+	Date           time.Time
+	DayName        string
+	SubmittedCount int
+	ApprovedCount  int
+	DeclinedCount  int
+	DraftCount     int
+	StaffRows      []*models.ReportSubmissionListRow
+}
+
+type ReportSubmissionStaffWeekSummaryRow struct {
+	WeekStart         time.Time
+	WeekStop          time.Time
+	SubmittedCount    int
+	ApprovedCount     int
+	DeclinedCount     int
+	NotSubmittedCount int
+	SubmissionPct     int
+	ApprovalStatus    string
+	DayRows           []*ReportSubmissionStaffDayRow
+}
+
+type ReportSubmissionStaffDayRow struct {
+	Date       time.Time
+	Status     string
+	Report     *models.ReportSubmissionListRow
+	Actionable bool
+}
+
+func reportSubmissionDisplayStatus(row *models.ReportSubmissionListRow) string {
+	if row == nil || row.Missing {
+		return "Not Submitted"
+	}
+	reportStatus := row.ReportStatus.String
+	submitStatus := row.SubmitStatus.String
+	switch {
+	case reportStatus == "Approved":
+		return "Approved"
+	case reportStatus == "Rejected" || reportStatus == "Declined":
+		return "Declined"
+	case submitStatus == "Submitted":
+		return "Submitted"
+	default:
+		return "Draft"
+	}
+}
+
+func buildStaffWeekSummaryRows(rows []*models.ReportSubmissionListRow, selectedStatus string) []*ReportSubmissionStaffWeekSummaryRow {
+	type weekBucket struct {
+		summary *ReportSubmissionStaffWeekSummaryRow
+		byDate  map[string]*models.ReportSubmissionListRow
+	}
+	buckets := map[string]*weekBucket{}
+	for _, row := range rows {
+		if row == nil || !row.WeekStart.Valid {
+			continue
+		}
+		day := row.WeekStart.Time
+		weekday := int(day.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		weekStart := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, day.Location()).AddDate(0, 0, -(weekday - 1))
+		key := weekStart.Format("2006-01-02")
+		bucket := buckets[key]
+		if bucket == nil {
+			bucket = &weekBucket{
+				summary: &ReportSubmissionStaffWeekSummaryRow{
+					WeekStart: weekStart,
+					WeekStop:  weekStart.AddDate(0, 0, 6),
+				},
+				byDate: map[string]*models.ReportSubmissionListRow{},
+			}
+			buckets[key] = bucket
+		}
+		bucket.byDate[day.Format("2006-01-02")] = row
+	}
+
+	items := make([]*ReportSubmissionStaffWeekSummaryRow, 0, len(buckets))
+	for _, bucket := range buckets {
+		summary := bucket.summary
+		for dayOffset := 0; dayOffset < 7; dayOffset++ {
+			day := summary.WeekStart.AddDate(0, 0, dayOffset)
+			row := bucket.byDate[day.Format("2006-01-02")]
+			status := reportSubmissionDisplayStatus(row)
+			dayRow := &ReportSubmissionStaffDayRow{Date: day, Status: status, Report: row}
+			if row != nil {
+				dayRow.Actionable = row.Actionable
+			}
+			summary.DayRows = append(summary.DayRows, dayRow)
+			switch status {
+			case "Approved":
+				summary.SubmittedCount++
+				summary.ApprovedCount++
+			case "Submitted", "Declined":
+				summary.SubmittedCount++
+				if status == "Declined" {
+					summary.DeclinedCount++
+				}
+			case "Draft", "Not Submitted":
+				summary.NotSubmittedCount++
+			}
+		}
+		summary.SubmissionPct = summary.SubmittedCount * 100 / 7
+		switch {
+		case summary.ApprovedCount == 7:
+			summary.ApprovalStatus = "Approved"
+		case summary.DeclinedCount > 0:
+			summary.ApprovalStatus = "Declined"
+		case summary.SubmittedCount == 7:
+			summary.ApprovalStatus = "Submitted"
+		default:
+			summary.ApprovalStatus = "Draft"
+		}
+		if selectedStatus != "all" {
+			include := false
+			switch selectedStatus {
+			case "submitted", "pending":
+				include = summary.ApprovalStatus == "Submitted"
+			case "approved":
+				include = summary.ApprovalStatus == "Approved"
+			case "declined":
+				include = summary.ApprovalStatus == "Declined"
+			case "draft":
+				include = summary.ApprovalStatus == "Draft"
+			}
+			if !include {
+				continue
+			}
+		}
+		items = append(items, summary)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].WeekStart.After(items[j].WeekStart)
+	})
+	return items
+}
+
+func buildFacilityWeekSummaryRow(selectedFacility int, selectedDepartment int, selectedStatus string, row *models.FacilitySubmissionSummaryRow) *ReportSubmissionWeekSummaryRow {
+	if row == nil {
+		return nil
+	}
+	drilldownURL := buildFacilityWeekDrilldownURL(selectedFacility, selectedDepartment, selectedStatus, row)
+	pct := 0
+	expected := (row.OnDutyCount - row.OnLeaveCount) * 7
+	if expected < 0 {
+		expected = 0
+	}
+	notSubmitted := expected - row.SubmittedCount
+	if notSubmitted < 0 {
+		notSubmitted = 0
+	}
+	if expected > 0 {
+		pct = row.SubmittedCount * 100 / expected
+		if pct > 100 {
+			pct = 100
+		}
+	}
+	return &ReportSubmissionWeekSummaryRow{
+		Summary:           row,
+		DrilldownURL:      drilldownURL,
+		SubmissionPct:     pct,
+		ExpectedCount:     expected,
+		NotSubmittedCount: notSubmitted,
+	}
+}
+
+func loadNationalWeekStaffRows(c *gin.Context, db *sql.DB, facilityID int, departmentID int, selectedStatus string, weekStart time.Time, weekStop time.Time) ([]*models.ReportSubmissionListRow, error) {
+	year, week := weekStart.ISOWeek()
+	month := int(weekStart.Month())
+	rows, _, err := models.GetReportSubmissionsPaged(c.Request.Context(), db, 0, 0, 0, facilityID, departmentID, selectedStatus, year, month, week, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	if selectedStatus == "all" {
+		missingRows, err := models.GetMissingStaffForWeek(c.Request.Context(), db, facilityID, departmentID, weekStart, weekStop)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, missingRows...)
+		sort.SliceStable(rows, func(i, j int) bool {
+			leftName := strings.ToLower(rows[i].EmployeeName)
+			rightName := strings.ToLower(rows[j].EmployeeName)
+			if leftName == rightName {
+				return rows[i].ReportID < rows[j].ReportID
+			}
+			return leftName < rightName
+		})
+	}
+	return rows, nil
+}
+
+func buildNationalWeekDayGroups(weekStart time.Time, staffRows []*models.ReportSubmissionListRow) []*ReportSubmissionNationalDayGroup {
+	groups := make([]*ReportSubmissionNationalDayGroup, 0, 7)
+	byDate := map[string]*ReportSubmissionNationalDayGroup{}
+	for dayOffset := 0; dayOffset < 7; dayOffset++ {
+		date := weekStart.AddDate(0, 0, dayOffset)
+		group := &ReportSubmissionNationalDayGroup{
+			Date:    date,
+			DayName: date.Format("Monday"),
+		}
+		groups = append(groups, group)
+		byDate[date.Format("2006-01-02")] = group
+	}
+
+	for _, row := range staffRows {
+		if row == nil || row.Missing || !row.WeekStart.Valid {
+			continue
+		}
+		key := row.WeekStart.Time.Format("2006-01-02")
+		group := byDate[key]
+		if group == nil {
+			continue
+		}
+		group.StaffRows = append(group.StaffRows, row)
+		switch reportSubmissionDisplayStatus(row) {
+		case "Approved":
+			group.SubmittedCount++
+			group.ApprovedCount++
+		case "Declined":
+			group.SubmittedCount++
+			group.DeclinedCount++
+		case "Submitted":
+			group.SubmittedCount++
+		case "Draft":
+			group.DraftCount++
+		}
+	}
+
+	for _, group := range groups {
+		sort.SliceStable(group.StaffRows, func(i, j int) bool {
+			leftName := strings.ToLower(group.StaffRows[i].EmployeeName)
+			rightName := strings.ToLower(group.StaffRows[j].EmployeeName)
+			if leftName == rightName {
+				return group.StaffRows[i].ReportID < group.StaffRows[j].ReportID
+			}
+			return leftName < rightName
+		})
+	}
+
+	return groups
+}
+
+func buildNationalFacilityGroups(c *gin.Context, db *sql.DB, facilityOptions []models.DashboardFilterOption, selectedFacility int, selectedDepartment int, selectedStatus string, selectedYear int, selectedMonth int, selectedWeek int) ([]*ReportSubmissionNationalFacilityGroup, error) {
+	groups := []*ReportSubmissionNationalFacilityGroup{}
+	for _, facilityOption := range facilityOptions {
+		if selectedFacility > 0 && facilityOption.ID != selectedFacility {
+			continue
+		}
+		weekRows, err := models.GetFacilityWeeklySubmissionSummaries(c.Request.Context(), db, facilityOption.ID, selectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+		if err != nil {
+			return nil, err
+		}
+		if len(weekRows) == 0 {
+			continue
+		}
+		group := &ReportSubmissionNationalFacilityGroup{
+			FacilityID:   facilityOption.ID,
+			FacilityName: facilityOption.Name,
+		}
+		for _, weekRow := range weekRows {
+			summaryRow := buildFacilityWeekSummaryRow(facilityOption.ID, selectedDepartment, selectedStatus, weekRow)
+			if summaryRow == nil {
+				continue
+			}
+			if weekRow.WeekStart.Valid && weekRow.WeekStop.Valid {
+				staffRows, err := loadNationalWeekStaffRows(c, db, facilityOption.ID, selectedDepartment, selectedStatus, weekRow.WeekStart.Time, weekRow.WeekStop.Time)
+				if err != nil {
+					return nil, err
+				}
+				summaryRow.StaffRows = staffRows
+				summaryRow.DayGroups = buildNationalWeekDayGroups(weekRow.WeekStart.Time, staffRows)
+			}
+			group.WeekRows = append(group.WeekRows, summaryRow)
+		}
+		groups = append(groups, group)
+	}
+	return groups, nil
 }
 
 func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities.SessionDetails, paginate bool) (ReportSubmissionsView, error) {
@@ -103,7 +398,8 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		Role:              roleFromRights(sesDetails.Rights),
 		ViewMode:          viewMode,
 		Mode:              requestedMode,
-		ShowWeekSummary:   roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && requestedMode != "reports",
+		ShowWeekSummary:   (roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin || (roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && viewMode == "facility") || roleFromRights(sesDetails.Rights) == utilities.RoleStaff) && requestedMode == "weeks",
+		ShowDayBreakdown:  (roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin || (roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && viewMode == "facility")) && requestedMode == "days",
 		SelectedStatus:    selectedStatus,
 		SelectedYear:      selectedYear,
 		SelectedMonth:     selectedMonth,
@@ -163,27 +459,85 @@ func buildReportSubmissionsView(c *gin.Context, db *sql.DB, sesDetails utilities
 		view.SelectedDepartment = requestedDepartment
 	}
 
-	if roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin && view.ShowWeekSummary {
+	if roleFromRights(sesDetails.Rights) == utilities.RoleStaff && view.ShowWeekSummary {
 		view.PageSize = 0
 		view.Page = 1
-		weekRows, err := models.GetFacilityWeeklySubmissionSummaries(c.Request.Context(), db, int(sesDetails.HFID), view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+		rows, _, err := models.GetReportSubmissionsPaged(c.Request.Context(), db, scopeFacilityID, scopeEmployeeID, sesDetails.EmpID, view.SelectedFacility, view.SelectedDepartment, "all", selectedYear, selectedMonth, selectedWeek, 0, 0)
 		if err != nil {
 			return ReportSubmissionsView{}, err
 		}
-		view.FacilityRows = weekRows
-		view.TotalRows = len(weekRows)
-		for _, row := range weekRows {
-			if row == nil {
-				continue
+		view.Rows = rows
+		view.StaffWeekRows = buildStaffWeekSummaryRows(rows, selectedStatus)
+		view.TotalRows = len(view.StaffWeekRows)
+	} else if roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && viewMode == "facility" && view.ShowWeekSummary {
+		view.PageSize = 0
+		view.Page = 1
+		groups, err := buildNationalFacilityGroups(c, db, view.FacilityOptions, view.SelectedFacility, view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+		if err != nil {
+			return ReportSubmissionsView{}, err
+		}
+		view.NationalFacilityGroups = groups
+		view.TotalRows = len(groups)
+		for _, group := range groups {
+			for _, row := range group.WeekRows {
+				if row == nil || row.Summary == nil {
+					continue
+				}
+				if row.Summary.PendingCount > 0 {
+					view.PendingCount += row.Summary.PendingCount
+				}
+				if row.Summary.ApprovalStatus == "Declined" {
+					view.BatchDeclined = true
+				}
 			}
-			if row.PendingCount > 0 {
-				view.PendingCount += row.PendingCount
+		}
+	} else if view.ShowWeekSummary {
+		view.PageSize = 0
+		view.Page = 1
+		// Facility scope: facility admins always use their own facility;
+		// national admins must have selected a facility to populate the
+		// weekly accordion (template shows a prompt otherwise).
+		summaryFacilityID := 0
+		if roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin {
+			summaryFacilityID = int(sesDetails.HFID)
+		} else if view.SelectedFacility > 0 {
+			summaryFacilityID = view.SelectedFacility
+		}
+		if summaryFacilityID > 0 {
+			weekRows, err := models.GetFacilityWeeklySubmissionSummaries(c.Request.Context(), db, summaryFacilityID, view.SelectedDepartment, selectedStatus, selectedYear, selectedMonth, selectedWeek)
+			if err != nil {
+				return ReportSubmissionsView{}, err
 			}
-			if row.ApprovalStatus == "Declined" {
-				view.BatchDeclined = true
+			view.FacilityRows = weekRows
+			view.TotalRows = len(weekRows)
+			for _, row := range weekRows {
+				if row == nil {
+					continue
+				}
+				if row.PendingCount > 0 {
+					view.PendingCount += row.PendingCount
+				}
+				if row.ApprovalStatus == "Declined" {
+					view.BatchDeclined = true
+				}
+				view.WeekRows = append(view.WeekRows, buildFacilityWeekSummaryRow(view.SelectedFacility, view.SelectedDepartment, selectedStatus, row))
 			}
-			drilldownURL := buildFacilityWeekDrilldownURL(view.SelectedFacility, view.SelectedDepartment, selectedStatus, row)
-			view.WeekRows = append(view.WeekRows, &ReportSubmissionWeekSummaryRow{Summary: row, DrilldownURL: drilldownURL})
+		}
+	} else if view.ShowDayBreakdown {
+		dayFacilityID := 0
+		if roleFromRights(sesDetails.Rights) == utilities.RoleFacilityAdmin {
+			dayFacilityID = int(sesDetails.HFID)
+		} else if view.SelectedFacility > 0 {
+			dayFacilityID = view.SelectedFacility
+		}
+		if dayFacilityID > 0 && selectedYear > 0 && selectedWeek > 0 {
+			weekStart := isoWeekStart(selectedYear, selectedWeek)
+			dayRows, err := models.GetWeekDailyBreakdown(c.Request.Context(), db, dayFacilityID, view.SelectedDepartment, weekStart)
+			if err != nil {
+				return ReportSubmissionsView{}, err
+			}
+			view.WeekDayRows = dayRows
+			view.TotalRows = len(dayRows)
 		}
 	} else if roleFromRights(sesDetails.Rights) == utilities.RoleNationalAdmin && viewMode == "facility" {
 		view.PageSize = 0
@@ -605,6 +959,53 @@ func HandlerReportSubmissionSubmitAll(c *gin.Context, db *sql.DB, sessionManager
 	c.Redirect(http.StatusFound, sanitizeReportSubmissionURL(c.PostForm("return_to")))
 }
 
+// HandlerReportSubmissionSubmitDay escalates all locally-approved reports for
+// a specific calendar date to national review. Called via AJAX from the daily
+// breakdown table. Accepts JSON {date:"YYYY-MM-DD", department:N}.
+func HandlerReportSubmissionSubmitDay(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "session error"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "session error"})
+		return
+	}
+	if roleFromRights(sesDetails.Rights) != utilities.RoleFacilityAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "Only facility admins can submit daily reports to national"})
+		return
+	}
+
+	var body struct {
+		Date       string `json:"date"`
+		Department int    `json:"department"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid request body"})
+		return
+	}
+	date, err := time.Parse("2006-01-02", body.Date)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid date format (expected YYYY-MM-DD)"})
+		return
+	}
+
+	count, err := models.SubmitFacilityReportsByDay(c.Request.Context(), db, sesDetails.HFID, body.Department, date, sesDetails.EmpID)
+	if err != nil {
+		if errors.Is(err, models.ErrFacilityBatchRequiresApprovedReports) {
+			c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "All reports for this day must be locally approved before submitting to national review."})
+			return
+		}
+		log.Printf("SubmitFacilityReportsByDay error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "Unable to submit daily reports"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "count": count})
+}
+
 func HandlerAdminFacilitySubmissionApprove(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
 	handleAdminFacilitySubmissionDecision(c, db, sessionManager, true)
 }
@@ -796,18 +1197,30 @@ func buildFacilityWeekDrilldownURL(facilityID int, departmentID int, status stri
 	}
 	year, week := row.WeekStart.Time.ISOWeek()
 	month := int(row.WeekStart.Time.Month())
-	return buildReportSubmissionsURLWithModeAndPage(facilityID, departmentID, year, month, week, status, "staff", "reports", 1)
+	return buildReportSubmissionsURLWithModeAndPage(facilityID, departmentID, year, month, week, status, "staff", "days", 1)
 }
 
 func normalizeReportSubmissionMode(role string, value string) string {
-	if role != utilities.RoleFacilityAdmin {
-		return "reports"
-	}
 	trimmed := strings.ToLower(strings.TrimSpace(value))
-	if trimmed == "reports" {
+	if role == utilities.RoleStaff {
+		switch trimmed {
+		case "reports":
+			return "reports"
+		default:
+			return "weeks"
+		}
+	}
+	if role != utilities.RoleFacilityAdmin && role != utilities.RoleNationalAdmin {
 		return "reports"
 	}
-	return "weeks"
+	switch trimmed {
+	case "reports":
+		return "reports"
+	case "days":
+		return "days"
+	default:
+		return "weeks"
+	}
 }
 
 func buildReportSubmissionsExportURL(format string, facilityID int, departmentID int, year int, month int, week int, status string) string {
@@ -1110,4 +1523,374 @@ func isFinalReportReviewStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// HandlerReportsAnalysisWeekDays returns a JSON list of per-day submission
+// stats for a given facility, ISO year, and week number. Used by the weekly
+// accordion AJAX call to populate the inline day-breakdown table.
+func HandlerReportsAnalysisWeekDays(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	role := roleFromRights(sesDetails.Rights)
+	if role != utilities.RoleFacilityAdmin && role != utilities.RoleNationalAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	facilityID, hasFacility := parseOptionalIntQuery(c, "facility")
+	if !hasFacility || facilityID <= 0 {
+		facilityID = int(sesDetails.HFID)
+	}
+	if role == utilities.RoleFacilityAdmin && facilityID != int(sesDetails.HFID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	departmentID, _ := parseOptionalIntQuery(c, "department")
+	year, hasYear := parseOptionalIntQuery(c, "year")
+	week, hasWeek := parseOptionalIntQuery(c, "week")
+	if !hasYear || !hasWeek || year <= 0 || week <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "year and week are required"})
+		return
+	}
+
+	weekStart := isoWeekStart(year, week)
+	rows, err := models.GetWeekDailyBreakdown(c.Request.Context(), db, facilityID, departmentID, weekStart)
+	if err != nil {
+		log.Printf("GetWeekDailyBreakdown error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load week days"})
+		return
+	}
+
+	type dayJSON struct {
+		Date         string `json:"date"`
+		DayName      string `json:"day_name"`
+		Label        string `json:"label"`
+		OnDutyCount  int    `json:"on_duty"`
+		OnLeaveCount int    `json:"on_leave"`
+		Submitted    int    `json:"submitted"`
+		Approved     int    `json:"approved"`
+		NotSubmitted int    `json:"not_submitted"`
+		Percentage   int    `json:"pct"`
+	}
+	days := make([]dayJSON, 0, len(rows))
+	for _, r := range rows {
+		days = append(days, dayJSON{
+			Date:         r.Day.Format("2006-01-02"),
+			DayName:      r.DayName,
+			Label:        r.DayName + ", " + r.Day.Format("02 Jan 2006"),
+			OnDutyCount:  r.OnDutyCount,
+			OnLeaveCount: r.OnLeaveCount,
+			Submitted:    r.Submitted,
+			Approved:     r.Approved,
+			NotSubmitted: r.NotSubmitted,
+			Percentage:   r.Percentage,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"days": days, "facility": facilityID, "department": departmentID})
+}
+
+// HandlerReportsAnalysisDayStaff returns a JSON list of all staff at the
+// facility with their submission status for a given date. Used by the
+// day-breakdown panel's AJAX call.
+func HandlerReportsAnalysisDayStaff(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	role := roleFromRights(sesDetails.Rights)
+	if role != utilities.RoleFacilityAdmin && role != utilities.RoleNationalAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	facilityID, hasFacility := parseOptionalIntQuery(c, "facility")
+	if !hasFacility || facilityID <= 0 {
+		facilityID = int(sesDetails.HFID)
+	}
+	if role == utilities.RoleFacilityAdmin && facilityID != int(sesDetails.HFID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	departmentID, _ := parseOptionalIntQuery(c, "department")
+
+	dateStr := c.Query("date")
+	if dateStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "date required"})
+		return
+	}
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format, expected YYYY-MM-DD"})
+		return
+	}
+
+	staff, err := models.GetDayStaffStatus(c.Request.Context(), db, facilityID, departmentID, date)
+	if err != nil {
+		log.Printf("GetDayStaffStatus error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load staff"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"date":  dateStr,
+		"staff": staff,
+	})
+}
+
+// HandlerReportsAnalysisDayStaffEntry returns JSON with the labeled field values
+// from a single staff member's report for a given day. Used by the expandable
+// row in the day-staff pane.
+func HandlerReportsAnalysisDayStaffEntry(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	role := roleFromRights(sesDetails.Rights)
+	if role != utilities.RoleFacilityAdmin && role != utilities.RoleNationalAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	reportID, hasID := parseOptionalIntQuery(c, "report_id")
+
+	var scopeFacilityID int64
+	if role == utilities.RoleFacilityAdmin {
+		scopeFacilityID = sesDetails.HFID
+	}
+
+	type Field struct {
+		Key        string `json:"key"`
+		Label      string `json:"label"`
+		Value      string `json:"value"`
+		Editable   bool   `json:"editable"`
+		Attendance bool   `json:"attendance,omitempty"`
+	}
+
+	labels := resolveClinicianEntryLabels(c.Request.Context(), db)
+
+	// Schema-only mode: no report yet. Return the department's field schema
+	// with empty values so the UI can render an editable inline form for the
+	// facility admin to enter data on behalf of the staff member.
+	if !hasID || reportID <= 0 {
+		empIDStr := strings.TrimSpace(c.Query("employee"))
+		dateStr := strings.TrimSpace(c.Query("date"))
+		if empIDStr == "" || dateStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "report_id or (employee and date) required"})
+			return
+		}
+		empID64, err := strconv.ParseInt(empIDStr, 10, 64)
+		if err != nil || empID64 <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid employee"})
+			return
+		}
+		employee, err := models.EmployeeByID(c.Request.Context(), db, int(empID64))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "employee not found"})
+			return
+		}
+		if role == utilities.RoleFacilityAdmin && employee.EmpFacility != sesDetails.HFID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "employee outside your facility"})
+			return
+		}
+		keys := resolveClinicianEntryDisplayKeys(c.Request.Context(), db, employee.EmpDepartment)
+		fields := make([]Field, 0, len(keys))
+		for _, key := range keys {
+			label := labels[key]
+			if label == "" {
+				label = key
+			}
+			fields = append(fields, Field{
+				Key: key, Label: label, Value: "", Editable: true,
+				Attendance: key == "attendance",
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"report_id":     0,
+			"has_report":    false,
+			"employee_id":   empID64,
+			"date":          dateStr,
+			"submit_status": "",
+			"report_status": "",
+			"fields":        fields,
+		})
+		return
+	}
+
+	report, err := models.GetReportSubmissionByIDForReview(c.Request.Context(), db, reportID, scopeFacilityID, role)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "report not found"})
+		return
+	}
+
+	values := clinicianEntryValuesFromReport(report)
+
+	fieldOrder := []string{
+		"attendance", "ward_rounds", "patients_reviewed", "OPD_clinics", "OPD_patients",
+		"anc_patients", "theatre_days", "elective", "emergency", "postmortems",
+		"teaching_rounds", "students_taught", "mortality_reviews",
+		"maternal", "perinatal", "surgical", "medical", "paed",
+		"labs_requests", "imaging_requests", "lab_investigations",
+		"BS", "HIV", "malaria", "TB", "CBC", "chemistry", "hematology", "urinalysis",
+		"gram_stain", "culture", "microbiology", "sensitivity_tests",
+		"diagnostics", "xrays", "ct_scans", "obstetrics_scans", "abdominal_scans",
+	}
+
+	fields := []Field{}
+	for _, key := range fieldOrder {
+		val := values[key]
+		if val == "" || val == "0" {
+			continue
+		}
+		label := labels[key]
+		if label == "" {
+			label = key
+		}
+		fields = append(fields, Field{Key: key, Label: label, Value: val})
+	}
+
+	submitStatus := ""
+	if report.SubmitStatus.Valid {
+		submitStatus = report.SubmitStatus.String
+	}
+	reportStatus := ""
+	if report.ReportStatus.Valid {
+		reportStatus = report.ReportStatus.String
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"report_id":     reportID,
+		"has_report":    true,
+		"submit_status": submitStatus,
+		"report_status": reportStatus,
+		"fields":        fields,
+	})
+}
+
+// HandlerReportsAnalysisDayStaffReview handles approve/decline actions from the
+// day-staff accordion pane. Expects JSON: {"report_id": N, "action": "approve"|"decline"}.
+// Only Facility Admins may call this; they can only act on reports within their own facility.
+func HandlerReportsAnalysisDayStaffReview(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	role := roleFromRights(sesDetails.Rights)
+	if role != utilities.RoleFacilityAdmin && role != utilities.RoleNationalAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	var body struct {
+		ReportID int    `json:"report_id"`
+		Action   string `json:"action"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ReportID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "report_id and action required"})
+		return
+	}
+
+	facilityID := sesDetails.HFID
+	approverID := sesDetails.EmpID
+
+	var (
+		updated   bool
+		err       error
+		newStatus string
+	)
+	switch strings.ToLower(body.Action) {
+	case "approve":
+		updated, err = models.ApproveFacilityReportDirect(c.Request.Context(), db, body.ReportID, facilityID, approverID)
+		newStatus = "Approved"
+	case "decline":
+		updated, err = models.DeclineFacilityReportDirect(c.Request.Context(), db, body.ReportID, facilityID, approverID)
+		newStatus = "Declined"
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "action must be 'approve' or 'decline'"})
+		return
+	}
+
+	if err != nil {
+		log.Printf("HandlerReportsAnalysisDayStaffReview: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update report"})
+		return
+	}
+	if !updated {
+		c.JSON(http.StatusConflict, gin.H{"error": "report could not be updated — it may already be reviewed or not submitted"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "status": newStatus})
+}
+
+// HandlerReportsAnalysisDayApproveAll approves every non-reviewed report for a
+// specific day within the facility admin's own facility.
+// Expects JSON: {"date": "2006-01-02", "department": 0}
+func HandlerReportsAnalysisDayApproveAll(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "session error"})
+		return
+	}
+	role := roleFromRights(sesDetails.Rights)
+	if role != utilities.RoleFacilityAdmin && role != utilities.RoleNationalAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	var body struct {
+		Date         string `json:"date"`
+		DepartmentID int    `json:"department"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Date == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "date required"})
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", body.Date)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format"})
+		return
+	}
+
+	count, err := models.ApproveFacilityReportsByDate(c.Request.Context(), db, sesDetails.HFID, body.DepartmentID, date, sesDetails.EmpID)
+	if err != nil {
+		log.Printf("HandlerReportsAnalysisDayApproveAll: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to approve reports"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "count": count})
 }

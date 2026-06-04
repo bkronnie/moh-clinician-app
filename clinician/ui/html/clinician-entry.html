@@ -10,6 +10,12 @@
             <small>Clinician</small>
             <strong>{{ .Form.EmployeeName }}</strong>
         </div>
+        {{ if .Form.CadreName }}
+        <div class="entry-summary-card">
+            <small>Cadre</small>
+            <strong>{{ .Form.CadreName }}</strong>
+        </div>
+        {{ end }}
         <div class="entry-summary-card">
             <small>Facility</small>
             <strong>{{ .Form.FacilityName }}</strong>
@@ -32,8 +38,8 @@
 
     <form method="post" action="{{ .Form.ActionURL }}" class="entry-form-panel">
         {{ if .Form.ReadOnly }}
-        <div class="alert alert-info" role="alert">
-            A report for this date already exists and is no longer editable. The saved values below are shown for reference.
+        <div class="alert alert-success" role="alert">
+            <strong>Report already submitted.</strong> You have already submitted your daily report for this date{{ if .Form.StatusLabel }} &mdash; status: <strong>{{ .Form.StatusLabel }}</strong>{{ end }}. Your entries are shown below for reference and cannot be changed.
         </div>
         {{ else if .Form.IsEdit }}
         <div class="alert alert-warning" role="alert">
@@ -77,12 +83,21 @@
             <h3>Core Activity</h3>
             <div class="entry-grid">
                 <div class="entry-field">
-                    <label>Attendance</label>
-                    <div class="d-flex align-items-center gap-2 mt-1">
-                        <input type="checkbox" id="attended-today" class="days-worked-checkbox" name="input[{{ .Form.EmployeeID }}][days_worked][]" value="{{ .Form.StartDate }}" {{ if gt (index .Form.Values "attendance") "0" }}checked{{ end }} {{ if .Form.OnLeave }}disabled{{ end }}>
-                        <label for="attended-today" class="mb-0">Attended on this date</label>
+                    <label>Attendance Status</label>
+                    {{ if .Form.OnLeave }}
+                    <div class="attendance-state-group">
+                        <span class="attendance-badge on-leave">On Leave</span>
                     </div>
-                    <small class="form-text text-muted">Check this box if the clinician attended on this date.</small>
+                    <small class="form-text text-muted">This staff member is on approved leave. Data entry is disabled.</small>
+                    {{ else }}
+                    <div class="attendance-state-group" id="attendance-state-group" role="group" aria-label="Attendance status">
+                        <button type="button" class="attendance-btn" id="btn-attended" data-state="attended" aria-pressed="true">Attended</button>
+                        <button type="button" class="attendance-btn" id="btn-absent" data-state="absent" aria-pressed="false">Absent</button>
+                    </div>
+                    <small class="form-text text-muted" id="attendance-status-hint">Mark whether this clinician attended on this date.</small>
+                    {{ end }}
+                    <!-- hidden checkbox drives the days_worked[] POST value -->
+                    <input type="checkbox" id="attended-today" class="days-worked-checkbox" name="input[{{ .Form.EmployeeID }}][days_worked][]" value="{{ .Form.StartDate }}" {{ if gt (index .Form.Values "attendance") "0" }}checked{{ end }} {{ if .Form.OnLeave }}disabled{{ end }} hidden>
                 </div>
                 <div class="entry-field">
                     <label>{{ index .Form.Labels "attendance" }}</label>
@@ -162,42 +177,60 @@
 <script>
     (function () {
         var attendanceInput = document.getElementById('attendance-days');
-        if (!attendanceInput) {
-            return;
-        }
+        if (!attendanceInput) { return; }
 
-        var toggle = document.getElementById('days-worked-toggle');
-        var menu = document.getElementById('days-worked-menu');
-        var boxes = Array.prototype.slice.call(document.querySelectorAll('.days-worked-checkbox'));
+        var checkbox = document.getElementById('attended-today');
+        var btnAttended = document.getElementById('btn-attended');
+        var btnAbsent = document.getElementById('btn-absent');
+
+        // Collect all data-entry inputs (number inputs that are not the readonly attendance counter)
+        function getEntryInputs() {
+            return Array.prototype.slice.call(
+                document.querySelectorAll('.entry-field input[type="number"]:not(#attendance-days), .entry-field select')
+            );
+        }
 
         var syncAttendance = function () {
-            var selected = boxes.filter(function (box) { return box.checked; }).length;
+            var selected = document.querySelectorAll('.days-worked-checkbox:checked').length;
             attendanceInput.value = String(selected);
-            if (toggle) {
-                toggle.textContent = selected > 0 ? (selected + ' day' + (selected === 1 ? '' : 's') + ' selected') : 'Select worked days';
-            }
         };
 
-        if (toggle && menu) {
-            toggle.addEventListener('click', function (event) {
-                event.preventDefault();
-                menu.hidden = !menu.hidden;
-                toggle.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
-            });
-
-            document.addEventListener('click', function (event) {
-                if (!menu.hidden && !menu.contains(event.target) && event.target !== toggle) {
-                    menu.hidden = true;
-                    toggle.setAttribute('aria-expanded', 'false');
-                }
-            });
+        function applyState(state) {
+            if (state === 'attended') {
+                if (checkbox) { checkbox.checked = true; }
+                btnAttended.classList.add('active');
+                btnAttended.setAttribute('aria-pressed', 'true');
+                btnAbsent.classList.remove('active');
+                btnAbsent.setAttribute('aria-pressed', 'false');
+                getEntryInputs().forEach(function (el) { el.disabled = false; });
+                var hint = document.getElementById('attendance-status-hint');
+                if (hint) { hint.textContent = 'Mark whether this clinician attended on this date.'; }
+            } else {
+                if (checkbox) { checkbox.checked = false; }
+                btnAttended.classList.remove('active');
+                btnAttended.setAttribute('aria-pressed', 'false');
+                btnAbsent.classList.add('active');
+                btnAbsent.setAttribute('aria-pressed', 'true');
+                getEntryInputs().forEach(function (el) { el.disabled = true; });
+                var hint = document.getElementById('attendance-status-hint');
+                if (hint) { hint.textContent = 'Data entry is disabled when the clinician is marked as absent.'; }
+            }
+            syncAttendance();
         }
 
-        boxes.forEach(function (box) {
-            box.addEventListener('change', syncAttendance);
-        });
+        if (btnAttended && btnAbsent) {
+            btnAttended.addEventListener('click', function () { applyState('attended'); });
+            btnAbsent.addEventListener('click', function () { applyState('absent'); });
 
-        syncAttendance();
+            // Determine initial state
+            var isEdit = {{ if .Form.IsEdit }}true{{ else }}false{{ end }};
+            var currentAttendance = parseInt(attendanceInput.value, 10) || 0;
+            var initialState = (!isEdit || currentAttendance > 0) ? 'attended' : 'absent';
+            applyState(initialState);
+        } else {
+            // On-leave path: just sync (no toggle buttons present)
+            syncAttendance();
+        }
     })();
 </script>
 {{ end }}
