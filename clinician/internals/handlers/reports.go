@@ -72,6 +72,7 @@ type ClinicianEntryView struct {
 	OnLeave         bool
 	AttendanceOnly  bool
 	HideCoreSection bool
+	AbsenceReason   string
 }
 
 type ClinicianReportHistoryView struct {
@@ -402,6 +403,7 @@ func SingleEntryForm(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMana
 			SubmitLabel:     "Update Daily Entry",
 			Values:          values,
 			IsEdit:          true,
+			AbsenceReason:   existingReport.AbsenceReason.String,
 			ReadOnly:        !existingReport.Actionable,
 			StatusLabel:     clinicianEntryStatusLabel(existingReport.HistoryStatus),
 			ReturnURL:       returnURL,
@@ -536,6 +538,7 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 		}
 
 		daysWorkedCSV, attendanceDays := collectDaysWorked(c, targetEmployeeID, periodStart, periodStop)
+		absenceReason := strings.TrimSpace(c.PostForm(fmt.Sprintf("input[%d][absence_reason]", targetEmployeeID)))
 		entryKeys := resolveClinicianEntryKeys(c.Request.Context(), db, employee.EmpDepartment)
 		values := collectClinicianEntryValues(c, targetEmployeeID, attendanceDays, entryKeys)
 		if utilities.RoleMatches(sesDetails.Rights, "Facility Admin") && targetEmployeeID == sesDetails.EmpID {
@@ -608,6 +611,7 @@ func HandlerReportZave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionMa
 			EnteredByID:    sql.NullInt64{Int64: enteredByID, Valid: true},
 			EntryCreatedOn: sql.NullTime{Time: time.Now(), Valid: true}, // Set created on time
 			DaysWorked:     sql.NullString{String: daysWorkedCSV, Valid: strings.TrimSpace(daysWorkedCSV) != ""},
+			AbsenceReason:  sql.NullString{String: absenceReason, Valid: absenceReason != ""},
 		}
 		// Append the report to the slice
 		reports = append(reports, report)
@@ -1020,6 +1024,7 @@ func defaultClinicianEntryValues() map[string]string {
 		"ct_scans":           "0",
 		"obstetrics_scans":   "0",
 		"abdominal_scans":    "0",
+		"absence_reason":     "",
 	}
 }
 
@@ -1357,6 +1362,9 @@ func clinicianEntryValuesFromReport(report *models.ClinicianReportHistoryRow) ma
 	if report.DaysWorked.Valid && strings.TrimSpace(report.DaysWorked.String) != "" {
 		selectedDates := splitDaysWorkedCSV(report.DaysWorked.String)
 		values["attendance"] = strconv.Itoa(len(selectedDates))
+	}
+	if report.AbsenceReason.Valid {
+		values["absence_reason"] = report.AbsenceReason.String
 	}
 	return values
 }
@@ -2239,6 +2247,7 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 			Editable       bool             `json:"editable"`
 			OnLeave        bool             `json:"onLeave"`
 			StatusLabel    string           `json:"statusLabel"`
+			AbsenceReason  string           `json:"absenceReason"`
 		}
 		type bulkDataPoint struct {
 			Key   string `json:"key"`
@@ -2295,6 +2304,10 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 				}
 			}
 
+			absenceReason := ""
+			if existing != nil {
+				absenceReason = existing.AbsenceReason.String
+			}
 			rows = append(rows, bulkStaffRow{
 				EmployeeID:     empID,
 				Name:           formatEmployeeName(item.Fname.String, item.Lname.String, item.Oname.String),
@@ -2304,6 +2317,7 @@ func HandlerBulkCaptureForm2(c *gin.Context, db *sql.DB, sessionManager *scs.Ses
 				Editable:       editable,
 				OnLeave:        onLeave,
 				StatusLabel:    statusLabel,
+				AbsenceReason:  absenceReason,
 			})
 		}
 

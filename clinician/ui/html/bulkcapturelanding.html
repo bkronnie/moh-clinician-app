@@ -45,7 +45,7 @@
     <p id="bulkDayLabel" class="app-list-note">Selected reporting date: {{ .Form.SelectedDate }}</p>
 
     <div id="table-container" class="mt-3">
-        <table id="staffTable" class="table table-hover mb-0">
+        <table id="staffTable" class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
             <thead class="thead-light">
                 <tr>
                     <th style="width:2.5rem"></th>
@@ -178,6 +178,12 @@
         if (dwCheckbox) dwCheckbox.checked = state === 'attended';
         if (attInput)   attInput.value     = state === 'attended' ? '1' : '0';
 
+        // Show/hide absence reason and data grid
+        const absenceDiv  = expandTd.querySelector('.bulk-absence-reason');
+        const dataDiv     = expandTd.querySelector('.bulk-data-inputs');
+        if (absenceDiv) absenceDiv.style.display = state === 'absent' ? '' : 'none';
+        if (dataDiv)    dataDiv.style.display    = state === 'attended' ? '' : 'none';
+
         // Enable/disable clinical data inputs
         expandTd.querySelectorAll('.bulk-data-inputs input[type="number"]').forEach(inp => {
             inp.disabled = state !== 'attended';
@@ -260,33 +266,36 @@
 
             const rowClasses = ['bulk-summary-row'];
             if (!editable) rowClasses.push('table-secondary', 'text-muted');
+            // On-leave rows are not expandable
+            const expandable = !onLeave;
 
             // --- Summary row ---
-            rows += `<tr class="${rowClasses.join(' ')}" data-emp-id="${empId}">
-                <td class="text-center"><span class="bulk-toggle-icon">\u25b6</span></td>
+            rows += `<tr class="${expandable ? rowClasses.join(' ') : (rowClasses.filter(c => c !== 'bulk-summary-row').join(' ') || 'table-secondary text-muted')}" ${expandable ? `data-emp-id="${empId}"` : ''}>
+                <td class="text-center">${expandable ? `<span class="bulk-toggle-icon">\u25b6</span>` : ''}</td>
                 <td>${index + 1}</td>
                 <td><strong>${member.name}</strong></td>
                 <td>${title}</td>
                 <td>${statusBadge}</td>
             </tr>`;
 
-            // --- Expandable entry row ---
+            // --- Expandable entry row (skipped for on-leave) ---
+            if (!expandable) { rows += ``; }
+            else {
             rows += `<tr id="expand-${empId}" style="display:none"><td colspan="5" class="bulk-expand-td">`;
 
             // Attendance section
-            if (onLeave) {
-                rows += `<div class="bulk-attendance-section">
-                    <span class="bulk-attendance-label">Attendance Status:</span>
-                    <span class="attendance-badge on-leave">On Leave</span>
-                    <input type="checkbox" name="input[${empId}][days_worked][]" value="${date}" data-role="days-worked" hidden disabled>
-                    <input type="number"   name="input[${empId}][attendance]"    value="0"      data-role="attendance"  hidden readonly>
-                </div>`;
-            } else if (!editable) {
+            if (!editable) {
                 // Read-only — show static badge, no hidden inputs (nothing will be saved)
                 rows += `<div class="bulk-attendance-section">
                     <span class="bulk-attendance-label">Attendance Status:</span>
                     <span class="attendance-badge ${isAttended ? 'attended' : 'absent'}">${isAttended ? 'Attended' : 'Absent'}</span>
                 </div>`;
+                if (!isAttended && member.absenceReason) {
+                    rows += `<div style="padding:0.65rem 1.25rem 0.75rem; border-bottom:1px solid #daedf1; background:#f0f8fa;">
+                        <span style="font-size:0.82rem;font-weight:600;color:#204650;">Reason for Absence: </span>
+                        <span style="font-size:0.82rem;color:#3a5a62;">${member.absenceReason}</span>
+                    </div>`;
+                }
             } else {
                 rows += `<div class="bulk-attendance-section">
                     <span class="bulk-attendance-label">Attendance Status:</span>
@@ -297,28 +306,36 @@
                     <small class="bulk-att-hint">${isAttended ? 'Mark whether this staff attended on this date.' : 'Data entry is disabled when staff is marked as absent.'}</small>
                     <input type="checkbox" name="input[${empId}][days_worked][]" value="${date}" data-role="days-worked" ${isAttended ? 'checked' : ''} hidden>
                     <input type="number"   name="input[${empId}][attendance]"    value="${isAttended ? '1' : '0'}" data-role="attendance" hidden readonly>
+                </div>
+                <div class="bulk-absence-reason" style="${isAttended ? 'display:none;' : ''}padding:0.75rem 1.25rem 0.9rem; border-bottom:1px solid #daedf1; background:#f0f8fa;">
+                    <label for="bulk-absence-${empId}" style="font-size:0.82rem;font-weight:600;color:#204650;display:block;margin-bottom:0.3rem;">Reason for Absence</label>
+                    <textarea id="bulk-absence-${empId}" name="input[${empId}][absence_reason]" class="form-control form-control-sm" rows="2" maxlength="500" style="max-width:480px;" placeholder="e.g. Field duty, off-site training, sick leave, workshop…">${member.absenceReason || ''}</textarea>
+                    <small style="font-size:0.75rem;color:#58727a;">Briefly describe why this staff member is absent. Visible to supervisors.</small>
                 </div>`;
             }
 
-            // Data entry grid — disable inputs when absent or on leave or not editable
-            const dataDisabled = !editable || onLeave || !isAttended;
-            rows += `<div class="bulk-data-inputs"><div class="bulk-entry-grid">`;
-            displayPoints.forEach((point) => {
-                const applies   = applicable.has(point.key);
-                const hasValue  = Object.prototype.hasOwnProperty.call(values, point.key);
-                const val       = hasValue ? values[point.key] : '';
-                const valueAttr = hasValue ? ` value="${val}"` : '';
-                if (!applies) {
-                    rows += `<div class="bulk-entry-field bulk-entry-field--na"><span class="bulk-entry-label">${point.label}</span><span class="na-dash">\u2014</span></div>`;
-                } else if (!editable) {
-                    rows += `<div class="bulk-entry-field"><label class="bulk-entry-label">${point.label}</label><input type="number" min="0" step="1" disabled${valueAttr} class="form-control form-control-sm"></div>`;
-                } else {
-                    rows += `<div class="bulk-entry-field"><label class="bulk-entry-label">${point.label}</label><input type="number" min="0" step="1" name="input[${empId}][${point.key}]"${valueAttr}${dataDisabled ? ' disabled' : ''} class="form-control form-control-sm"></div>`;
-                }
-            });
-            rows += `</div></div>`;
+            // Data entry grid — omit entirely when absent (non-editable or editable-but-absent-hidden)
+            const dataDisabled = !editable || !isAttended;
+            if (!(!editable && !isAttended)) {
+                rows += `<div class="bulk-data-inputs"${(editable && !isAttended) ? ' style="display:none"' : ''}><div class="bulk-entry-grid">`;
+                displayPoints.forEach((point) => {
+                    const applies   = applicable.has(point.key);
+                    const hasValue  = Object.prototype.hasOwnProperty.call(values, point.key);
+                    const val       = hasValue ? values[point.key] : '';
+                    const valueAttr = hasValue ? ` value="${val}"` : '';
+                    if (!applies) {
+                        rows += `<div class="bulk-entry-field bulk-entry-field--na"><span class="bulk-entry-label">${point.label}</span><span class="na-dash">\u2014</span></div>`;
+                    } else if (!editable) {
+                        rows += `<div class="bulk-entry-field"><label class="bulk-entry-label">${point.label}</label><input type="number" min="0" step="1" disabled${valueAttr} class="form-control form-control-sm"></div>`;
+                    } else {
+                        rows += `<div class="bulk-entry-field"><label class="bulk-entry-label">${point.label}</label><input type="number" min="0" step="1" name="input[${empId}][${point.key}]"${valueAttr}${dataDisabled ? ' disabled' : ''} class="form-control form-control-sm"></div>`;
+                    }
+                });
+                rows += `</div></div>`;
+            }
 
             rows += `</td></tr>`;
+            } // end expandable block
         });
 
         body.innerHTML = rows;

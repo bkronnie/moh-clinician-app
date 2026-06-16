@@ -101,12 +101,13 @@ type WeeklyReportExtended struct {
 	Qn39     sql.NullInt64 `json:"custom_metric_39"`   // custom_metric_39
 	Qn40     sql.NullInt64 `json:"custom_metric_40"`   // custom_metric_40
 
-	EnteredByID    sql.NullInt64  `json:"entered_by"`    //entered_by
-	EntryCreatedOn sql.NullTime   `json:"created_on"`    // created_on
-	LastUpdateOn   sql.NullTime   `json:"update_on"`     // created_on
-	RecordStatus   sql.NullString `json:"record_status"` //record_status
-	DaysWorked     sql.NullString `json:"days_worked"`   // days_worked
-	SubmittedOn    sql.NullTime   `json:"submitted_on"`  // submitted_on
+	EnteredByID    sql.NullInt64  `json:"entered_by"`     //entered_by
+	EntryCreatedOn sql.NullTime   `json:"created_on"`     // created_on
+	LastUpdateOn   sql.NullTime   `json:"update_on"`      // created_on
+	RecordStatus   sql.NullString `json:"record_status"`  //record_status
+	DaysWorked     sql.NullString `json:"days_worked"`    // days_worked
+	AbsenceReason  sql.NullString `json:"absence_reason"` // absence_reason
+	SubmittedOn    sql.NullTime   `json:"submitted_on"`   // submitted_on
 
 	// Fields from 'clinician_app.employees'
 	EmpID          int            `json:"employeeid"`     // id
@@ -248,20 +249,20 @@ func (w *WeeklyReportExtended) InsertNewRecord(ctx context.Context, db DB) error
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`id, hospital, department, employee, start, stop, attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, teaching_rounds, students_taught, mortality_reviews, maternal, ` +
 		`perinatal, surgical, medical, paed, labs_requests, imaging_requests, lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain, ` +
-		`culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans, entered_by, created_on, days_worked ` +
+		`culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans, entered_by, created_on, days_worked, absence_reason ` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ` +
 		`$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, ` +
-		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46 ` +
+		`$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47 ` +
 		`)`
 
 	logf(sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked, w.AbsenceReason)
 
 	_, err := db.ExecContext(ctx, sqlstr, newID, facilityID, departmentID, w.Emp, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08,
 		w.Qn09, w.Qn10, w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26,
-		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked)
+		w.Qn27, w.Qn28, w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.EnteredByID, w.EntryCreatedOn, w.DaysWorked, w.AbsenceReason)
 	if err != nil {
 		log.Printf("InsertNewRecord DB error: %v | emp=%v start=%v stop=%v hospital=%d dept=%d", err, w.Emp, w.Start, w.Stop, facilityID, departmentID)
 		return logerror(err)
@@ -307,16 +308,16 @@ func (w *WeeklyReportExtended) Updatez(ctx context.Context, db DB) error {
 		`start = $1, stop = $2, attendance = $3, ward_rounds = $4, patients_reviewed = $5, elective = $6, emergency = $7, postmortems = $8, opd_clinics = $9, opd_patients = $10, anc_patients = $11, teaching_rounds = $12, students_taught = $13, mortality_reviews = $14, maternal = $15, ` +
 		`perinatal = $16, surgical = $17, medical = $18, paed = $19, labs_requests = $20, imaging_requests = $21, lab_investigations = $22, bs = $23, hiv = $24, malaria = $25, tb = $26, cbc = $27, chemistry = $28, hematology = $29, urinalysis = $30, gram_stain = $31, ` +
 		`culture = $32, microbiology = $33, sensitivity_tests = $34, diagnostics = $35, xrays = $36, ct_scans = $37, obstetrics_scans = $38, abdominal_scans = $39, ` +
-		`days_worked = $40, last_updated_on = $41 ` +
-		`WHERE id = $42 `
+		`days_worked = $40, absence_reason = $41, last_updated_on = $42 ` +
+		`WHERE id = $43 `
 
 	logf(sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.AbsenceReason, w.LastUpdateOn, w.ID)
 
 	_, err := db.ExecContext(ctx, sqlstr, w.Start, w.Stop, w.Qn01, w.Qn02, w.Qn03, w.Qn05, w.Qn06, w.Qn07, w.Qn08, w.Qn09, w.Qn10,
 		w.Qn11, w.Qn12, w.Qn13, w.Qn14, w.Qn15, w.Qn16, w.Qn17, w.Qn18, w.Qn19, w.Qn20, w.Qn21, w.Qn22, w.Qn23, w.Qn24, w.Qn25, w.Qn26, w.Qn27, w.Qn28,
-		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.LastUpdateOn, w.ID)
+		w.Qn29, w.Qn30, w.Qn31, w.Qn32, w.Qn33, w.Qn34, w.Qn35, w.Qn36, w.Qn37, w.Qn38, w.DaysWorked, w.AbsenceReason, w.LastUpdateOn, w.ID)
 	if err != nil {
 		return logerror(err)
 	}

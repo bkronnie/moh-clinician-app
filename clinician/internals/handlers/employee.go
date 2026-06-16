@@ -3,15 +3,20 @@ package handlers
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/moh/clinician/internals/models"
 	"github.com/moh/clinician/internals/utilities"
 )
@@ -22,6 +27,25 @@ type LeaveFormView struct {
 	SubmitLabel  string
 	MinStartDate string
 	Leave        *models.LeaveHistory
+	Documents    []*models.LeaveDocument
+}
+
+const (
+	leaveUploadMaxBytes = 10 << 20 // 10 MB per file
+)
+
+var leaveAllowedMIME = map[string]string{
+	"application/pdf":    ".pdf",
+	"image/jpeg":         ".jpg",
+	"image/png":          ".png",
+	"application/msword": ".doc",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+
+func saveLeaveUploadDir() string {
+	dir := utilities.AppPath("uploads", "leave")
+	_ = os.MkdirAll(dir, 0755)
+	return dir
 }
 
 type LeaveHistoryView struct {
@@ -59,7 +83,7 @@ type EmployeePageView struct {
 	OnDuty             []*models.Employee
 	OnLeave            []*models.Employee
 	Facilities         []*models.Facility
-	Departments        []*models.Department
+	Departments        []models.DashboardFilterOption
 	SelectedFacility   int64
 	SelectedDepartment int64
 	SearchTerm         string
@@ -257,7 +281,7 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 		selectedFacility = sesDetails.HFID
 	}
 
-	facilities, departments, err := models.GetFacilitiesAndDepartments(db)
+	facilities, _, err := models.GetFacilitiesAndDepartments(db)
 	if err != nil {
 		log.Printf("Error loading facility or department lists: %v", err)
 		c.String(http.StatusInternalServerError, "Error loading filter options")
@@ -266,6 +290,13 @@ func HandlerEmployeeList(c *gin.Context, db *sql.DB, sessionManager *scs.Session
 
 	if !showFacilityFilter {
 		facilities = []*models.Facility{{FacilityID: selectedFacility, FacilityName: sesDetails.HFName}}
+	}
+
+	departments, err := models.GetDashboardDepartmentOptions(c.Request.Context(), db, int(selectedFacility))
+	if err != nil {
+		log.Printf("Error loading department options: %v", err)
+		c.String(http.StatusInternalServerError, "Error loading department options")
+		return
 	}
 
 	dashboard, err := models.GetDashboardData(db, int(selectedFacility))
@@ -417,9 +448,9 @@ func HandlerEmployeeLeaveSave(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 		return
 	}
 
-	// Parse form data
-	if err := c.Request.ParseForm(); err != nil {
-		log.Println("Failed to parse form data:", err)
+	// Parse multipart form (supports file uploads)
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		log.Println("Failed to parse multipart form:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
 		return
 	}
@@ -507,6 +538,13 @@ func HandlerEmployeeLeaveSave(c *gin.Context, db *sql.DB, sessionManager *scs.Se
 		return
 	}
 
+	// Save any uploaded support documents
+	if mf := c.Request.MultipartForm; mf != nil {
+		if err := saveLeaveDocuments(c, db, int64(leave.ID), mf.File["documents"]); err != nil {
+			log.Printf("Warning: failed to save leave documents for leave %d: %v", leave.ID, err)
+		}
+	}
+
 	// Redirect back to the appropriate leave landing page
 	c.Redirect(http.StatusFound, redirectPath)
 }
@@ -539,12 +577,19 @@ func HandlerEmployeeLeaveEditForm(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 
+	docs, err := models.GetLeaveDocuments(c.Request.Context(), db, int64(leave.ID))
+	if err != nil {
+		log.Printf("Error loading leave documents: %v", err)
+		docs = nil
+	}
+
 	formView := LeaveFormView{
 		IsEdit:       true,
 		ActionURL:    fmt.Sprintf("/leave/update/%d", leave.ID),
 		SubmitLabel:  "Update Leave Request",
 		MinStartDate: time.Now().In(time.Local).Format("2006-01-02"),
 		Leave:        leave,
+		Documents:    docs,
 	}
 
 	data := Get_Session_Data(c, db, sessionManager, formView)
@@ -573,8 +618,8 @@ func HandlerEmployeeLeaveUpdate(c *gin.Context, db *sql.DB, sessionManager *scs.
 		return
 	}
 
-	if err := c.Request.ParseForm(); err != nil {
-		log.Println("Failed to parse form data:", err)
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		log.Println("Failed to parse multipart form:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
 		return
 	}
@@ -634,7 +679,168 @@ func HandlerEmployeeLeaveUpdate(c *gin.Context, db *sql.DB, sessionManager *scs.
 		return
 	}
 
+	// Save any newly uploaded support documents
+	if mf := c.Request.MultipartForm; mf != nil {
+		if err := saveLeaveDocuments(c, db, int64(leaveID), mf.File["documents"]); err != nil {
+			log.Printf("Warning: failed to save leave documents for leave %d: %v", leaveID, err)
+		}
+	}
+
 	c.Redirect(http.StatusFound, "/leave/history")
+}
+
+// saveLeaveDocuments writes uploaded files to disk and records them in leave_documents.
+func saveLeaveDocuments(c *gin.Context, db *sql.DB, leaveID int64, headers []*multipart.FileHeader) error {
+	uploadDir := saveLeaveUploadDir()
+	for _, fh := range headers {
+		if fh.Size == 0 {
+			continue
+		}
+		if fh.Size > leaveUploadMaxBytes {
+			log.Printf("Skipping file %q — too large (%d bytes)", fh.Filename, fh.Size)
+			continue
+		}
+
+		// Detect MIME type from the Content-Type header on the part
+		mime := fh.Header.Get("Content-Type")
+		ext, ok := leaveAllowedMIME[mime]
+		if !ok {
+			log.Printf("Skipping file %q — disallowed type %q", fh.Filename, mime)
+			continue
+		}
+
+		// Generate a safe stored filename
+		storedName := uuid.New().String() + ext
+		dstPath := filepath.Join(uploadDir, storedName)
+
+		if err := func() error {
+			src, err := fh.Open()
+			if err != nil {
+				return err
+			}
+			defer src.Close()
+
+			dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			if err != nil {
+				return err
+			}
+			defer dst.Close()
+
+			_, err = io.Copy(dst, src)
+			return err
+		}(); err != nil {
+			log.Printf("Error writing uploaded file %q: %v", fh.Filename, err)
+			continue
+		}
+
+		doc := &models.LeaveDocument{
+			LeaveID:      leaveID,
+			OriginalName: filepath.Base(fh.Filename),
+			StoredName:   storedName,
+			FileSize:     fh.Size,
+			MimeType:     mime,
+		}
+		if err := models.InsertLeaveDocument(c.Request.Context(), db, doc); err != nil {
+			log.Printf("Error saving document record for %q: %v", fh.Filename, err)
+			_ = os.Remove(dstPath)
+		}
+	}
+	return nil
+}
+
+// HandlerLeaveDocumentDownload serves a leave support document for download.
+func HandlerLeaveDocumentDownload(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	docID, err := strconv.ParseInt(strings.TrimSpace(c.Param("doc_id")), 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid document ID")
+		return
+	}
+	leaveID, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid leave ID")
+		return
+	}
+
+	// Load and verify ownership / admin access
+	doc, err := models.GetLeaveDocument(c.Request.Context(), db, docID, leaveID)
+	if err != nil {
+		c.String(http.StatusNotFound, "Document not found")
+		return
+	}
+
+	// Staff may only download their own leave documents
+	if utilities.RoleMatches(sesDetails.Rights, "Staff") {
+		leave, lerr := models.PendingLeaveByID(c.Request.Context(), db, int(leaveID), sesDetails.EmpID)
+		if lerr != nil || leave == nil {
+			// Try read-only check via GetHistory
+			rows, _ := models.GetHistory(db, int(sesDetails.EmpID))
+			found := false
+			for _, r := range rows {
+				if int64(r.ID) == leaveID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				c.String(http.StatusForbidden, "Access denied")
+				return
+			}
+		}
+	}
+
+	filePath := filepath.Join(saveLeaveUploadDir(), doc.StoredName)
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, doc.OriginalName))
+	c.File(filePath)
+}
+
+// HandlerLeaveDocumentDelete removes a support document from a pending leave request.
+func HandlerLeaveDocumentDelete(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	sessionData, ok := Get_Session_Data(c, db, sessionManager, nil).(utilities.TemplateData)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session data"})
+		return
+	}
+	sesDetails, ok := sessionData.Ses.(utilities.SessionDetails)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to retrieve session details"})
+		return
+	}
+
+	docID, err := strconv.ParseInt(strings.TrimSpace(c.Param("doc_id")), 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid document ID")
+		return
+	}
+	leaveID, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid leave ID")
+		return
+	}
+
+	storedName, err := models.DeleteLeaveDocument(c.Request.Context(), db, docID, sesDetails.EmpID)
+	if err != nil {
+		log.Printf("Failed to delete leave document %d: %v", docID, err)
+		c.String(http.StatusForbidden, "Document not found or not deletable")
+		return
+	}
+
+	filePath := filepath.Join(saveLeaveUploadDir(), storedName)
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: could not remove file %q: %v", filePath, err)
+	}
+
+	c.Redirect(http.StatusFound, fmt.Sprintf("/leave/edit/%d", leaveID))
 }
 
 // HandlerEmployeeLeaveDelete deletes a clinician's own pending leave request.

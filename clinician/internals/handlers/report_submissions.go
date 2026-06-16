@@ -857,6 +857,7 @@ func HandlerReportSubmissionView(c *gin.Context, db *sql.DB, sessionManager *scs
 		ReadOnly:        true,
 		WeekDays:        buildWeekDayChecks(report.WeekStart.Time, report.WeekStop.Time, report.DaysWorked.String),
 		HideCoreSection: subHideCore,
+		AbsenceReason:   report.AbsenceReason.String,
 	}
 	applyDynamicReportValues(c.Request.Context(), db, report.ReportID, resolveClinicianEntryKeys(c.Request.Context(), db, report.DepartmentID), entryForm.Values)
 	sessionData.Form = entryForm
@@ -1733,6 +1734,7 @@ func HandlerReportsAnalysisDayStaffEntry(c *gin.Context, db *sql.DB, sessionMana
 			"date":          dateStr,
 			"submit_status": "",
 			"report_status": "",
+			"absence_reason": "",
 			"fields":        fields,
 		})
 		return
@@ -1780,11 +1782,12 @@ func HandlerReportsAnalysisDayStaffEntry(c *gin.Context, db *sql.DB, sessionMana
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"report_id":     reportID,
-		"has_report":    true,
-		"submit_status": submitStatus,
-		"report_status": reportStatus,
-		"fields":        fields,
+		"report_id":      reportID,
+		"has_report":     true,
+		"submit_status":  submitStatus,
+		"report_status":  reportStatus,
+		"absence_reason": report.AbsenceReason.String,
+		"fields":         fields,
 	})
 }
 

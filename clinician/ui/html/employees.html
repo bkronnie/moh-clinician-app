@@ -34,51 +34,67 @@ Staff Management
         <a class="btn btn-primary btn-sm" href="{{ .Form.AddStaffURL }}" style="flex-shrink:0;">+ Add Staff</a>
         </div>
 
-        <form class="filter-form" method="get" action="/employee/list">
+        <form class="filter-form dashboard-inline-filters" method="get" action="/employee/list" id="employeeFilterForm">
             <input type="hidden" name="tab" value="{{ .Form.ActiveTab }}">
+            <span class="inline-filters-label">Filters:</span>
+
             {{ if .Form.ShowFacilityFilter }}
-            <div class="form-group">
-                <label for="facility" class="sr-only">Facility</label>
-                <select id="facility" name="facility" class="form-control form-control-sm">
-                    <option value="">All Facilities</option>
+            <span class="inline-filter-field">
+                <label for="facility">Facility:</label>
+                <select id="facility" name="facility">
+                    <option value="">All facilities</option>
                     {{ range .Form.Facilities }}
                     <option value="{{ .FacilityID }}" {{ if eq (printf "%d" .FacilityID) (printf "%d" $.Form.SelectedFacility) }}selected{{ end }}>{{ .FacilityName }}</option>
                     {{ end }}
                 </select>
-            </div>
+            </span>
             {{ else }}
-            <div class="form-group">
-                <label class="d-block mb-1 text-muted">Facility</label>
-                {{ with index .Form.Facilities 0 }}
-                <div class="form-control form-control-sm">{{ .FacilityName }}</div>
-                {{ end }}
-            </div>
+            <span class="inline-filter-field">
+                <label>Facility:</label>
+                {{ with index .Form.Facilities 0 }}<strong>{{ .FacilityName }}</strong>{{ end }}
+            </span>
             {{ end }}
 
-            <div class="form-group">
-                <label for="department" class="sr-only">Department</label>
-                <select id="department" name="department" class="form-control form-control-sm">
-                    <option value="">All Departments</option>
+            <span class="inline-filter-field">
+                <label for="department">Department:</label>
+                <select id="department" name="department">
+                    <option value="">All departments</option>
                     {{ range .Form.Departments }}
-                    <option value="{{ .DeptID }}" {{ if eq (printf "%d" .DeptID) (printf "%d" $.Form.SelectedDepartment) }}selected{{ end }}>{{ .DepartmentName.String }}</option>
+                    <option value="{{ .ID }}" {{ if eq (printf "%d" .ID) (printf "%d" $.Form.SelectedDepartment) }}selected{{ end }}>{{ .Name }}</option>
                     {{ end }}
                 </select>
-            </div>
+            </span>
 
-            <div class="form-group filter-form-search-group">
-                <label for="search" class="sr-only">Search</label>
-                <input id="search" name="search" type="search" class="form-control form-control-sm" placeholder="Search name or ID" value="{{ .Form.SearchTerm }}">
-            </div>
+            <span class="inline-filter-field">
+                <label for="search">Search:</label>
+                <input id="search" name="search" type="search" placeholder="Name or ID" value="{{ .Form.SearchTerm }}" style="height:auto;padding:2px 6px;font-size:inherit;">
+            </span>
 
-            <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-            <a class="btn btn-outline-secondary btn-sm" href="/employee/list?tab={{ .Form.ActiveTab }}">Clear</a>
+            <a class="inline-filter-clear" href="/employee/list?tab={{ .Form.ActiveTab }}">Clear</a>
         </form>
+    </div>
 
+    <div class="app-list-panel">
         {{ if eq .Form.ActiveTab "list" }}
+        <div class="app-list-header">
+            <div>
+                <p class="mt-0 mb-0 text-muted" style="font-size:0.82rem;">{{ len .Form.Employees }} staff member{{ if ne (len .Form.Employees) 1 }}s{{ end }}</p>
+            </div>
+        </div>
         {{ template "employeeTable" (dict "Employees" .Form.Employees "CurrentURL" .Form.CurrentURL) }}
         {{ else if eq .Form.ActiveTab "on_duty" }}
+        <div class="app-list-header">
+            <div>
+                <p class="mt-0 mb-0 text-muted" style="font-size:0.82rem;">{{ len .Form.OnDuty }} staff member{{ if ne (len .Form.OnDuty) 1 }}s{{ end }} on duty</p>
+            </div>
+        </div>
         {{ template "employeeTable" (dict "Employees" .Form.OnDuty "CurrentURL" .Form.CurrentURL) }}
         {{ else if eq .Form.ActiveTab "on_leave" }}
+        <div class="app-list-header">
+            <div>
+                <p class="mt-0 mb-0 text-muted" style="font-size:0.82rem;">{{ len .Form.OnLeave }} staff member{{ if ne (len .Form.OnLeave) 1 }}s{{ end }} on leave</p>
+            </div>
+        </div>
         {{ template "employeeTable" (dict "Employees" .Form.OnLeave "CurrentURL" .Form.CurrentURL) }}
         {{ end }}
     </div>
@@ -86,62 +102,70 @@ Staff Management
 {{ end }}
 
 {{ define "employeeTable" }}
-<div class="app-list-grid employees-grid">
-    <div class="app-list-grid-header">
-        <div>Staff</div>
-        <div>Cadre</div>
-        <div>Department</div>
-        <div>Facility</div>
-        <div>Status</div>
-        <div>Actions</div>
-    </div>
-    {{ if .Employees }}
-        {{ range $employee := .Employees }}
-        <div class="app-list-grid-row">
-            <div class="app-list-cell">
-                <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
-                <span>ID {{ $employee.EmpID }}</span>
-            </div>
-            <div class="app-list-cell">{{ $employee.EmpTitle.String }}</div>
-            <div class="app-list-cell">{{ $employee.EmpDepartmentName.String }}</div>
-            <div class="app-list-cell">{{ $employee.EmpFacilityName.String }}</div>
-            <div class="app-list-cell">
-                <span class="status-chip">{{ if $employee.LeaveStatus.Valid }}On Leave{{ else }}On Duty{{ end }}</span>
-                {{ if $employee.ReturnDate.Valid }}<div>Return {{ $employee.ReturnDate.Time.Format "2006-01-02" }}</div>{{ end }}
-            </div>
-            <div class="app-row-actions">
-                <a href="/employee/edit/{{ $employee.EmpID }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                <form method="post" action="/employee/delete/{{ $employee.EmpID }}" class="inline-form" onsubmit="return confirm('Delete this employee?');">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                </form>
-                <a href="/employee/{{ $employee.EmpID }}/leave/history?return_to={{ urlquery $.CurrentURL }}" class="btn btn-sm btn-outline-secondary">Leave History</a>
-            </div>
-        </div>
-        {{ end }}
-    {{ else }}
-    <div class="app-list-empty">No employees found.</div>
-    {{ end }}
+{{ if .Employees }}
+<div class="app-table-scroll mt-2">
+    <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Staff</th>
+                <th>Cadre</th>
+                <th>Facility</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range $i, $e := .Employees }}
+            <tr>
+                <td class="text-center">{{ add1 $i }}</td>
+                <td>
+                    <strong>{{ $e.Fname.String }} {{ $e.Lname.String }} {{ $e.Oname.String }}</strong>
+                    <small class="text-muted d-block">ID {{ $e.EmpID }}</small>
+                </td>
+                <td>{{ $e.EmpTitle.String }}</td>
+                <td>{{ $e.EmpFacilityName.String }}</td>
+                <td>{{ $e.EmpDepartmentName.String }}</td>
+                <td>
+                    <span class="status-chip {{ if $e.LeaveStatus.Valid }}on-leave{{ end }}">{{ if $e.LeaveStatus.Valid }}On Leave{{ else }}On Duty{{ end }}</span>
+                    {{ if $e.ReturnDate.Valid }}<small class="d-block text-muted">Return {{ $e.ReturnDate.Time.Format "2006-01-02" }}</small>{{ end }}
+                </td>
+                <td class="app-row-actions" style="white-space:nowrap;">
+                    <a href="/employee/edit/{{ $e.EmpID }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                    <form method="post" action="/employee/delete/{{ $e.EmpID }}" class="inline-form" onsubmit="return confirm('Delete this employee?');" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                    <a href="/employee/{{ $e.EmpID }}/leave/history?return_to={{ urlquery $.CurrentURL }}" class="btn btn-sm btn-outline-secondary">Leave</a>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
 </div>
+{{ else }}
+<p class="text-muted mt-2 mb-0">No employees found.</p>
+{{ end }}
 {{ end }}
 
 {{ define "extraJS" }}
 <script>
 (function () {
-    var form = document.querySelector('.filter-form');
-    if (!form) {
-        return;
-    }
+    var form = document.getElementById('employeeFilterForm');
+    if (!form) return;
 
     var facilitySelect = document.getElementById('facility');
     var departmentSelect = document.getElementById('department');
 
     if (facilitySelect) {
         facilitySelect.addEventListener('change', function () {
-            // Department options are global in this view, so clear stale selections
-            // when the facility changes before submitting a fresh filter.
-            if (departmentSelect) {
-                departmentSelect.value = '';
-            }
+            if (departmentSelect) departmentSelect.value = '';
+            form.requestSubmit();
+        });
+    }
+
+    if (departmentSelect) {
+        departmentSelect.addEventListener('change', function () {
             form.requestSubmit();
         });
     }

@@ -23,6 +23,7 @@ type ClinicianReportHistoryRow struct {
 	PatientsReviewed int
 	Procedures       int
 	DaysWorked       sql.NullString
+	AbsenceReason    sql.NullString
 	SubmittedOn      sql.NullTime
 	Qn01             sql.NullInt64
 	Qn02             sql.NullInt64
@@ -284,6 +285,7 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
 			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
+			COALESCE(w.absence_reason, ''),
 			w.submitted_on
 		FROM clinician_app.weeklyreport w
 		WHERE w.id = $1
@@ -299,6 +301,7 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	var submitStatusText string
 	var reportStatusText string
 	var daysWorkedText string
+	var absenceReasonText string
 	err := db.QueryRowContext(ctx, sqlstr, reportID, employeeID).Scan(
 		&row.ReportID,
 		&row.EmployeeID,
@@ -314,6 +317,7 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
 		&daysWorkedText,
+		&absenceReasonText,
 		&row.SubmittedOn,
 	)
 	if err != nil {
@@ -328,6 +332,9 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	}
 	if daysWorkedText != "" {
 		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
+	}
+	if absenceReasonText != "" {
+		row.AbsenceReason = sql.NullString{String: absenceReasonText, Valid: true}
 	}
 	if row.ReportStatus.Valid && (row.ReportStatus.String == "Rejected" || row.ReportStatus.String == "Declined") {
 		row.HistoryStatus = "declined"
@@ -358,6 +365,7 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
 			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
+			COALESCE(w.absence_reason, ''),
 			w.submitted_on
 		FROM clinician_app.weeklyreport w
 		WHERE w.employee = $1
@@ -379,6 +387,7 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 	var submitStatusText string
 	var reportStatusText string
 	var daysWorkedText string
+	var absenceReasonText string
 	err := db.QueryRowContext(ctx, sqlstr, employeeID, weekStart, weekStop).Scan(
 		&row.ReportID,
 		&row.EmployeeID,
@@ -394,6 +403,7 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
 		&daysWorkedText,
+		&absenceReasonText,
 		&row.SubmittedOn,
 	)
 	if err != nil {
@@ -408,6 +418,9 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 	}
 	if daysWorkedText != "" {
 		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
+	}
+	if absenceReasonText != "" {
+		row.AbsenceReason = sql.NullString{String: absenceReasonText, Valid: true}
 	}
 	if row.ReportStatus.Valid && (row.ReportStatus.String == "Rejected" || row.ReportStatus.String == "Declined") {
 		row.HistoryStatus = "declined"

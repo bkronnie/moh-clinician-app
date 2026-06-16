@@ -72,12 +72,6 @@
         <input type="hidden" name="stop" value="{{ .Form.StopDate }}">
 
         <fieldset {{ if .Form.ReadOnly }}disabled{{ end }}>
-        <div class="entry-grid">
-            <div class="entry-field">
-                <label for="reportingWeekDisplay">Reporting Date</label>
-                <input id="reportingWeekDisplay" type="text" class="form-control" value="{{ slice .Form.StartDate 8 10 }}-{{ slice .Form.StartDate 5 7 }}-{{ slice .Form.StartDate 0 4 }}" readonly>
-            </div>
-        </div>
 
         <div class="entry-section">
             <h3>Core Activity</h3>
@@ -99,10 +93,7 @@
                     <!-- hidden checkbox drives the days_worked[] POST value -->
                     <input type="checkbox" id="attended-today" class="days-worked-checkbox" name="input[{{ .Form.EmployeeID }}][days_worked][]" value="{{ .Form.StartDate }}" {{ if gt (index .Form.Values "attendance") "0" }}checked{{ end }} {{ if .Form.OnLeave }}disabled{{ end }} hidden>
                 </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "attendance" }}</label>
-                    <input id="attendance-days" type="number" min="0" max="1" name="input[{{ .Form.EmployeeID }}][attendance]" class="form-control" value="{{ index .Form.Values "attendance" }}" readonly>
-                </div>
+                <input id="attendance-days" type="hidden" name="input[{{ .Form.EmployeeID }}][attendance]" value="{{ index .Form.Values "attendance" }}">
                 {{ if not .Form.AttendanceOnly }}
                 {{ if not .Form.HideCoreSection }}
                 <div class="entry-field">
@@ -144,6 +135,17 @@
                 {{ end }}
                 {{ end }}
             </div>
+            {{ if not .Form.OnLeave }}
+            <div id="absence-reason-field" {{ if not .Form.ReadOnly }}style="display:none;"{{ else if gt (index .Form.Values "attendance") "0" }}style="display:none;"{{ end }} class="mt-3">
+                <label for="absence-reason-input" class="form-label fw-semibold">Reason for Absence</label>
+                {{ if .Form.ReadOnly }}
+                <p class="form-control-plaintext">{{ if .Form.AbsenceReason }}{{ .Form.AbsenceReason }}{{ else }}<em class="text-muted">No reason provided.</em>{{ end }}</p>
+                {{ else }}
+                <textarea id="absence-reason-input" name="input[{{ .Form.EmployeeID }}][absence_reason]" class="form-control" rows="3" maxlength="500" placeholder="e.g. Field duty, off-site training, sick leave, workshop…" style="max-width:480px;">{{ .Form.AbsenceReason }}</textarea>
+                <small class="form-text text-muted">Briefly describe why you were absent. This is visible to your supervisor.</small>
+                {{ end }}
+            </div>
+            {{ end }}
         </div>
 
         {{ if not .Form.AttendanceOnly }}
@@ -196,6 +198,21 @@
         };
 
         function applyState(state) {
+            var absenceField = document.getElementById('absence-reason-field');
+            // All entry-section divs
+            var allSections = Array.prototype.slice.call(document.querySelectorAll('.entry-section'));
+            // Data-entry entry-fields inside the Core Activity section, excluding attendance row AND absence reason field
+            var coreDataFields = allSections.length > 0
+                ? Array.prototype.slice.call(allSections[0].querySelectorAll('.entry-field')).filter(function(f) {
+                    return f.id !== 'absence-reason-field' &&
+                           !f.contains(document.getElementById('btn-attended')) &&
+                           !f.contains(document.getElementById('attendance-days')) &&
+                           !f.contains(document.getElementById('attended-today'));
+                  })
+                : [];
+            // Non-core sections (index > 0)
+            var extraSections = allSections.slice(1);
+
             if (state === 'attended') {
                 if (checkbox) { checkbox.checked = true; }
                 btnAttended.classList.add('active');
@@ -203,6 +220,9 @@
                 btnAbsent.classList.remove('active');
                 btnAbsent.setAttribute('aria-pressed', 'false');
                 getEntryInputs().forEach(function (el) { el.disabled = false; });
+                coreDataFields.forEach(function(f) { f.style.display = ''; });
+                extraSections.forEach(function(s) { s.style.display = ''; });
+                if (absenceField) { absenceField.style.display = 'none'; }
                 var hint = document.getElementById('attendance-status-hint');
                 if (hint) { hint.textContent = 'Mark whether this clinician attended on this date.'; }
             } else {
@@ -212,6 +232,9 @@
                 btnAbsent.classList.add('active');
                 btnAbsent.setAttribute('aria-pressed', 'true');
                 getEntryInputs().forEach(function (el) { el.disabled = true; });
+                coreDataFields.forEach(function(f) { f.style.display = 'none'; });
+                extraSections.forEach(function(s) { s.style.display = 'none'; });
+                if (absenceField) { absenceField.style.display = ''; }
                 var hint = document.getElementById('attendance-status-hint');
                 if (hint) { hint.textContent = 'Data entry is disabled when the clinician is marked as absent.'; }
             }

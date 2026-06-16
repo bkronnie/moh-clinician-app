@@ -193,6 +193,8 @@ func RouteLeave(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.SessionManag
 		userOnly.POST("/delete/:id", func(c *gin.Context) { handlers.HandlerEmployeeLeaveDelete(c, db, sessionManager) })
 		userOnly.GET("/history", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistory(c, db, sessionManager) })
 		userOnly.GET("/history/export", func(c *gin.Context) { handlers.HandlerEmployeeLeaveHistoryExport(c, db, sessionManager) })
+		userOnly.GET("/:id/documents/:doc_id", func(c *gin.Context) { handlers.HandlerLeaveDocumentDownload(c, db, sessionManager) })
+		userOnly.POST("/:id/documents/:doc_id/delete", func(c *gin.Context) { handlers.HandlerLeaveDocumentDelete(c, db, sessionManager) })
 	}
 
 	approverOnly := v.Group("/")

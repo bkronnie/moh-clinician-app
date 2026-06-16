@@ -24,41 +24,40 @@
     </div>
 
     <div class="app-list-panel">
-        <div class="app-list-grid bulk-entry-grid">
-            <div class="app-list-grid-header">
-                <div>Staff</div>
-                <div>Cadre</div>
-                <div>Department</div>
-                <div>Specialization</div>
-                <div>Action</div>
-            </div>
+        <div class="app-table-scroll mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Staff</th>
+                    <th>Cadre</th>
+                    <th>Department</th>
+                    <th>Specialization</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
             {{ if .Form.Rows }}
-                {{ range .Form.Rows }}
-                <div class="app-list-grid-row" data-href="{{ .EntryURL }}" tabindex="0" role="link" aria-label="Open data entry for {{ .EmployeeName }}">
-                    <div class="app-list-cell">
-                        <strong>{{ .EmployeeName }}</strong>
-                        <span>Employee ID {{ .EmployeeID }}</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ if .EmployeeTitle }}{{ .EmployeeTitle }}{{ else }}Not set{{ end }}</strong>
-                        <span>Staff cadre</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ .DepartmentName }}</strong>
-                        <span>{{ $.Ses.HFName }}</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ if .Specialisation }}{{ .Specialisation }}{{ else }}General practice{{ end }}</strong>
-                        <span>Clinical focus</span>
-                    </div>
-                    <div class="app-row-actions">
-                        <a href="{{ .EntryURL }}" class="btn btn-sm btn-primary">Open Entry Form</a>
-                    </div>
-                </div>
+                {{ range $i, $row := .Form.Rows }}
+                <tr class="bulk-entry-row" data-href="{{ $row.EntryURL }}" tabindex="0" role="link" aria-label="Open data entry for {{ $row.EmployeeName }}" style="cursor:pointer;">
+                    <td class="text-center">{{ add1 $i }}</td>
+                    <td>
+                        <strong>{{ $row.EmployeeName }}</strong>
+                        <small class="text-muted d-block">ID {{ $row.EmployeeID }}</small>
+                    </td>
+                    <td>{{ if $row.EmployeeTitle }}{{ $row.EmployeeTitle }}{{ else }}<span class="text-muted">Not set</span>{{ end }}</td>
+                    <td>{{ $row.DepartmentName }}</td>
+                    <td>{{ if $row.Specialisation }}{{ $row.Specialisation }}{{ else }}<span class="text-muted">General practice</span>{{ end }}</td>
+                    <td>
+                        <a href="{{ $row.EntryURL }}" class="btn btn-sm btn-primary">Open Entry Form</a>
+                    </td>
+                </tr>
                 {{ end }}
             {{ else }}
-            <div class="app-list-empty">No staff records match the selected department tab.</div>
+            <tr><td colspan="6" class="text-center text-muted">No staff records match the selected department tab.</td></tr>
             {{ end }}
+            </tbody>
+        </table>
         </div>
     </div>
 </div>
@@ -66,7 +65,7 @@
 
 {{ define "extraJS" }}
 <script>
-    document.querySelectorAll('.bulk-entry-grid .app-list-grid-row[data-href]').forEach(function (row) {
+    document.querySelectorAll('tr.bulk-entry-row[data-href]').forEach(function (row) {
         row.addEventListener('click', function (event) {
             if (event.target.closest('a, button, form, input, select, textarea, label')) {
                 return;

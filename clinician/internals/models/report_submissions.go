@@ -595,6 +595,7 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
 			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
+			COALESCE(w.absence_reason, ''),
 			` + submittedOnExpr + `
 		FROM clinician_app.weeklyreport w
 		` + whereClause
@@ -603,6 +604,7 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 	var submitStatusText string
 	var reportStatusText string
 	var daysWorkedText string
+	var absenceReasonText string
 	err := db.QueryRowContext(ctx, sqlstr, args...).Scan(
 		&row.ReportID,
 		&row.EmployeeID,
@@ -618,6 +620,7 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
 		&daysWorkedText,
+		&absenceReasonText,
 		&row.SubmittedOn,
 	)
 	if err != nil {
@@ -632,6 +635,9 @@ func GetReportSubmissionByIDForReview(ctx context.Context, db *sql.DB, reportID 
 	}
 	if daysWorkedText != "" {
 		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
+	}
+	if absenceReasonText != "" {
+		row.AbsenceReason = sql.NullString{String: absenceReasonText, Valid: true}
 	}
 
 	return row, nil

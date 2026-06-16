@@ -13,16 +13,20 @@ import (
 
 // AnalysisTablesView is the view model for the Analysis Tables page.
 type AnalysisTablesView struct {
-	SelectedYear      int
-	SelectedMonth     int
-	SelectedWeek      int
-	SelectedWeekLabel string
-	AvailableYears    []int
-	AvailableMonths   []models.DashboardFilterOption
-	AvailableWeeks    []models.ClinicianWeekOption
-	Tables            []models.FacilityPerformanceTable
-	ClearURL          string
-	CurrentURL        string
+	SelectedYear         int
+	SelectedMonth        int
+	SelectedWeek         int
+	SelectedFacility     int
+	SelectedDepartment   int
+	SelectedWeekLabel    string
+	AvailableYears       []int
+	AvailableMonths      []models.DashboardFilterOption
+	AvailableWeeks       []models.ClinicianWeekOption
+	AvailableFacilities  []models.DashboardFilterOption
+	AvailableDepartments []models.DashboardFilterOption
+	Tables               []models.FacilityPerformanceTable
+	ClearURL             string
+	CurrentURL           string
 }
 
 // HandlerAnalysisTables renders the facility-grouped staff performance tables page.
@@ -36,6 +40,8 @@ func HandlerAnalysisTables(c *gin.Context, db *sql.DB, sessionManager *scs.Sessi
 	requestedYear, hasYear := parseOptionalIntQuery(c, "year")
 	requestedMonth, hasMonth := parseOptionalIntQuery(c, "month")
 	requestedWeek, hasWeek := parseOptionalIntQuery(c, "week")
+	selectedFacility, _ := parseOptionalIntQuery(c, "facility")
+	selectedDepartment, _ := parseOptionalIntQuery(c, "department")
 
 	selectedYear, selectedMonth, selectedWeek,
 		availableYears, availableMonths, availableWeeks,
@@ -52,7 +58,21 @@ func HandlerAnalysisTables(c *gin.Context, db *sql.DB, sessionManager *scs.Sessi
 		return
 	}
 
-	tables, err := models.GetFacilityStaffPerformanceTables(c.Request.Context(), db, periodStart, periodEnd)
+	availableFacilities, err := models.GetDashboardFacilityOptions(c.Request.Context(), db)
+	if err != nil {
+		log.Println("HandlerAnalysisTables: GetDashboardFacilityOptions:", err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	availableDepartments, err := models.GetDashboardDepartmentOptions(c.Request.Context(), db, selectedFacility)
+	if err != nil {
+		log.Println("HandlerAnalysisTables: GetDashboardDepartmentOptions:", err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	tables, err := models.GetFacilityStaffPerformanceTables(c.Request.Context(), db, periodStart, periodEnd, selectedFacility, selectedDepartment)
 	if err != nil {
 		log.Println("HandlerAnalysisTables: GetFacilityStaffPerformanceTables:", err)
 		c.Status(http.StatusInternalServerError)
@@ -60,16 +80,20 @@ func HandlerAnalysisTables(c *gin.Context, db *sql.DB, sessionManager *scs.Sessi
 	}
 
 	view := AnalysisTablesView{
-		SelectedYear:      selectedYear,
-		SelectedMonth:     selectedMonth,
-		SelectedWeek:      selectedWeek,
-		SelectedWeekLabel: selectedWeekLabel,
-		AvailableYears:    availableYears,
-		AvailableMonths:   availableMonths,
-		AvailableWeeks:    availableWeeks,
-		Tables:            tables,
-		ClearURL:          "/analysis/tables",
-		CurrentURL:        c.Request.URL.RequestURI(),
+		SelectedYear:         selectedYear,
+		SelectedMonth:        selectedMonth,
+		SelectedWeek:         selectedWeek,
+		SelectedFacility:     selectedFacility,
+		SelectedDepartment:   selectedDepartment,
+		SelectedWeekLabel:    selectedWeekLabel,
+		AvailableYears:       availableYears,
+		AvailableMonths:      availableMonths,
+		AvailableWeeks:       availableWeeks,
+		AvailableFacilities:  availableFacilities,
+		AvailableDepartments: availableDepartments,
+		Tables:               tables,
+		ClearURL:             "/analysis/tables",
+		CurrentURL:           c.Request.URL.RequestURI(),
 	}
 
 	sessionData.Form = view

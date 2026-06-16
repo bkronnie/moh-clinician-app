@@ -5,28 +5,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clinician App Login</title>
+    <title>National Health Workers Digital Timesheet — Login</title>
     <link rel="stylesheet" href="/static/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/css/app-theme.css">
 </head>
-<body>
-    <div class="auth-shell">
-        <div class="auth-wrap">
-            <section class="auth-hero">
-                <div class="auth-eyebrow">Clinical Reporting</div>
-                <h1 class="auth-title">Consistent, clear reporting for referral facilities.</h1>
-                <p class="auth-copy">Access weekly outputs, staff activity, submissions, and leave records through a unified Ministry of Health workspace designed for desktop and handheld use.</p>
-                <ul class="auth-points">
-                    <li>Clean contrast and calm colors suitable for prolonged clinical administration work.</li>
-                    <li>Responsive layouts that remain readable on handheld devices and tablets.</li>
-                    <li>Structured navigation for dashboards, reports, departments, and staff records.</li>
-                </ul>
-            </section>
+<body class="login-page">
+    <div class="login-shell">
 
-            <section class="auth-card">
-                <div class="brand-mark">MOH</div>
-                <h3>Sign In</h3>
-                <p class="auth-muted">Use your assigned username and password to continue.</p>
+        <!-- Left panel -->
+        <div class="login-hero">
+            <div class="login-hero-top">
+                <div class="login-hero-brand">
+                    <img src="/static/img/emblem.png" alt="Uganda Coat of Arms" class="login-hero-emblem">
+                    <div class="login-hero-org">
+                        <span class="login-hero-country">Republic of Uganda</span>
+                        <span class="login-hero-name">Ministry of Health</span>
+                        <span class="login-hero-sub">National Health Workers Digital Timesheet</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="login-hero-body">
+                <h1 class="login-hero-headline">Secure access to connected health systems</h1>
+                <p class="login-hero-copy">Sign in once to access approved Ministry of Health applications, dashboards, and services.</p>
+                <ul class="login-hero-points">
+                    <li>Centralized authentication</li>
+                    <li>Role-based application access</li>
+                    <li>Session visibility and security controls</li>
+                </ul>
+            </div>
+
+            <div class="login-hero-footer">Protected system access</div>
+        </div>
+
+        <!-- Right panel -->
+        <div class="login-right">
+            <div class="login-card">
+                <div class="login-card-eyebrow">Account Access</div>
+                <h2 class="login-card-title">MoH</h2>
+                <p class="login-card-sub">Use your authorized account credentials to continue.</p>
+
                 {{ if .Message }}
                 <div class="alert alert-success" role="alert">{{ .Message }}</div>
                 {{ end }}
@@ -34,28 +52,27 @@
                 <div class="alert alert-danger" role="alert">{{ .Error }}</div>
                 {{ end }}
 
-                <form id="loginForm" class="auth-form" method="post" action="/login">
-                    <table>
-                        <tr>
-                            <td><label for="username">Username</label></td>
-                            <td><input type="text" id="username" name="username" required class="form-control form-control-sm" autocomplete="username"></td>
-                        </tr>
-                        <tr>
-                            <td><label for="password">Password</label></td>
-                            <td><input type="password" id="password" name="password" required class="form-control form-control-sm" autocomplete="current-password"></td>
-                        </tr>
-                    </table>
+                <form method="post" action="/login" class="login-form">
+                    <div class="login-field">
+                        <label for="username">Email</label>
+                        <input type="text" id="username" name="username" required class="login-input" autocomplete="username" placeholder="">
+                    </div>
 
-                    <div class="auth-actions">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                    <div class="login-field">
+                        <div class="login-field-header">
+                            <label for="password">Password</label>
+                            <a href="/forgot" class="login-forgot">Forgot Password?</a>
+                        </div>
+                        <input type="password" id="password" name="password" required class="login-input" autocomplete="current-password" placeholder="">
                     </div>
-                    <div class="auth-link-row">
-                        <a href="/forgot">Forgot Password?</a>
-                        <a href="/register">Create clinician account</a>
-                    </div>
+
+                    <button type="submit" class="login-btn">Sign In</button>
                 </form>
-            </section>
+
+                <p class="login-legal">Unauthorized access is prohibited. Activity may be monitored and audited.</p>
+            </div>
         </div>
+
     </div>
     <script src="/static/js/jquery.min.js"></script>
 </body>

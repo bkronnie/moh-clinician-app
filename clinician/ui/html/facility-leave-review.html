@@ -29,116 +29,92 @@
     </div>
 
     <div class="app-list-panel">
-    <div class="app-list-grid facility-leave-review-grid">
-        <div class="app-list-grid-header">
-            <div>Staff</div>
-            <div>Department / Type</div>
-            <div>Leave Period</div>
-            <div>Submitted</div>
-            <div>Status</div>
-            <div>Actions</div>
-        </div>
+    <div class="app-table-scroll mt-2">
+    <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Staff</th>
+                <th>Department / Type</th>
+                <th>Leave Period</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
         {{ if .Form.Rows }}
-            {{ range .Form.Rows }}
-            {{ $status := .LeaveStatus.String }}
-            <div class="app-list-grid-row">
-                <div class="app-list-cell">
-                    <strong>{{ .EmployeeName }}</strong>
-                    <span>Request ID {{ .ID }}</span>
-                </div>
-                <div class="app-list-cell">
-                    <strong>{{ .DepartmentName }}</strong>
-                    <span>{{ .LeaveTypeName }}</span>
-                </div>
-                <div class="app-list-cell">
-                    <strong>
-                        {{ if and .StartDate.Valid .EndDate.Valid }}
-                        {{ .StartDate.Time.Format "02 Jan 2006" }} - {{ .EndDate.Time.Format "02 Jan 2006" }}
-                        {{ else }}
-                        -
-                        {{ end }}
-                    </strong>
-                    <span>{{ if .Comments.Valid }}{{ .Comments.String }}{{ else }}No comments{{ end }}</span>
-                </div>
-                <div class="app-list-cell">
-                    <strong>{{ if .SubmissionDate.Valid }}{{ humanDate .SubmissionDate.Time }}{{ else }}-{{ end }}</strong>
-                    <span>Submitted on</span>
-                </div>
-                <div>
+            {{ range $i, $row := .Form.Rows }}
+            {{ $status := $row.LeaveStatus.String }}
+            <tr>
+                <td class="text-center">{{ add1 $i }}</td>
+                <td>
+                    <strong>{{ $row.EmployeeName }}</strong>
+                    <small class="text-muted d-block">Request ID {{ $row.ID }}</small>
+                </td>
+                <td>
+                    <strong>{{ $row.DepartmentName }}</strong>
+                    <small class="text-muted d-block">{{ $row.LeaveTypeName }}</small>
+                </td>
+                <td>
+                    {{ if and $row.StartDate.Valid $row.EndDate.Valid }}
+                    {{ $row.StartDate.Time.Format "02 Jan 2006" }} &ndash; {{ $row.EndDate.Time.Format "02 Jan 2006" }}
+                    {{ else }}-{{ end }}
+                    {{ if $row.Comments.Valid }}<small class="text-muted d-block">{{ $row.Comments.String }}</small>{{ end }}
+                </td>
+                <td>{{ if $row.SubmissionDate.Valid }}{{ humanDate $row.SubmissionDate.Time }}{{ else }}-{{ end }}</td>
+                <td>
                     <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Approved") (eq $status "Valid") }}approved{{ else if or (eq $status "Rejected") (eq $status "Declined") }}declined{{ else if or (eq $status "Completed") (eq $status "Expired") }}completed{{ end }}">
                         {{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else if eq $status "Expired" }}Completed{{ else }}{{ $status }}{{ end }}
                     </span>
-                    {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) .ReviewedOn.Valid }}
-                    <span class="d-block text-muted small mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate .ReviewedOn.Time }}</span>
+                    {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) $row.ReviewedOn.Valid }}
+                    <small class="d-block text-muted mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate $row.ReviewedOn.Time }}</small>
                     {{ end }}
-                </div>
-                <div class="app-row-actions">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#leave-details-{{ .ID }}" aria-expanded="false" aria-controls="leave-details-{{ .ID }}">View</button>
-                    {{ if .Actionable }}
-                    <form method="post" action="/leave/review/{{ .ID }}/approve">
+                </td>
+                <td class="app-row-actions" style="white-space:nowrap;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#leave-details-{{ $row.ID }}" aria-expanded="false" aria-controls="leave-details-{{ $row.ID }}">View</button>
+                    {{ if $row.Actionable }}
+                    <form method="post" action="/leave/review/{{ $row.ID }}/approve" style="display:inline;">
                         <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
                         <button class="btn btn-sm btn-outline-success" type="submit">Approve</button>
                     </form>
-                    <form method="post" action="/leave/review/{{ .ID }}/decline" onsubmit="return confirm('Decline this leave request?');">
+                    <form method="post" action="/leave/review/{{ $row.ID }}/decline" onsubmit="return confirm('Decline this leave request?');" style="display:inline;">
                         <input type="hidden" name="return_to" value="{{ $.Form.CurrentURL }}">
                         <button class="btn btn-sm btn-outline-danger" type="submit">Decline</button>
                     </form>
                     {{ else }}
-                    <span class="text-muted">No actions available</span>
+                    <span class="text-muted">No actions</span>
                     {{ end }}
-                </div>
-            </div>
-            <div id="leave-details-{{ .ID }}" class="app-list-grid-row leave-details-row collapse">
+                </td>
+            </tr>
+            <tr id="leave-details-{{ $row.ID }}" class="leave-details-row collapse">
+                <td colspan="7">
                 <div class="leave-details-card">
                     <div class="leave-details-title">Leave request details</div>
                     <div class="leave-details-grid">
-                        <div>
-                            <strong>Request ID</strong>
-                            <span>{{ .ID }}</span>
-                        </div>
-                        <div>
-                            <strong>Staff</strong>
-                            <span>{{ .EmployeeName }}</span>
-                        </div>
-                        <div>
-                            <strong>Department</strong>
-                            <span>{{ .DepartmentName }}</span>
-                        </div>
-                        <div>
-                            <strong>Leave Type</strong>
-                            <span>{{ .LeaveTypeName }}</span>
-                        </div>
-                        <div>
-                            <strong>Start Date</strong>
-                            <span>{{ if .StartDate.Valid }}{{ .StartDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span>
-                        </div>
-                        <div>
-                            <strong>End Date</strong>
-                            <span>{{ if .EndDate.Valid }}{{ .EndDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span>
-                        </div>
-                        <div>
-                            <strong>Status</strong>
-                            <span>{{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else if eq $status "Expired" }}Completed{{ else }}{{ $status }}{{ end }}</span>
-                        </div>
-                        <div>
-                            <strong>Reviewed On</strong>
-                            <span>{{ if .ReviewedOn.Valid }}{{ humanDate .ReviewedOn.Time }}{{ else }}Pending review{{ end }}</span>
-                        </div>
-                        <div>
-                            <strong>Reviewed By</strong>
-                            <span>{{ if .ApprovedByName.Valid }}{{ .ApprovedByName.String }}{{ else }}Pending review{{ end }}</span>
-                        </div>
+                        <div><strong>Request ID</strong><span>{{ $row.ID }}</span></div>
+                        <div><strong>Staff</strong><span>{{ $row.EmployeeName }}</span></div>
+                        <div><strong>Department</strong><span>{{ $row.DepartmentName }}</span></div>
+                        <div><strong>Leave Type</strong><span>{{ $row.LeaveTypeName }}</span></div>
+                        <div><strong>Start Date</strong><span>{{ if $row.StartDate.Valid }}{{ $row.StartDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span></div>
+                        <div><strong>End Date</strong><span>{{ if $row.EndDate.Valid }}{{ $row.EndDate.Time.Format "02 Jan 2006" }}{{ else }}-{{ end }}</span></div>
+                        <div><strong>Status</strong><span>{{ if eq $status "Rejected" }}Declined{{ else if eq $status "Valid" }}Approved{{ else if eq $status "Expired" }}Completed{{ else }}{{ $status }}{{ end }}</span></div>
+                        <div><strong>Reviewed On</strong><span>{{ if $row.ReviewedOn.Valid }}{{ humanDate $row.ReviewedOn.Time }}{{ else }}Pending review{{ end }}</span></div>
+                        <div><strong>Reviewed By</strong><span>{{ if $row.ApprovedByName.Valid }}{{ $row.ApprovedByName.String }}{{ else }}Pending review{{ end }}</span></div>
                     </div>
                     <div class="leave-details-comments">
                         <strong>Comments</strong>
                         <p>{{ if .Comments.Valid }}{{ .Comments.String }}{{ else }}No comments provided.{{ end }}</p>
                     </div>
                 </div>
-            </div>
+                </td>
+            </tr>
             {{ end }}
         {{ else }}
-        <div class="app-list-empty">No leave requests found for this selection.</div>
+        <tr><td colspan="7" class="text-center text-muted">No leave requests found for this selection.</td></tr>
         {{ end }}
+        </tbody>
+    </table>
     </div>
     </div>
 {{ end }}

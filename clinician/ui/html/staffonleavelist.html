@@ -21,47 +21,46 @@
     </div>
 
     <div class="app-list-panel">
-        <div class="app-list-grid staff-leave-grid">
-            <div class="app-list-grid-header">
-                <div>Staff</div>
-                <div>Title</div>
-                <div>Department</div>
-                <div>Status</div>
-                <div>Returning</div>
-                <div>Actions</div>
-            </div>
+        <div class="app-table-scroll mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Staff</th>
+                    <th>Cadre</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Returning</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
             {{ if .Form }}
-                {{ range $employee := .Form }}
-                <div class="app-list-grid-row">
-                    <div class="app-list-cell">
+                {{ range $i, $employee := .Form }}
+                <tr>
+                    <td class="text-center">{{ add1 $i }}</td>
+                    <td>
                         <strong>{{ $employee.Fname.String }} {{ $employee.Lname.String }} {{ $employee.Oname.String }}</strong>
-                        <span>Employee ID {{ $employee.EmpID }}</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ $employee.EmpTitle.String }}</strong>
-                        <span>Staff title</span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ $employee.EmpDepartmentName.String }}</strong>
-                        <span>{{ .Ses.HFName }}</span>
-                    </div>
-                    <div>
+                        <small class="text-muted d-block">ID {{ $employee.EmpID }}</small>
+                    </td>
+                    <td>{{ $employee.EmpTitle.String }}</td>
+                    <td>{{ $employee.EmpDepartmentName.String }}</td>
+                    <td>
                         <span class="status-chip {{ if eq $employee.LeaveStatus.String "Valid" }}valid{{ else if eq $employee.LeaveStatus.String "Pending" }}pending{{ else }}completed{{ end }}">
                             {{ $employee.LeaveStatus.String }}
                         </span>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ formatDate $employee.ReturnDate.Time "2 Jan 06" }}</strong>
-                        <span>Expected return</span>
-                    </div>
-                    <div class="app-row-actions">
+                    </td>
+                    <td>{{ formatDate $employee.ReturnDate.Time "2 Jan 06" }}</td>
+                    <td>
                         <a href="/employee/{{ $employee.EmpID }}/leave/history?return_to={{ urlquery "/employee/leave/staffonleave" }}" class="btn btn-sm btn-outline-primary">Leave History</a>
-                    </div>
-                </div>
+                    </td>
+                </tr>
                 {{ end }}
             {{ else }}
-            <div class="app-list-empty">No employees found.</div>
+            <tr><td colspan="7" class="text-center text-muted">No employees found.</td></tr>
             {{ end }}
+            </tbody>
+        </table>
         </div>
     </div>
 </div>

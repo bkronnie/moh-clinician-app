@@ -7,45 +7,60 @@
 
     {{/* ── Period filter ─────────────────────────────────────── */}}
     <div class="app-list-panel">
-        <form class="filter-form dashboard-auto-submit" method="GET" action="/analysis/tables">
-            <div class="form-row align-items-end">
+        <form id="analysisFilterForm" class="filter-form dashboard-inline-filters" method="GET" action="/analysis/tables">
+            <span class="inline-filters-label">Filters:</span>
 
-                <div class="form-group col-auto">
-                    <label for="yearSel">Year</label>
-                    <select id="yearSel" name="year" class="form-control form-control-sm">
-                        <option value="">All</option>
-                        {{ range .Form.AvailableYears }}
-                        <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ . }}</option>
-                        {{ end }}
-                    </select>
-                </div>
+            <span class="inline-filter-field">
+                <label for="yearSel">Year:</label>
+                <select id="yearSel" name="year">
+                    <option value="" {{ if eq 0 $.Form.SelectedYear }}selected{{ end }}>All</option>
+                    {{ range .Form.AvailableYears }}{{ if ne . 0 }}
+                    <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ . }}</option>
+                    {{ end }}{{ end }}
+                </select>
+            </span>
 
-                <div class="form-group col-auto">
-                    <label for="monthSel">Month</label>
-                    <select id="monthSel" name="month" class="form-control form-control-sm">
-                        <option value="">All</option>
-                        {{ range .Form.AvailableMonths }}
-                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
-                        {{ end }}
-                    </select>
-                </div>
+            <span class="inline-filter-field">
+                <label for="monthSel">Month:</label>
+                <select id="monthSel" name="month">
+                    <option value="">All</option>
+                    {{ range .Form.AvailableMonths }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </span>
 
-                <div class="form-group col-auto">
-                    <label for="weekSel">Week</label>
-                    <select id="weekSel" name="week" class="form-control form-control-sm">
-                        <option value="">All</option>
-                        {{ range .Form.AvailableWeeks }}
-                        <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
-                        {{ end }}
-                    </select>
-                </div>
+            <span class="inline-filter-field">
+                <label for="weekSel">Week:</label>
+                <select id="weekSel" name="week">
+                    <option value="">All</option>
+                    {{ range .Form.AvailableWeeks }}
+                    <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
+                    {{ end }}
+                </select>
+            </span>
 
-                <div class="form-group col-auto">
-                    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                    <a href="{{ .Form.ClearURL }}" class="btn btn-outline-secondary btn-sm ml-1">Clear</a>
-                </div>
+            <span class="inline-filter-field">
+                <label for="facilitySel">Facility:</label>
+                <select id="facilitySel" name="facility">
+                    <option value="">All facilities</option>
+                    {{ range .Form.AvailableFacilities }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </span>
 
-            </div>
+            <span class="inline-filter-field">
+                <label for="deptSel">Department:</label>
+                <select id="deptSel" name="department">
+                    <option value="">All departments</option>
+                    {{ range .Form.AvailableDepartments }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </span>
+
+            <a class="inline-filter-clear" href="{{ .Form.ClearURL }}">Clear</a>
         </form>
         {{ if .Form.SelectedWeekLabel }}
         <p class="mt-1 mb-0 text-muted" style="font-size:0.85rem;">Showing data for: <strong>{{ .Form.SelectedWeekLabel }}</strong></p>
@@ -72,38 +87,58 @@
 
         {{ if .Rows }}
         <div class="app-table-scroll mt-2">
-            <table class="table table-sm table-hover mb-0">
+            <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
                 <thead>
-                    <tr>
-                        <th>Staff Member</th>
-                        <th>Title</th>
-                        <th>Department</th>
-                        <th class="text-right">Days Worked</th>
-                        <th class="text-right">Ward Rounds</th>
-                        <th class="text-right">Patients Reviewed</th>
-                        <th class="text-right">Procedures</th>
+                    <tr class="text-center">
+                        <th rowspan="2" class="align-middle">#</th>
+                        <th rowspan="2" class="align-middle">Department</th>
+                        <th rowspan="2" class="align-middle">Name of Specialist / Medical Officer</th>
+                        <th rowspan="2" class="align-middle">Days<br>Worked</th>
+                        <th colspan="2"># of Ward Rounds</th>
+                        <th colspan="2">Surgeries / Procedures</th>
+                        <th rowspan="2" class="align-middle">OPD Clinics</th>
+                        <th rowspan="2" class="align-middle">Teaching<br>Rounds</th>
+                        <th colspan="2">Diagnostic Tests</th>
+                    </tr>
+                    <tr class="text-center">
+                        <th>Major</th>
+                        <th>Routine</th>
+                        <th>Major</th>
+                        <th>Minor</th>
+                        <th>X-rays</th>
+                        <th>CT Scans</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {{ range .Rows }}
+                    {{ range $i, $r := .Rows }}
                     <tr>
-                        <td>{{ .EmployeeName }}</td>
-                        <td>{{ if .Title }}{{ .Title }}{{ else }}<span class="text-muted">—</span>{{ end }}</td>
-                        <td>{{ if .Department }}{{ .Department }}{{ else }}<span class="text-muted">—</span>{{ end }}</td>
-                        <td class="text-right">{{ .DaysWorked }}</td>
-                        <td class="text-right">{{ .WardRounds }}</td>
-                        <td class="text-right">{{ .PatientsReviewed }}</td>
-                        <td class="text-right">{{ .Procedures }}</td>
+                        <td class="text-center">{{ add1 $i }}</td>
+                        <td>{{ if $r.Department }}{{ $r.Department }}{{ else }}<span class="text-muted">—</span>{{ end }}</td>
+                        <td>{{ $r.EmployeeName }}{{ if $r.Title }} <small class="text-muted">({{ $r.Title }})</small>{{ end }}</td>
+                        <td class="text-center">{{ $r.DaysWorked }}</td>
+                        <td class="text-center">{{ $r.WardRoundsMajor }}</td>
+                        <td class="text-center">{{ $r.WardRoundsRoutine }}</td>
+                        <td class="text-center">{{ $r.MajorSurgeries }}</td>
+                        <td class="text-center">{{ $r.MinorSurgeries }}</td>
+                        <td class="text-center">{{ $r.OPDClinics }}</td>
+                        <td class="text-center">{{ $r.TeachingRounds }}</td>
+                        <td class="text-center">{{ $r.XRays }}</td>
+                        <td class="text-center">{{ $r.CTScans }}</td>
                     </tr>
                     {{ end }}
                 </tbody>
                 <tfoot>
-                    <tr class="font-weight-bold">
-                        <td colspan="3">Total</td>
-                        <td class="text-right">{{ .TotalDays }}</td>
-                        <td class="text-right">{{ .TotalWardRounds }}</td>
-                        <td class="text-right">{{ .TotalPatients }}</td>
-                        <td class="text-right">{{ .TotalProcedures }}</td>
+                    <tr class="font-weight-bold text-center">
+                        <td colspan="3" class="text-left">Total</td>
+                        <td>{{ .TotalDays }}</td>
+                        <td>{{ .TotalWardRoundsMajor }}</td>
+                        <td>{{ .TotalWardRoundsRoutine }}</td>
+                        <td>{{ .TotalMajorSurgeries }}</td>
+                        <td>{{ .TotalMinorSurgeries }}</td>
+                        <td>{{ .TotalOPDClinics }}</td>
+                        <td>{{ .TotalTeachingRounds }}</td>
+                        <td>{{ .TotalXRays }}</td>
+                        <td>{{ .TotalCTScans }}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -115,4 +150,13 @@
     {{ end }}
 
 </div>
+<script>
+(function () {
+    var form = document.getElementById('analysisFilterForm');
+    if (!form) return;
+    form.querySelectorAll('select').forEach(function (sel) {
+        sel.addEventListener('change', function () { form.submit(); });
+    });
+})();
+</script>
 {{ end }}

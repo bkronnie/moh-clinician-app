@@ -2166,43 +2166,58 @@ func averageInt(total int, count int) int {
 
 // StaffPerformanceRow holds per-staff aggregated metrics for the Analysis Tables page.
 type StaffPerformanceRow struct {
-	EmployeeID       int
-	EmployeeName     string
-	Title            string
-	Department       string
-	DaysWorked       int
-	WardRounds       int
-	PatientsReviewed int
-	Procedures       int
+	EmployeeID        int
+	EmployeeName      string
+	Title             string
+	Department        string
+	DaysWorked        int
+	WardRoundsMajor   int
+	WardRoundsRoutine int
+	MajorSurgeries    int
+	MinorSurgeries    int
+	OPDClinics        int
+	TeachingRounds    int
+	XRays             int
+	CTScans           int
 }
 
 // FacilityPerformanceTable holds a facility's header and its staff performance rows.
 type FacilityPerformanceTable struct {
-	FacilityID      int
-	FacilityName    string
-	Rows            []StaffPerformanceRow
-	TotalDays       int
-	TotalWardRounds int
-	TotalPatients   int
-	TotalProcedures int
+	FacilityID             int
+	FacilityName           string
+	Rows                   []StaffPerformanceRow
+	TotalDays              int
+	TotalWardRoundsMajor   int
+	TotalWardRoundsRoutine int
+	TotalMajorSurgeries    int
+	TotalMinorSurgeries    int
+	TotalOPDClinics        int
+	TotalTeachingRounds    int
+	TotalXRays             int
+	TotalCTScans           int
 }
 
 // GetFacilityStaffPerformanceTables returns one FacilityPerformanceTable per facility,
-// each containing per-staff aggregates for the 4 core metrics across the given date range.
-// Pass zero-value times to query all records.
-func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodStart, periodEnd time.Time) ([]FacilityPerformanceTable, error) {
+// each containing per-staff aggregates across the given date range.
+// Pass zero-value times to query all records. Pass 0 for facilityID/departmentID to skip those filters.
+func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodStart, periodEnd time.Time, facilityID, departmentID int) ([]FacilityPerformanceTable, error) {
 	const sqlstr = `
 		SELECT
-			f.id                                                                    AS facility_id,
-			f.f_name                                                               AS facility_name,
-			e.id                                                                   AS employee_id,
-			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, '')))       AS employee_name,
-			COALESCE(st.title, '')                                                 AS title,
-			COALESCE(d.d_name, '')                                                 AS department,
-			COALESCE(SUM(COALESCE(w.attendance, 0)), 0)                           AS days_worked,
-			COALESCE(SUM(COALESCE(w.ward_rounds, 0)), 0)                          AS ward_rounds,
-			COALESCE(SUM(COALESCE(w.patients_reviewed, 0)), 0)                    AS patients_reviewed,
-			COALESCE(SUM(COALESCE(w.elective, 0) + COALESCE(w.emergency, 0)), 0) AS procedures
+			f.id                                                                      AS facility_id,
+			f.f_name                                                                 AS facility_name,
+			e.id                                                                     AS employee_id,
+			TRIM(CONCAT(COALESCE(e.fname, ''), ' ', COALESCE(e.lname, '')))         AS employee_name,
+			COALESCE(st.title, '')                                                   AS title,
+			COALESCE(d.d_name, '')                                                   AS department,
+			COALESCE(SUM(COALESCE(w.attendance, 0)), 0)                             AS days_worked,
+			COALESCE(SUM(COALESCE(w.ward_rounds, 0)), 0)                            AS ward_rounds_major,
+			0                                                                        AS ward_rounds_routine,
+			COALESCE(SUM(COALESCE(w.elective, 0)), 0)                               AS major_surgeries,
+			COALESCE(SUM(COALESCE(w.emergency, 0)), 0)                              AS minor_surgeries,
+			COALESCE(SUM(COALESCE(w.opd_clinics, 0)), 0)                            AS opd_clinics,
+			COALESCE(SUM(COALESCE(w.teaching_rounds, 0)), 0)                        AS teaching_rounds,
+			COALESCE(SUM(COALESCE(w.xrays, 0)), 0)                                 AS xrays,
+			COALESCE(SUM(COALESCE(w.ct_scans, 0)), 0)                              AS ct_scans
 		FROM clinician_app.facilities f
 		JOIN clinician_app.employees e ON e.facility = f.id
 		LEFT JOIN clinician_app.specialist_titles st ON st.id = e.title
@@ -2211,6 +2226,8 @@ func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodSt
 			ON w.employee = e.id
 			AND ($1::date IS NULL OR w.start >= $1::date)
 			AND ($2::date IS NULL OR w.start <= $2::date)
+		WHERE ($3 = 0 OR f.id = $3)
+		  AND ($4 = 0 OR e.department = $4)
 		GROUP BY f.id, f.f_name, e.id, e.fname, e.lname, st.title, d.d_name
 		ORDER BY f.f_name, employee_name
 	`
@@ -2223,7 +2240,7 @@ func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodSt
 		end = periodEnd.Format("2006-01-02")
 	}
 
-	rows, err := db.QueryContext(ctx, sqlstr, start, end)
+	rows, err := db.QueryContext(ctx, sqlstr, start, end, facilityID, departmentID)
 	if err != nil {
 		return nil, err
 	}
@@ -2244,9 +2261,14 @@ func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodSt
 			&row.Title,
 			&row.Department,
 			&row.DaysWorked,
-			&row.WardRounds,
-			&row.PatientsReviewed,
-			&row.Procedures,
+			&row.WardRoundsMajor,
+			&row.WardRoundsRoutine,
+			&row.MajorSurgeries,
+			&row.MinorSurgeries,
+			&row.OPDClinics,
+			&row.TeachingRounds,
+			&row.XRays,
+			&row.CTScans,
 		); err != nil {
 			return nil, err
 		}
@@ -2263,9 +2285,14 @@ func GetFacilityStaffPerformanceTables(ctx context.Context, db *sql.DB, periodSt
 
 		tables[idx].Rows = append(tables[idx].Rows, row)
 		tables[idx].TotalDays += row.DaysWorked
-		tables[idx].TotalWardRounds += row.WardRounds
-		tables[idx].TotalPatients += row.PatientsReviewed
-		tables[idx].TotalProcedures += row.Procedures
+		tables[idx].TotalWardRoundsMajor += row.WardRoundsMajor
+		tables[idx].TotalWardRoundsRoutine += row.WardRoundsRoutine
+		tables[idx].TotalMajorSurgeries += row.MajorSurgeries
+		tables[idx].TotalMinorSurgeries += row.MinorSurgeries
+		tables[idx].TotalOPDClinics += row.OPDClinics
+		tables[idx].TotalTeachingRounds += row.TeachingRounds
+		tables[idx].TotalXRays += row.XRays
+		tables[idx].TotalCTScans += row.CTScans
 	}
 
 	return tables, rows.Err()

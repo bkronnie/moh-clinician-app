@@ -15,47 +15,13 @@
 
 {{ define "content" }}
 <div class="dashboard-grid">
-    {{ if and .Form.FilterFields (not .Form.Tabs) }}
-    {{/* No tab strip to host the inline filters — render them in their own row. */}}
-    <form
-        class="dashboard-inline-filters dashboard-auto-submit"
-        method="GET"
-        action="/"
-        id="{{ .Form.FilterFormID }}">
-        <input type="hidden" name="tab" value="{{ .Form.ActiveTab }}">
-        <span class="inline-filters-label">Filters:</span>
-        {{ range .Form.FilterFields }}
-        {{ $field := . }}
-        <span class="inline-filter-field">
-            <label for="{{ .ID }}">{{ .Label }}:</label>
-            <select id="{{ .ID }}" name="{{ .Name }}">
-                {{ range .Options }}
-                <option value="{{ .Value }}" {{ if eq .Value $field.Selected }}selected{{ end }}>{{ .Label }}</option>
-                {{ end }}
-            </select>
-        </span>
-        {{ end }}
-        {{ if .Form.ClearFiltersURL }}
-        <a class="inline-filter-clear" href="{{ .Form.ClearFiltersURL }}">Clear</a>
-        {{ end }}
-    </form>
-    {{ end }}
-
-
-    {{ if .Form.Tabs }}
-    <div class="dashboard-tabs-row">
-        <div class="dashboard-tabs section-tabs">
-            {{ range .Form.Tabs }}
-            <a href="{{ .URL }}" class="nav-link {{ if eq $.Form.ActiveTab .ID }}active{{ end }}">{{ .Label }}</a>
-            {{ end }}
-        </div>
-        {{ if .Form.FilterFields }}
+    {{ if .Form.FilterFields }}
+    <div class="app-list-panel" style="grid-column:1/-1;">
         <form
             class="dashboard-inline-filters dashboard-auto-submit"
             method="GET"
             action="/"
             id="{{ .Form.FilterFormID }}">
-            <input type="hidden" name="tab" value="{{ .Form.ActiveTab }}">
             <span class="inline-filters-label">Filters:</span>
             {{ range .Form.FilterFields }}
             {{ $field := . }}
@@ -72,12 +38,10 @@
             <a class="inline-filter-clear" href="{{ .Form.ClearFiltersURL }}">Clear</a>
             {{ end }}
         </form>
-        {{ end }}
     </div>
     {{ end }}
 
-    {{ if eq .Form.ActiveTab "overview" }}
-        {{ if .Form.KPIs }}
+    {{ if .Form.KPIs }}
         {{ $lastGroup := "" }}
         {{ $hasGroups := false }}
         {{ range .Form.KPIs }}{{ if .Group }}{{ $hasGroups = true }}{{ end }}{{ end }}
@@ -130,7 +94,6 @@
             {{ end }}
         </div>
         {{ end }}
-        {{ end }}
 
         {{ if .Form.OverviewCharts }}
         <div class="dashboard-chart-grid">
@@ -158,7 +121,6 @@
 
     {{ if .Form.SummarySections }}
         {{ range .Form.SummarySections }}
-        {{ if eq $.Form.ActiveTab .TabID }}
         <div class="dashboard-section">
             <div class="section-title">{{ .Title }}</div>
             {{ if .Subtitle }}<p class="section-subtitle">{{ .Subtitle }}</p>{{ end }}
@@ -187,12 +149,10 @@
             </div>
         </div>
         {{ end }}
-        {{ end }}
     {{ end }}
 
     {{ if .Form.DetailSections }}
         {{ range .Form.DetailSections }}
-            {{ if eq $.Form.ActiveTab .TabID }}
             {{ if .Rows }}
             <div class="dashboard-section">
                 <div class="section-title">{{ .Title }}</div>
@@ -227,7 +187,6 @@
                     {{ end }}
                 </div>
             </div>
-            {{ end }}
             {{ end }}
         {{ end }}
     {{ end }}

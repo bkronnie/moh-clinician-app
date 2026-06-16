@@ -32,61 +32,61 @@ Leave History
     </div>
 
     <div class="app-list-panel">
-    <div class="app-list-grid leave-history-grid">
-        <div class="app-list-grid-header">
-            <div>Leave Type</div>
-            <div>Leave Period</div>
-            <div>Submitted</div>
-            <div>Status</div>
-            <div>Actions</div>
-        </div>
+    <div class="app-table-scroll mt-2">
+    <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Leave Type</th>
+                <th>Leave Period</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
         {{ if .Form.Rows }}
-            {{ range .Form.Rows }}
-            {{ $status := .LeaveStatus.String }}
-            <div class="app-list-grid-row">
-                <div class="app-list-cell">
-                    <strong>{{ if .LeaveTypeName.Valid }}{{ .LeaveTypeName.String }}{{ else }}Office Leave{{ end }}</strong>
-                    <span>Application ID {{ .ID }}</span>
-                </div>
-                <div class="app-list-cell">
-                    <strong>
-                        {{ if and .StartDate.Valid .EndDate.Valid }}
-                        {{ .StartDate.Time.Format "02 Jan 2006" }} - {{ .EndDate.Time.Format "02 Jan 2006" }}
-                        {{ else }}
-                        -
-                        {{ end }}
-                    </strong>
-                    <span>{{ if .Comments.Valid }}{{ .Comments.String }}{{ else }}No comments{{ end }}</span>
-                </div>
-                <div class="app-list-cell">
-                    <strong>{{ if .SubmissionDate.Valid }}{{ humanDate .SubmissionDate.Time }}{{ else }}-{{ end }}</strong>
-                    <span>Submitted on</span>
-                </div>
-                <div>
+            {{ range $i, $row := .Form.Rows }}
+            {{ $status := $row.LeaveStatus.String }}
+            <tr>
+                <td class="text-center">{{ add1 $i }}</td>
+                <td>
+                    <strong>{{ if $row.LeaveTypeName.Valid }}{{ $row.LeaveTypeName.String }}{{ else }}Office Leave{{ end }}</strong>
+                    <small class="text-muted d-block">ID {{ $row.ID }}</small>
+                </td>
+                <td>
+                    {{ if and $row.StartDate.Valid $row.EndDate.Valid }}
+                    {{ $row.StartDate.Time.Format "02 Jan 2006" }} &ndash; {{ $row.EndDate.Time.Format "02 Jan 2006" }}
+                    {{ else }}-{{ end }}
+                    {{ if $row.Comments.Valid }}<small class="text-muted d-block">{{ $row.Comments.String }}</small>{{ end }}
+                </td>
+                <td>{{ if $row.SubmissionDate.Valid }}{{ humanDate $row.SubmissionDate.Time }}{{ else }}-{{ end }}</td>
+                <td>
                     <span class="status-chip {{ if eq $status "Pending" }}pending{{ else if or (eq $status "Valid") (eq $status "Approved") }}valid{{ else if or (eq $status "Completed") (eq $status "Expired") }}completed{{ else if eq $status "Rejected" }}rejected{{ end }}">
-                        {{ if eq $status "Expired" }}Completed{{ else if .LeaveStatus.Valid }}{{ .LeaveStatus.String }}{{ else }}-{{ end }}
+                        {{ if eq $status "Expired" }}Completed{{ else if $row.LeaveStatus.Valid }}{{ $row.LeaveStatus.String }}{{ else }}-{{ end }}
                     </span>
-                    {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) .ReviewedOn.Valid }}
-                    <span class="d-block text-muted small mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate .ReviewedOn.Time }}</span>
+                    {{ if and (or (eq $status "Approved") (eq $status "Valid") (eq $status "Rejected") (eq $status "Declined")) $row.ReviewedOn.Valid }}
+                    <small class="d-block text-muted mt-1">{{ if or (eq $status "Approved") (eq $status "Valid") }}Approved{{ else }}Declined{{ end }} on {{ humanDate $row.ReviewedOn.Time }}</small>
                     {{ end }}
-                </div>
-                <div class="app-row-actions">
-                    {{ if and (hasRole $ "Staff") .LeaveStatus.Valid (eq .LeaveStatus.String "Pending") }}
-                    <a href="/leave/edit/{{ .ID }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                    <form action="/leave/delete/{{ .ID }}" method="POST" onsubmit="return confirm('Delete this pending leave application?');">
+                </td>
+                <td class="app-row-actions" style="white-space:nowrap;">
+                    {{ if and (hasRole $ "Staff") $row.LeaveStatus.Valid (eq $row.LeaveStatus.String "Pending") }}
+                    <a href="/leave/edit/{{ $row.ID }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                    <form action="/leave/delete/{{ $row.ID }}" method="POST" onsubmit="return confirm('Delete this pending leave application?');" style="display:inline;">
                         <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                     </form>
                     {{ else }}
                     <span class="text-muted">No actions available</span>
                     {{ end }}
-                </div>
-            </div>
+                </td>
+            </tr>
             {{ end }}
         {{ else }}
-        <div class="app-list-empty">No leave records found.</div>
+        <tr><td colspan="6" class="text-center text-muted">No leave records found.</td></tr>
         {{ end }}
+        </tbody>
+    </table>
     </div>
-</div>
     </div>
 {{ end }}
 

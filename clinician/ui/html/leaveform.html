@@ -38,7 +38,7 @@ Office Leave
         </div>
         {{ end }}
 
-        <form id="leaveForm" action="{{ if $form.ActionURL }}{{ $form.ActionURL }}{{ else if hasRole . "Staff" }}/leave/save{{ else }}/employee/leave/save{{ end }}" method="POST">
+        <form id="leaveForm" action="{{ if $form.ActionURL }}{{ $form.ActionURL }}{{ else if hasRole . "Staff" }}/leave/save{{ else }}/employee/leave/save{{ end }}" method="POST" enctype="multipart/form-data">
             <div class="leave-form-grid">
                 {{ if hasRole . "Staff" }}
                 <input type="hidden" id="employee_id" name="employee_id" value="{{ $ses.EmpID }}">
@@ -77,6 +77,29 @@ Office Leave
                 <div class="leave-field leave-field-wide">
                     <label for="comments">Comments</label>
                     <textarea id="comments" name="comments" class="form-control" placeholder="Add any handover or supporting notes for this leave request.">{{ if and $form.Leave $form.Leave.Comments.Valid }}{{ $form.Leave.Comments.String }}{{ end }}</textarea>
+                </div>
+
+                <div class="leave-field leave-field-wide">
+                    <label for="documents">Supporting Documents <small class="text-muted">(optional &mdash; PDF, Word, JPG or PNG, max 10 MB each)</small></label>
+                    <input type="file" id="documents" name="documents" class="form-control" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                    {{ if $form.Documents }}
+                    <div class="leave-documents mt-2">
+                        <p class="mb-1" style="font-size:0.85rem;font-weight:600;">Attached documents:</p>
+                        <ul class="leave-doc-list">
+                            {{ range $form.Documents }}
+                            <li class="leave-doc-item">
+                                <a href="/leave/{{ $form.Leave.ID }}/documents/{{ .DocID }}" class="leave-doc-name" target="_blank" rel="noopener">
+                                    {{ .OriginalName }}
+                                </a>
+                                <span class="leave-doc-meta text-muted">{{ .UploadedAt.Format "02 Jan 2006" }}</span>
+                                <form method="post" action="/leave/{{ $form.Leave.ID }}/documents/{{ .DocID }}/delete" class="inline-form" onsubmit="return confirm('Remove this document?');" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:.1rem .4rem;font-size:.78rem;">Remove</button>
+                                </form>
+                            </li>
+                            {{ end }}
+                        </ul>
+                    </div>
+                    {{ end }}
                 </div>
             </div>
 

@@ -9,6 +9,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Employee represents a row from 'clinician_app.employees'.
@@ -747,4 +748,84 @@ func GetDashboardData(db *sql.DB, facilityID int) (DashboardData, error) {
 	data.StaffPresent = staffPresent
 
 	return data, nil
+}
+
+// LeaveDocument represents a supporting document attached to a leave request.
+type LeaveDocument struct {
+	DocID        int64
+	LeaveID      int64
+	OriginalName string
+	StoredName   string
+	FileSize     int64
+	MimeType     string
+	UploadedAt   time.Time
+}
+
+// InsertLeaveDocument saves a leave document record and returns the generated doc_id.
+func InsertLeaveDocument(ctx context.Context, db DB, doc *LeaveDocument) error {
+	const sqlstr = `
+		INSERT INTO clinician_app.leave_documents
+			(leave_id, original_name, stored_name, file_size, mime_type, uploaded_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		RETURNING doc_id`
+	return db.QueryRowContext(ctx, sqlstr,
+		doc.LeaveID, doc.OriginalName, doc.StoredName, doc.FileSize, doc.MimeType,
+	).Scan(&doc.DocID)
+}
+
+// GetLeaveDocuments returns all documents for a given leave_id.
+func GetLeaveDocuments(ctx context.Context, db DB, leaveID int64) ([]*LeaveDocument, error) {
+	const sqlstr = `
+		SELECT doc_id, leave_id, original_name, stored_name, file_size, mime_type, uploaded_at
+		FROM clinician_app.leave_documents
+		WHERE leave_id = $1
+		ORDER BY uploaded_at ASC`
+	rows, err := db.QueryContext(ctx, sqlstr, leaveID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var docs []*LeaveDocument
+	for rows.Next() {
+		d := &LeaveDocument{}
+		if err := rows.Scan(&d.DocID, &d.LeaveID, &d.OriginalName, &d.StoredName, &d.FileSize, &d.MimeType, &d.UploadedAt); err != nil {
+			return nil, err
+		}
+		docs = append(docs, d)
+	}
+	return docs, rows.Err()
+}
+
+// GetLeaveDocument returns a single document by doc_id, verifying it belongs to the given leave_id.
+func GetLeaveDocument(ctx context.Context, db DB, docID int64, leaveID int64) (*LeaveDocument, error) {
+	const sqlstr = `
+		SELECT doc_id, leave_id, original_name, stored_name, file_size, mime_type, uploaded_at
+		FROM clinician_app.leave_documents
+		WHERE doc_id = $1 AND leave_id = $2`
+	d := &LeaveDocument{}
+	err := db.QueryRowContext(ctx, sqlstr, docID, leaveID).Scan(
+		&d.DocID, &d.LeaveID, &d.OriginalName, &d.StoredName, &d.FileSize, &d.MimeType, &d.UploadedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// DeleteLeaveDocument removes a document record by doc_id and returns its stored filename.
+func DeleteLeaveDocument(ctx context.Context, db DB, docID int64, employeeID int64) (string, error) {
+	const sqlstr = `
+		DELETE FROM clinician_app.leave_documents d
+		USING clinician_app.staffleave l
+		WHERE d.doc_id = $1
+		  AND d.leave_id = l.leave_id
+		  AND l.employee_id = $2
+		  AND l.leave_status = 'Pending'
+		RETURNING d.stored_name`
+	var storedName string
+	err := db.QueryRowContext(ctx, sqlstr, docID, employeeID).Scan(&storedName)
+	if err != nil {
+		return "", err
+	}
+	return storedName, nil
 }

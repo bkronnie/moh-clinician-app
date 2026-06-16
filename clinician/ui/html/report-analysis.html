@@ -82,6 +82,65 @@
     {{ end }}
 
     <div class="app-list-panel">
+        <form class="dashboard-inline-filters dashboard-auto-submit" method="GET" action="/reports/analysis">
+            {{ if ne .Form.ViewMode "staff" }}
+            <input type="hidden" name="view" value="{{ .Form.ViewMode }}">
+            {{ end }}
+            <span class="inline-filters-label">Filters:</span>
+            {{ if ne .Form.Role "Staff" }}
+            <span class="inline-filter-field">
+                <label for="submissionsFacility">Facility:</label>
+                <select id="submissionsFacility" name="facility">
+                    {{ if eq .Form.Role "National Admin" }}
+                    <option value="0">All facilities</option>
+                    {{ end }}
+                    {{ range .Form.FacilityOptions }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </span>
+            <span class="inline-filter-field">
+                <label for="submissionsDepartment">Department:</label>
+                <select id="submissionsDepartment" name="department">
+                    <option value="0">All departments</option>
+                    {{ range .Form.DepartmentOptions }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </span>
+            {{ end }}
+            <span class="inline-filter-field">
+                <label for="submissionsYear">Year:</label>
+                <select id="submissionsYear" name="year">
+                    {{ range .Form.AvailableYears }}
+                    <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ if eq . 0 }}All{{ else }}{{ . }}{{ end }}</option>
+                    {{ end }}
+                </select>
+            </span>
+            <span class="inline-filter-field">
+                <label for="submissionsMonth">Month:</label>
+                <select id="submissionsMonth" name="month">
+                    {{ range .Form.AvailableMonths }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </span>
+            <span class="inline-filter-field">
+                <label for="submissionsWeek">Week:</label>
+                <select id="submissionsWeek" name="week">
+                    {{ range .Form.AvailableWeeks }}
+                    <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
+                    {{ end }}
+                </select>
+            </span>
+            {{ if .Form.ClearFiltersURL }}
+            <a class="inline-filter-clear" href="{{ .Form.ClearFiltersURL }}">Clear</a>
+            {{ end }}
+        </form>
+        {{ if .Form.FilterSummary }}<p class="mt-1 mb-0 text-muted" style="font-size:0.85rem;">{{ .Form.FilterSummary }}</p>{{ end }}
+    </div>
+
+    <div class="app-list-panel">
         <div class="app-list-toolbar">
             <p>{{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") .Form.ShowWeekSummary }}{{ len .Form.NationalFacilityGroups }} facilit{{ if eq (len .Form.NationalFacilityGroups) 1 }}y{{ else }}ies{{ end }} in this view.{{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}{{ len .Form.FacilityRows }} facility submission{{ if ne (len .Form.FacilityRows) 1 }}s{{ end }} in this view.{{ else if and (eq .Form.Role "Staff") .Form.ShowWeekSummary }}{{ len .Form.StaffWeekRows }} reporting week{{ if ne (len .Form.StaffWeekRows) 1 }}s{{ end }} in this view.{{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}{{ len .Form.WeekRows }} reporting week{{ if ne (len .Form.WeekRows) 1 }}s{{ end }} in this view.{{ else }}{{ len .Form.Rows }} submission{{ if ne (len .Form.Rows) 1 }}s{{ end }} in this view.{{ end }}</p>
             <div class="app-list-actions">
@@ -115,64 +174,6 @@
             <small class="text-muted"><em>{{ .Form.SubmitBlockedReason }}</em></small>
         </div>
         {{ end }}
-        <div class="dashboard-tabs-row">
-            <form class="dashboard-inline-filters dashboard-auto-submit" method="GET" action="/reports/analysis">
-                {{ if ne .Form.ViewMode "staff" }}
-                <input type="hidden" name="view" value="{{ .Form.ViewMode }}">
-                {{ end }}
-                <span class="inline-filters-label">Filters:</span>
-                {{ if ne .Form.Role "Staff" }}
-                <span class="inline-filter-field">
-                    <label for="submissionsFacility">Facility:</label>
-                    <select id="submissionsFacility" name="facility">
-                        {{ if eq .Form.Role "National Admin" }}
-                        <option value="0">All facilities</option>
-                        {{ end }}
-                        {{ range .Form.FacilityOptions }}
-                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedFacility }}selected{{ end }}>{{ .Name }}</option>
-                        {{ end }}
-                    </select>
-                </span>
-                <span class="inline-filter-field">
-                    <label for="submissionsDepartment">Department:</label>
-                    <select id="submissionsDepartment" name="department">
-                        <option value="0">All departments</option>
-                        {{ range .Form.DepartmentOptions }}
-                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedDepartment }}selected{{ end }}>{{ .Name }}</option>
-                        {{ end }}
-                    </select>
-                </span>
-                {{ end }}
-                <span class="inline-filter-field">
-                    <label for="submissionsYear">Year:</label>
-                    <select id="submissionsYear" name="year">
-                        {{ range .Form.AvailableYears }}
-                        <option value="{{ . }}" {{ if eq . $.Form.SelectedYear }}selected{{ end }}>{{ if eq . 0 }}All{{ else }}{{ . }}{{ end }}</option>
-                        {{ end }}
-                    </select>
-                </span>
-                <span class="inline-filter-field">
-                    <label for="submissionsMonth">Month:</label>
-                    <select id="submissionsMonth" name="month">
-                        {{ range .Form.AvailableMonths }}
-                        <option value="{{ .ID }}" {{ if eq .ID $.Form.SelectedMonth }}selected{{ end }}>{{ .Name }}</option>
-                        {{ end }}
-                    </select>
-                </span>
-                <span class="inline-filter-field">
-                    <label for="submissionsWeek">Week:</label>
-                    <select id="submissionsWeek" name="week">
-                        {{ range .Form.AvailableWeeks }}
-                        <option value="{{ .Week }}" {{ if eq .Week $.Form.SelectedWeek }}selected{{ end }}>{{ .Label }}</option>
-                        {{ end }}
-                    </select>
-                </span>
-                {{ if .Form.ClearFiltersURL }}
-                <a class="inline-filter-clear" href="{{ .Form.ClearFiltersURL }}">Clear</a>
-                {{ end }}
-            </form>
-        </div>
-        {{ if .Form.FilterSummary }}<p class="app-list-note">{{ .Form.FilterSummary }}</p>{{ end }}
 
         {{ if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "staff") }}
         <div class="mb-2">
@@ -181,7 +182,7 @@
         {{ end }}
 
         {{ if and (eq .Form.Role "Staff") .Form.ShowWeekSummary }}
-        <table class="table table-hover mb-0 mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0 mt-2" style="font-size:0.82rem;">
             <thead class="thead-light">
                 <tr>
                     <th style="width:2rem"></th>
@@ -223,7 +224,7 @@
                     <tr id="{{ $wExpId }}" style="display:none">
                         <td colspan="7" class="bulk-expand-td">
                             <div style="padding:.6rem 1rem;">
-                                <table class="week-day-table">
+                                <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
                                     <thead>
                                         <tr>
                                             <th>Day</th>
@@ -282,7 +283,7 @@
             </tbody>
         </table>
         {{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") .Form.ShowWeekSummary }}
-        <table class="table table-hover mb-0 mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0 mt-2" style="font-size:0.82rem;">
             <thead class="thead-light">
                 <tr>
                     <th style="width:2rem"></th>
@@ -307,7 +308,7 @@
                     <tr id="{{ $fExpId }}" style="display:none">
                         <td colspan="4" class="bulk-expand-td">
                             <div style="padding:.8rem 1rem;">
-                                <table class="table table-hover mb-0">
+                                <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
                                     <thead class="thead-light">
                                         <tr>
                                             <th style="width:2rem"></th>
@@ -372,7 +373,7 @@
                                         <tr id="{{ $wExpId }}" style="display:none">
                                             <td colspan="8" class="bulk-expand-td">
                                                 <div style="padding:.8rem 1rem;">
-                                                    <table class="table table-sm table-hover mb-0">
+                                                    <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
                                                         <thead>
                                                             <tr>
                                                                 <th style="width:2rem"></th>
@@ -401,7 +402,7 @@
                                                                 <tr id="{{ $dExpId }}" style="display:none">
                                                                     <td colspan="6" class="bulk-expand-td">
                                                                         <div style="padding:.8rem 1rem;">
-                                                                            <table class="table table-sm table-hover mb-0">
+                                                                            <table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">
                                                                                 <thead>
                                                                                     <tr>
                                                                                         <th>Staff</th>
@@ -475,7 +476,7 @@
             </tbody>
         </table>
         {{ else if and (eq .Form.Role "Facility Admin") .Form.ShowWeekSummary }}
-        <table class="table table-hover mb-0 mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0 mt-2" style="font-size:0.82rem;">
             <thead class="thead-light">
                 <tr>
                     <th style="width:2rem"></th>
@@ -587,44 +588,48 @@
         <div class="mb-2">
             <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.BackToWeeksURL }}">&larr; Back to Weekly Summary</a>
         </div>
-        <div class="app-list-grid sortable report-submissions-grid report-day-breakdown-grid">
-            <div class="app-list-grid-header">
-                <div>Day</div>
-                <div>On Duty</div>
-                <div>Submitted</div>
-                <div>Not Submitted</div>
-                <div>Submission %</div>
-            </div>
+        <div class="app-table-scroll mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0 sortable report-day-breakdown-table" style="font-size:0.82rem;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Day</th>
+                    <th>On Duty</th>
+                    <th>Submitted</th>
+                    <th>Not Submitted</th>
+                    <th>Submission %</th>
+                </tr>
+            </thead>
+            <tbody>
             {{ if .Form.WeekDayRows }}
-                {{ range .Form.WeekDayRows }}
-                <div class="app-list-grid-row day-breakdown-row"
-                     data-date="{{ .Day.Format "2006-01-02" }}"
-                     data-label="{{ .DayName }}, {{ .Day.Format "02 Jan 2006" }}"
+                {{ range $i, $row := .Form.WeekDayRows }}
+                <tr class="day-breakdown-row"
+                     data-date="{{ $row.Day.Format "2006-01-02" }}"
+                     data-label="{{ $row.DayName }}, {{ $row.Day.Format "02 Jan 2006" }}"
                      data-facility="{{ $.Form.SelectedFacility }}"
                      data-department="{{ $.Form.SelectedDepartment }}"
                      title="Click to view staff for this day" style="cursor:pointer;">
-                    <div class="app-list-cell">
-                        <strong>{{ .DayName }}</strong>
-                        <span>{{ .Day.Format "02 Jan 2006" }}</span>
-                    </div>
-                    <div class="app-list-cell"><strong>{{ .OnDutyCount }}</strong></div>
-                    <div class="app-list-cell">
-                        <strong {{ if gt .Submitted 0 }}class="text-success"{{ end }}>{{ .Submitted }}</strong>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong {{ if gt .NotSubmitted 0 }}class="text-danger"{{ end }}>{{ .NotSubmitted }}</strong>
-                    </div>
-                    <div class="app-list-cell">
-                        <strong>{{ .Percentage }}%</strong>
+                    <td class="text-center">{{ add1 $i }}</td>
+                    <td>
+                        <strong>{{ $row.DayName }}</strong>
+                        <small class="text-muted d-block">{{ $row.Day.Format "02 Jan 2006" }}</small>
+                    </td>
+                    <td class="text-center"><strong>{{ $row.OnDutyCount }}</strong></td>
+                    <td class="text-center"><strong {{ if gt $row.Submitted 0 }}class="text-success"{{ end }}>{{ $row.Submitted }}</strong></td>
+                    <td class="text-center"><strong {{ if gt $row.NotSubmitted 0 }}class="text-danger"{{ end }}>{{ $row.NotSubmitted }}</strong></td>
+                    <td>
+                        <strong>{{ $row.Percentage }}%</strong>
                         <div class="progress mt-1" style="height:6px;min-width:80px;">
-                            <div class="progress-bar bg-success" role="progressbar" style="width:{{ .Percentage }}%" aria-valuenow="{{ .Percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar bg-success" role="progressbar" style="width:{{ $row.Percentage }}%" aria-valuenow="{{ $row.Percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
                 {{ end }}
             {{ else }}
-            <div class="app-list-empty">No data. Please filter by year and week to see the daily breakdown.</div>
+            <tr><td colspan="6" class="text-center text-muted">No data. Please filter by year and week to see the daily breakdown.</td></tr>
             {{ end }}
+            </tbody>
+        </table>
         </div>
 
         {{/* Day staff slide-in pane */}}
@@ -644,7 +649,7 @@
 
 
         {{ else if and (eq .Form.Role "National Admin") (eq .Form.ViewMode "facility") }}
-        <table class="table table-hover mb-0 mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0 mt-2" style="font-size:0.82rem;">
             <thead class="thead-light">
                 <tr>
                     <th style="width:2rem"></th>
@@ -724,7 +729,7 @@
             <a class="btn btn-sm btn-outline-secondary" href="{{ .Form.BackToWeeksURL }}">Back To Weekly Summary</a>
         </div>
         {{ end }}
-        <table class="table table-hover mb-0 mt-2">
+        <table class="table table-sm table-hover table-bordered mb-0 mt-2" style="font-size:0.82rem;">
             <thead class="thead-light">
                 <tr>
                     <th style="width:2rem"></th>
@@ -950,7 +955,7 @@
         var dept = data.department !== undefined ? data.department : 0;
         var wkApproved = (weekStatus === 'Approved');
         var wkSubmitted = (weekStatus === 'Submitted');
-        var html = '<table class="week-day-table">';
+        var html = '<table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">';
         html += '<thead><tr><th>Day</th><th>Expected</th><th>On Leave</th><th>Submitted</th><th>Approved</th><th>Not Submitted</th><th>%</th><th></th></tr></thead><tbody>';
         data.days.forEach(function(d){
             var notSubAttr = d.not_submitted > 0 ? ' style="color:#dc3545;font-weight:600"' : '';
@@ -1032,7 +1037,7 @@
         var pct=total>0?Math.round(submitted*100/total):0;
         var returnTo=encodeURIComponent(window.location.href);
         var html='<p class="mb-2 text-muted small">'+submitted+' of '+total+' staff submitted ('+pct+'%).</p>';
-        html+='<table class="table table-sm mb-0" style="border-collapse:separate;">';
+        html+='<table class="table table-sm table-hover table-bordered mb-0" style="font-size:0.82rem;">';
         html+='<thead class="table-light"><tr><th style="width:18px;"></th><th>Name</th><th>Department</th><th>Status</th><th></th></tr></thead>';
         html+='<tbody>';
         data.staff.forEach(function(s, idx){
@@ -1122,11 +1127,12 @@
             body.innerHTML='<em class="text-muted">No data points configured for this department.</em>';
             return;
         }
+        var absenceId='dsp-absence-'+employeeId;
         var html='<div class="dsp-entry-grid">';
         data.fields.forEach(function(f){
             if(f.attendance){
                 html+='<div class="dsp-entry-item"><small>'+esc(f.label)+'</small>'
-                    +'<label class="dsp-attend"><input type="checkbox" data-key="attendance" data-attendance="1"> On duty</label>'
+                    +'<label class="dsp-attend"><input type="checkbox" data-key="attendance" data-attendance="1" checked onchange="window._dspToggleAbsence(this,\''+absenceId+'\')"> On duty</label>'
                     +'</div>';
             } else {
                 html+='<div class="dsp-entry-item"><small>'+esc(f.label)+'</small>'
@@ -1135,12 +1141,30 @@
             }
         });
         html+='</div>';
+        html+='<div id="'+absenceId+'" style="display:none;margin-top:.6rem;">'
+            +'<label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:.25rem;">Reason for Absence</label>'
+            +'<textarea data-key="absence_reason" class="form-control form-control-sm" rows="2" maxlength="500" style="max-width:420px;" placeholder="e.g. Field duty, off-site training, sick leave, workshop\u2026"></textarea>'
+            +'<small class="text-muted" style="font-size:.75rem;">Briefly describe why this staff member is absent.</small>'
+            +'</div>';
         html+='<div class="dsp-review-actions mt-2 d-flex gap-2">'
             +'<button class="btn btn-sm btn-success" onclick="window._dspSaveEntry(this,'+employeeId+',\''+date+'\',\''+facilityId+'\',\''+chipId+'\',\''+detailId+'\')">Save</button>'
             +'<button class="btn btn-sm btn-outline-secondary" onclick="window._dspCancelEntry(\''+detailId+'\')">Cancel</button>'
             +'</div>';
         body.innerHTML=html;
     }
+
+    window._dspToggleAbsence=function(checkbox,absenceId){
+        var absDiv=document.getElementById(absenceId);
+        if(!absDiv) return;
+        var entryGrid=checkbox.closest('.dsp-entry-body').querySelector('.dsp-entry-grid');
+        if(checkbox.checked){
+            absDiv.style.display='none';
+            if(entryGrid) entryGrid.querySelectorAll('input[type="number"]').forEach(function(i){i.disabled=false;});
+        } else {
+            absDiv.style.display='';
+            if(entryGrid) entryGrid.querySelectorAll('input[type="number"]').forEach(function(i){i.disabled=true;});
+        }
+    };
 
     window._dspCancelEntry=function(detailId){
         var row=document.getElementById(detailId);
@@ -1166,6 +1190,11 @@
                     attendOn=true;
                     fd.append('input['+employeeId+'][days_worked][]',date);
                 }
+                return;
+            }
+            if(key==='absence_reason'){
+                var v=(inp.value||'').trim();
+                if(v) fd.append('input['+employeeId+'][absence_reason]',v);
                 return;
             }
             var v=(inp.value||'').trim();
@@ -1224,8 +1253,14 @@
 
     function renderEntryFields(body,data,reportId,facilityId,chipId){
         var canReview=['Approved','Declined','Rejected'].indexOf(data.report_status)===-1;
+        var absenceReason=(data.absence_reason||'').trim();
+
         if(!data.fields||data.fields.length===0){
             var html='<em class="text-muted">No data recorded.</em>';
+            if(absenceReason){
+                html='<div style="margin-bottom:.5rem;"><span style="font-size:.82rem;font-weight:600;">Reason for Absence: </span>'
+                    +'<span style="font-size:.82rem;">'+esc(absenceReason)+'</span></div>';
+            }
             if(canReview){html+=buildReviewButtons(reportId,facilityId,chipId);}
             body.innerHTML=html;
             return;
@@ -1233,6 +1268,10 @@
         var html='<div class="dsp-entry-grid">';
         data.fields.forEach(function(f){html+='<div class="dsp-entry-item"><small>'+esc(f.label)+'</small><strong>'+esc(f.value)+'</strong></div>';});
         html+='</div>';
+        if(absenceReason){
+            html+='<div style="margin-top:.5rem;"><span style="font-size:.82rem;font-weight:600;">Reason for Absence: </span>'
+                +'<span style="font-size:.82rem;">'+esc(absenceReason)+'</span></div>';
+        }
         if(canReview){html+=buildReviewButtons(reportId,facilityId,chipId);}
         body.innerHTML=html;
     }
