@@ -23,11 +23,11 @@ type ClinicianReportHistoryRow struct {
 	PatientsReviewed int
 	Procedures       int
 	DaysWorked       sql.NullString
-	AbsenceReason    sql.NullString
 	SubmittedOn      sql.NullTime
 	Qn01             sql.NullInt64
 	Qn02             sql.NullInt64
 	Qn03             sql.NullInt64
+	Qn04             sql.NullInt64
 	Qn05             sql.NullInt64
 	Qn06             sql.NullInt64
 	Qn07             sql.NullInt64
@@ -62,6 +62,7 @@ type ClinicianReportHistoryRow struct {
 	Qn36             sql.NullInt64
 	Qn37             sql.NullInt64
 	Qn38             sql.NullInt64
+	AbsenceReason    sql.NullString
 }
 
 type ClinicianReportHistorySummary struct {
@@ -280,12 +281,11 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 			w.created_on,
 			COALESCE(w.submit_status, ''),
 			COALESCE(w.report_status, ''),
-			w.attendance, w.ward_rounds, w.patients_reviewed, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+			w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
 			w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests,
 			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
 			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
-			COALESCE(w.absence_reason, ''),
 			w.submitted_on
 		FROM clinician_app.weeklyreport w
 		WHERE w.id = $1
@@ -301,7 +301,6 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	var submitStatusText string
 	var reportStatusText string
 	var daysWorkedText string
-	var absenceReasonText string
 	err := db.QueryRowContext(ctx, sqlstr, reportID, employeeID).Scan(
 		&row.ReportID,
 		&row.EmployeeID,
@@ -312,12 +311,11 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 		&row.EnteredOn,
 		&submitStatusText,
 		&reportStatusText,
-		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
+		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn04, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
 		&row.Qn11, &row.Qn12, &row.Qn13, &row.Qn14, &row.Qn15, &row.Qn16, &row.Qn17, &row.Qn18, &row.Qn19, &row.Qn20,
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
 		&daysWorkedText,
-		&absenceReasonText,
 		&row.SubmittedOn,
 	)
 	if err != nil {
@@ -332,9 +330,6 @@ func ClinicianEditableReportByID(ctx context.Context, db *sql.DB, reportID int, 
 	}
 	if daysWorkedText != "" {
 		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
-	}
-	if absenceReasonText != "" {
-		row.AbsenceReason = sql.NullString{String: absenceReasonText, Valid: true}
 	}
 	if row.ReportStatus.Valid && (row.ReportStatus.String == "Rejected" || row.ReportStatus.String == "Declined") {
 		row.HistoryStatus = "declined"
@@ -360,12 +355,11 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 			w.created_on,
 			COALESCE(w.submit_status, ''),
 			COALESCE(w.report_status, ''),
-			w.attendance, w.ward_rounds, w.patients_reviewed, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
+			w.attendance, w.ward_rounds, w.patients_reviewed, w.theatre_days, w.elective, w.emergency, w.postmortems, w.opd_clinics, w.opd_patients, w.anc_patients,
 			w.teaching_rounds, w.students_taught, w.mortality_reviews, w.maternal, w.perinatal, w.surgical, w.medical, w.paed, w.labs_requests, w.imaging_requests,
 			w.lab_investigations, w.bs, w.hiv, w.malaria, w.tb, w.cbc, w.chemistry, w.hematology, w.urinalysis, w.gram_stain,
 			w.culture, w.microbiology, w.sensitivity_tests, w.diagnostics, w.xrays, w.ct_scans, w.obstetrics_scans, w.abdominal_scans,
 			COALESCE(w.days_worked, ''),
-			COALESCE(w.absence_reason, ''),
 			w.submitted_on
 		FROM clinician_app.weeklyreport w
 		WHERE w.employee = $1
@@ -387,7 +381,6 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 	var submitStatusText string
 	var reportStatusText string
 	var daysWorkedText string
-	var absenceReasonText string
 	err := db.QueryRowContext(ctx, sqlstr, employeeID, weekStart, weekStop).Scan(
 		&row.ReportID,
 		&row.EmployeeID,
@@ -398,12 +391,11 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 		&row.EnteredOn,
 		&submitStatusText,
 		&reportStatusText,
-		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
+		&row.Qn01, &row.Qn02, &row.Qn03, &row.Qn04, &row.Qn05, &row.Qn06, &row.Qn07, &row.Qn08, &row.Qn09, &row.Qn10,
 		&row.Qn11, &row.Qn12, &row.Qn13, &row.Qn14, &row.Qn15, &row.Qn16, &row.Qn17, &row.Qn18, &row.Qn19, &row.Qn20,
 		&row.Qn21, &row.Qn22, &row.Qn23, &row.Qn24, &row.Qn25, &row.Qn26, &row.Qn27, &row.Qn28, &row.Qn29, &row.Qn30,
 		&row.Qn31, &row.Qn32, &row.Qn33, &row.Qn34, &row.Qn35, &row.Qn36, &row.Qn37, &row.Qn38,
 		&daysWorkedText,
-		&absenceReasonText,
 		&row.SubmittedOn,
 	)
 	if err != nil {
@@ -418,9 +410,6 @@ func LatestClinicianReportByPeriod(ctx context.Context, db *sql.DB, employeeID i
 	}
 	if daysWorkedText != "" {
 		row.DaysWorked = sql.NullString{String: daysWorkedText, Valid: true}
-	}
-	if absenceReasonText != "" {
-		row.AbsenceReason = sql.NullString{String: absenceReasonText, Valid: true}
 	}
 	if row.ReportStatus.Valid && (row.ReportStatus.String == "Rejected" || row.ReportStatus.String == "Declined") {
 		row.HistoryStatus = "declined"
@@ -439,14 +428,14 @@ func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 		UPDATE clinician_app.weeklyreport SET
 			start = $1,
 			stop = $2,
-			attendance = $3, ward_rounds = $4, patients_reviewed = $5, elective = $6, emergency = $7, postmortems = $8, opd_clinics = $9, opd_patients = $10, anc_patients = $11,
-			teaching_rounds = $12, students_taught = $13, mortality_reviews = $14, maternal = $15, perinatal = $16, surgical = $17, medical = $18, paed = $19, labs_requests = $20, imaging_requests = $21,
-			lab_investigations = $22, bs = $23, hiv = $24, malaria = $25, tb = $26, cbc = $27, chemistry = $28, hematology = $29, urinalysis = $30, gram_stain = $31,
-			culture = $32, microbiology = $33, sensitivity_tests = $34, diagnostics = $35, xrays = $36, ct_scans = $37, obstetrics_scans = $38, abdominal_scans = $39,
-			days_worked = $40,
-			last_updated_on = $41
-		WHERE id = $42
-			AND employee = $43
+			attendance = $3, ward_rounds = $4, patients_reviewed = $5, theatre_days = $6, elective = $7, emergency = $8, postmortems = $9, opd_clinics = $10, opd_patients = $11, anc_patients = $12,
+			teaching_rounds = $13, students_taught = $14, mortality_reviews = $15, maternal = $16, perinatal = $17, surgical = $18, medical = $19, paed = $20, labs_requests = $21, imaging_requests = $22,
+			lab_investigations = $23, bs = $24, hiv = $25, malaria = $26, tb = $27, cbc = $28, chemistry = $29, hematology = $30, urinalysis = $31, gram_stain = $32,
+			culture = $33, microbiology = $34, sensitivity_tests = $35, diagnostics = $36, xrays = $37, ct_scans = $38, obstetrics_scans = $39, abdominal_scans = $40,
+			days_worked = $41,
+			last_updated_on = $42
+		WHERE id = $43
+			AND employee = $44
 			AND (
 				COALESCE(submit_status, '') <> 'Submitted'
 				OR COALESCE(report_status, '') IN ('Rejected', 'Declined')
@@ -467,7 +456,7 @@ func UpdateClinicianReport(ctx context.Context, db *sql.DB, reportID int, employ
 		sqlstr,
 		start,
 		stop,
-		nullableValue("attendance"), nullableValue("ward_rounds"), nullableValue("patients_reviewed"), nullableValue("elective"), nullableValue("emergency"), nullableValue("postmortems"), nullableValue("OPD_clinics"), nullableValue("OPD_patients"), nullableValue("anc_patients"),
+		nullableValue("attendance"), nullableValue("ward_rounds"), nullableValue("patients_reviewed"), nullableValue("theatre_days"), nullableValue("elective"), nullableValue("emergency"), nullableValue("postmortems"), nullableValue("OPD_clinics"), nullableValue("OPD_patients"), nullableValue("anc_patients"),
 		nullableValue("teaching_rounds"), nullableValue("students_taught"), nullableValue("mortality_reviews"), nullableValue("maternal"), nullableValue("perinatal"), nullableValue("surgical"), nullableValue("medical"), nullableValue("paed"), nullableValue("labs_requests"), nullableValue("imaging_requests"),
 		nullableValue("lab_investigations"), nullableValue("BS"), nullableValue("HIV"), nullableValue("malaria"), nullableValue("TB"), nullableValue("CBC"), nullableValue("chemistry"), nullableValue("hematology"), nullableValue("urinalysis"), nullableValue("gram_stain"),
 		nullableValue("culture"), nullableValue("microbiology"), nullableValue("sensitivity_tests"), nullableValue("diagnostics"), nullableValue("xrays"), nullableValue("ct_scans"), nullableValue("obstetrics_scans"), nullableValue("abdominal_scans"),
@@ -560,23 +549,23 @@ func InsertClinicianReport(ctx context.Context, db *sql.DB, row *ClinicianReport
 
 	const sqlstr = `INSERT INTO clinician_app.weeklyreport (` +
 		`id, hospital, department, employee, start, stop, ` +
-		`attendance, ward_rounds, patients_reviewed, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, ` +
+		`attendance, ward_rounds, patients_reviewed, theatre_days, elective, emergency, postmortems, opd_clinics, opd_patients, anc_patients, ` +
 		`teaching_rounds, students_taught, mortality_reviews, maternal, perinatal, surgical, medical, paed, labs_requests, imaging_requests, ` +
 		`lab_investigations, bs, hiv, malaria, tb, cbc, chemistry, hematology, urinalysis, gram_stain, ` +
 		`culture, microbiology, sensitivity_tests, diagnostics, xrays, ct_scans, obstetrics_scans, abdominal_scans, ` +
 		`created_on, days_worked` +
 		`) VALUES (` +
 		`$1, $2, $3, $4, $5, $6, ` +
-		`$7, $8, $9, $10, $11, $12, $13, $14, $15, ` +
-		`$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, ` +
-		`$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, ` +
-		`$36, $37, $38, $39, $40, $41, $42, $43, ` +
-		`$44, $45` +
+		`$7, $8, $9, $10, $11, $12, $13, $14, $15, $16, ` +
+		`$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, ` +
+		`$27, $28, $29, $30, $31, $32, $33, $34, $35, $36, ` +
+		`$37, $38, $39, $40, $41, $42, $43, $44, ` +
+		`$45, $46` +
 		`)`
 
 	_, err := db.ExecContext(ctx, sqlstr,
 		newID, facilityID, departmentID, row.EmployeeID, start, stop,
-		nullInt(row.Qn01), nullInt(row.Qn02), nullInt(row.Qn03), nullInt(row.Qn05), nullInt(row.Qn06), nullInt(row.Qn07), nullInt(row.Qn08), nullInt(row.Qn09), nullInt(row.Qn10),
+		nullInt(row.Qn01), nullInt(row.Qn02), nullInt(row.Qn03), nullInt(row.Qn04), nullInt(row.Qn05), nullInt(row.Qn06), nullInt(row.Qn07), nullInt(row.Qn08), nullInt(row.Qn09), nullInt(row.Qn10),
 		nullInt(row.Qn11), nullInt(row.Qn12), nullInt(row.Qn13), nullInt(row.Qn14), nullInt(row.Qn15), nullInt(row.Qn16), nullInt(row.Qn17), nullInt(row.Qn18), nullInt(row.Qn19), nullInt(row.Qn20),
 		nullInt(row.Qn21), nullInt(row.Qn22), nullInt(row.Qn23), nullInt(row.Qn24), nullInt(row.Qn25), nullInt(row.Qn26), nullInt(row.Qn27), nullInt(row.Qn28), nullInt(row.Qn29), nullInt(row.Qn30),
 		nullInt(row.Qn31), nullInt(row.Qn32), nullInt(row.Qn33), nullInt(row.Qn34), nullInt(row.Qn35), nullInt(row.Qn36), nullInt(row.Qn37), nullInt(row.Qn38),

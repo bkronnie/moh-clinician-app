@@ -24,15 +24,15 @@ WHERE NOT EXISTS (
 -- ============================================================
 -- Surgery (dept_id = 1)
 UPDATE clinician_app.department_roles
-SET data_points = '["attendance","ward_rounds","patients_reviewed","elective","emergency","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","maternal","perinatal","surgical","medical","paed","labs_requests","imaging_requests"]'::jsonb
+SET data_points = '["attendance","ward_rounds","patients_reviewed","elective","emergency","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","surgical","paed","labs_requests","imaging_requests"]'::jsonb
 WHERE dept_id = 1;
 -- Internal Medicine (dept_id = 2)
 UPDATE clinician_app.department_roles
-SET data_points = '["attendance","ward_rounds","patients_reviewed","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","maternal","perinatal","surgical","medical","paed","labs_requests","imaging_requests"]'::jsonb
+SET data_points = '["attendance","ward_rounds","patients_reviewed","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","surgical","paed","labs_requests","imaging_requests"]'::jsonb
 WHERE dept_id = 2;
 -- Paediatrics (dept_id = 3)
 UPDATE clinician_app.department_roles
-SET data_points = '["attendance","ward_rounds","patients_reviewed","elective","emergency","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","maternal","perinatal","surgical","medical","paed","labs_requests","imaging_requests"]'::jsonb
+SET data_points = '["attendance","ward_rounds","patients_reviewed","elective","emergency","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","surgical","paed","labs_requests","imaging_requests"]'::jsonb
 WHERE dept_id = 3;
 -- Obstetrics and Gynaecology (dept_id = 4)
 UPDATE clinician_app.department_roles
@@ -71,7 +71,7 @@ WHERE d.d_name = 'ENT'
 INSERT INTO clinician_app.department_roles (dept_id, role_name, data_points)
 SELECT d.id,
     'default',
-    '["attendance","ward_rounds","patients_reviewed","elective","emergency","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","maternal","perinatal","surgical","medical","paed","labs_requests","imaging_requests"]'::jsonb
+    '["attendance","ward_rounds","patients_reviewed","elective","emergency","OPD_clinics","OPD_patients","teaching_rounds","students_taught","mortality_reviews","surgical","paed","labs_requests","imaging_requests"]'::jsonb
 FROM clinician_app.departments d
 WHERE d.d_name = 'Orthopaedic'
     AND NOT EXISTS (

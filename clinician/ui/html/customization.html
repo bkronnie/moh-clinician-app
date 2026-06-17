@@ -20,8 +20,21 @@
 
 .customization-grid-elements .app-list-grid-header,
 .customization-grid-elements .app-list-grid-row {
-    grid-template-columns: minmax(70px, 0.4fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(230px, 1.4fr) minmax(100px, 0.65fr) minmax(240px, 1.3fr);
+    grid-template-columns: 36px minmax(70px, 0.4fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(230px, 1.4fr) minmax(100px, 0.65fr) minmax(240px, 1.3fr);
 }
+
+.de-drag-handle {
+    cursor: grab;
+    user-select: none;
+    color: #b0bec5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+.de-drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: 0.35; background: #e8f5f9 !important; }
 
 .customization-grid-targets .app-list-grid-header,
 .customization-grid-targets .app-list-grid-row {
@@ -94,6 +107,9 @@
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ if eq $activeTab "data-elements" }}active{{ end }}" id="data-elements-tab" data-toggle="tab" href="#data-elements-panel" role="tab" aria-controls="data-elements-panel" aria-selected="{{ if eq $activeTab "data-elements" }}true{{ else }}false{{ end }}">Data Elements</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {{ if eq $activeTab "dept-data-points" }}active{{ end }}" id="dept-data-points-tab" data-toggle="tab" href="#dept-data-points-panel" role="tab" aria-controls="dept-data-points-panel" aria-selected="{{ if eq $activeTab "dept-data-points" }}true{{ else }}false{{ end }}">Dept Data Points</a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ if eq $activeTab "history" }}active{{ end }}" id="history-tab" data-toggle="tab" href="#history-panel" role="tab" aria-controls="history-panel" aria-selected="{{ if eq $activeTab "history" }}true{{ else }}false{{ end }}">History</a>
@@ -437,8 +453,9 @@
                 </div>
                 <small class="form-text text-muted mb-3">Governance mode is active: deactivate first, then permanently delete only after typing PURGE and clearing dependencies.</small>
 
-                <div class="app-list-grid customization-grid-elements">
+                <div class="app-list-grid customization-grid-elements" id="de-sortable-grid">
                     <div class="app-list-grid-header">
+                        <div></div>
                         <div>#</div>
                         <div>Element Key</div>
                         <div>Column Name</div>
@@ -448,11 +465,12 @@
                     </div>
                     {{ if $view.DataElements }}
                         {{ range $view.DataElements }}
-                        <form method="post" action="/customization/data-element/save" class="app-list-grid-row">
+                        <form method="post" action="/customization/data-element/save" class="app-list-grid-row" data-de-id="{{ .ID }}">
                             <input type="hidden" name="id" value="{{ .ID }}">
                             <input type="hidden" name="tab" value="data-elements">
                             <input type="hidden" name="guard" value="">
-                            <div class="app-list-cell">{{ .Position }}</div>
+                            <div class="app-list-cell de-drag-handle" title="Drag to reorder">&#8942;</div>
+                            <div class="app-list-cell de-position-cell">{{ .Position }}</div>
                             <div class="app-list-cell">
                                 <input type="text" class="form-control form-control-sm" name="element_key" value="{{ .ElementKey }}" {{ if .IsCore }}readonly{{ end }} required>
                             </div>
@@ -480,6 +498,60 @@
                     <div class="app-list-empty">No data elements configured.</div>
                     {{ end }}
                 </div>
+            </div>
+
+            <div class="tab-pane fade {{ if eq $activeTab "dept-data-points" }}show active{{ end }}" id="dept-data-points-panel" role="tabpanel" aria-labelledby="dept-data-points-tab">
+                <small class="form-text text-muted mb-3 d-block">Choose which data collection elements appear in the entry form for each department. Click a department to expand, tick or untick elements, then click Save.</small>
+                {{ if $view.DeptDataPoints }}
+                <div id="deptDpAccordion">
+                    {{ range $i, $row := $view.DeptDataPoints }}
+                    {{ $collapseID := printf "deptDpCollapse%d" $i }}
+                    {{ $headingID  := printf "deptDpHeading%d"  $i }}
+                    <div class="card mb-1" style="border:1px solid #d9e8ec;">
+                        <div class="card-header p-0" id="{{ $headingID }}" style="background:#f4f9fb;">
+                            <button class="btn btn-link btn-block text-left py-2 px-3 font-weight-500" type="button"
+                                    data-toggle="collapse" data-target="#{{ $collapseID }}"
+                                    aria-expanded="false" aria-controls="{{ $collapseID }}"
+                                    style="font-size:0.875rem;color:#1a3a4a;text-decoration:none;">
+                                {{ $row.DeptName }}
+                                <small class="text-muted ml-2" style="font-weight:400;">
+                                    ({{ range $k, $v := $row.Keys }}{{ if $v }}1{{ end }}{{ end }} selected)
+                                </small>
+                            </button>
+                        </div>
+                        <div id="{{ $collapseID }}" class="collapse" aria-labelledby="{{ $headingID }}" data-parent="#deptDpAccordion">
+                            <div class="card-body pt-3 pb-2">
+                                <form method="post" action="/customization/dept-data-points/save">
+                                    <input type="hidden" name="tab"     value="dept-data-points">
+                                    <input type="hidden" name="dept_id" value="{{ $row.DeptID }}">
+                                    <div class="row">
+                                    {{ range $view.DataElements }}{{ if .IsActive }}
+                                    <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="keys" value="{{ .ElementKey }}"
+                                                   id="dp_{{ $row.DeptID }}_{{ .ElementKey }}"
+                                                   {{ if index $row.Keys .ElementKey }}checked{{ end }}>
+                                            <label class="form-check-label" style="font-size:0.82rem;"
+                                                   for="dp_{{ $row.DeptID }}_{{ .ElementKey }}">
+                                                {{ .DisplayName }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {{ end }}{{ end }}
+                                    </div>
+                                    <div class="mt-2 mb-1">
+                                        <button type="submit" class="btn btn-primary btn-sm">Save {{ $row.DeptName }}</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+                </div>
+                {{ else }}
+                <div class="app-list-empty">No departments configured.</div>
+                {{ end }}
             </div>
 
             <div class="tab-pane fade {{ if eq $activeTab "history" }}show active{{ end }}" id="history-panel" role="tabpanel" aria-labelledby="history-tab">
@@ -533,4 +605,53 @@
         </div>
     </div>
 </div>
+{{ end }}
+
+{{ define "extraJS" }}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function () {
+    // Save page state before any form submit so the tab+scroll is restored.
+    function saveState() {
+        if (typeof window._savePageViewState === 'function') {
+            window._savePageViewState();
+        }
+    }
+    document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', saveState);
+    });
+
+    // Drag-and-drop reorder for Data Elements grid.
+    var grid = document.getElementById('de-sortable-grid');
+    if (grid && typeof Sortable !== 'undefined') {
+        Sortable.create(grid, {
+            animation: 150,
+            handle: '.de-drag-handle',
+            filter: '.app-list-grid-header',
+            ghostClass: 'sortable-ghost',
+            onEnd: function () {
+                var rows = Array.from(
+                    grid.querySelectorAll('.app-list-grid-row[data-de-id]')
+                );
+                var ids = rows.map(function (r) {
+                    return parseInt(r.dataset.deId, 10);
+                });
+                // Update position numbers visually.
+                rows.forEach(function (r, i) {
+                    var cell = r.querySelector('.de-position-cell');
+                    if (cell) { cell.textContent = i + 1; }
+                });
+                // Persist new order to server.
+                fetch('/customization/data-element/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: ids })
+                }).catch(function () {
+                    alert('Failed to save element order. Please refresh and try again.');
+                });
+            }
+        });
+    }
+})();
+</script>
 {{ end }}

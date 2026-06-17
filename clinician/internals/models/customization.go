@@ -55,23 +55,161 @@ type CustomizationChange struct {
 }
 
 type CustomizationView struct {
-	Facilities    []CustomizationFacility
-	Departments   []CustomizationDepartment
-	Roles         []CustomizationRole
-	ClinicalRoles []CustomizationClinicalRole
-	RoleTargets   []CustomizationRoleMetricTarget
-	TargetMetrics []ReportDataElement
-	DataElements  []ReportDataElement
-	History       []CustomizationChange
-	HistoryPage   int
-	HistorySize   int
-	HistoryTotal  int
-	HistoryPages  int
-	HistoryPrev   string
-	HistoryNext   string
-	ActiveTab     string
-	Success       string
-	Error         string
+	Facilities     []CustomizationFacility
+	Departments    []CustomizationDepartment
+	Roles          []CustomizationRole
+	ClinicalRoles  []CustomizationClinicalRole
+	RoleTargets    []CustomizationRoleMetricTarget
+	TargetMetrics  []ReportDataElement
+	DataElements   []ReportDataElement
+	DeptDataPoints []DeptDataPointsRow
+	History        []CustomizationChange
+	HistoryPage    int
+	HistorySize    int
+	HistoryTotal   int
+	HistoryPages   int
+	HistoryPrev    string
+	HistoryNext    string
+	ActiveTab      string
+	Success        string
+	Error          string
+}
+
+// DeptDataPointsRow holds a department and which element keys are currently enabled.
+type DeptDataPointsRow struct {
+	DeptID   int64
+	DeptName string
+	Keys     map[string]bool
+}
+
+// ListDeptDataPoints returns one row per department with its enabled data-point keys.
+func ListDeptDataPoints(ctx context.Context, db DB, departments []CustomizationDepartment) ([]DeptDataPointsRow, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT dept_id, data_points::text
+		FROM clinician_app.department_roles
+		WHERE LOWER(COALESCE(role_name, '')) = 'default'
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byDept := map[int64]map[string]bool{}
+	for rows.Next() {
+		var deptID int64
+		var payload []byte
+		if err := rows.Scan(&deptID, &payload); err != nil {
+			return nil, err
+		}
+		var keys []string
+		if err := json.Unmarshal(payload, &keys); err != nil {
+			continue
+		}
+		m := map[string]bool{}
+		for _, k := range keys {
+			if k = strings.TrimSpace(k); k != "" {
+				m[k] = true
+			}
+		}
+		byDept[deptID] = m
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	result := make([]DeptDataPointsRow, 0, len(departments))
+	for _, d := range departments {
+		m := byDept[d.ID]
+		if m == nil {
+			m = map[string]bool{}
+		}
+		result = append(result, DeptDataPointsRow{DeptID: d.ID, DeptName: d.Name, Keys: m})
+	}
+	return result, nil
+}
+
+// SaveDeptDataPoints replaces the data_points for a department's default role row.
+func SaveDeptDataPoints(ctx context.Context, db *sql.DB, actorUserID int64, actorEmployeeID int64, deptID int64, keys []string) error {
+	if deptID <= 0 {
+		return errors.New("invalid department id")
+	}
+
+	seen := map[string]struct{}{}
+	clean := make([]string, 0, len(keys))
+	for _, k := range keys {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		if _, dup := seen[k]; dup {
+			continue
+		}
+		seen[k] = struct{}{}
+		clean = append(clean, k)
+	}
+
+	payload, err := json.Marshal(clean)
+	if err != nil {
+		return err
+	}
+
+	if err := EnsureCustomizationAuditSchema(ctx, db); err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Read the canonical (lowest role_id) default row for the audit trail.
+	var existingRoleID int64
+	var prevPayload []byte
+	scanErr := tx.QueryRowContext(ctx, `
+		SELECT role_id, data_points::text
+		FROM clinician_app.department_roles
+		WHERE dept_id = $1 AND LOWER(COALESCE(role_name, '')) = 'default'
+		ORDER BY role_id ASC
+		LIMIT 1
+	`, deptID).Scan(&existingRoleID, &prevPayload)
+	if scanErr != nil && !errors.Is(scanErr, sql.ErrNoRows) {
+		return scanErr
+	}
+
+	var prevKeys []string
+	if len(prevPayload) > 0 {
+		_ = json.Unmarshal(prevPayload, &prevKeys)
+	}
+
+	// Update ALL default rows for this department so that duplicate rows
+	// (multiple default role entries) all reflect the same data_points.
+	// If no row exists yet, insert one.
+	if existingRoleID > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE clinician_app.department_roles
+			SET data_points = $1::jsonb
+			WHERE dept_id = $2 AND LOWER(COALESCE(role_name, '')) = 'default'
+		`, string(payload), deptID); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO clinician_app.department_roles (dept_id, role_name, data_points)
+			VALUES ($1, 'default', $2::jsonb)
+		`, deptID, string(payload)); err != nil {
+			return err
+		}
+	}
+
+	prevSnapshot := map[string]interface{}{"dept_id": deptID, "keys": prevKeys}
+	newSnapshot := map[string]interface{}{"dept_id": deptID, "keys": clean}
+	summary := fmt.Sprintf("Department data points updated (%d keys)", len(clean))
+	if err := insertCustomizationChange(ctx, tx, actorUserID, actorEmployeeID, "dept_data_points", deptID, "update", summary, prevSnapshot, newSnapshot); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 var immutableRoleNames = map[string]struct{}{
@@ -204,16 +342,22 @@ func GetCustomizationView(ctx context.Context, db DB, historyLimit int, historyO
 		return CustomizationView{}, err
 	}
 
+	deptDataPoints, err := ListDeptDataPoints(ctx, db, departments)
+	if err != nil {
+		return CustomizationView{}, err
+	}
+
 	return CustomizationView{
-		Facilities:    facilities,
-		Departments:   departments,
-		Roles:         roles,
-		ClinicalRoles: clinicalRoles,
-		RoleTargets:   roleTargets,
-		TargetMetrics: targetMetrics,
-		DataElements:  dataElements,
-		History:       history,
-		HistoryTotal:  historyTotal,
+		Facilities:     facilities,
+		Departments:    departments,
+		Roles:          roles,
+		ClinicalRoles:  clinicalRoles,
+		RoleTargets:    roleTargets,
+		TargetMetrics:  targetMetrics,
+		DataElements:   dataElements,
+		DeptDataPoints: deptDataPoints,
+		History:        history,
+		HistoryTotal:   historyTotal,
 	}, nil
 }
 

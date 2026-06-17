@@ -35,7 +35,7 @@ var reportIdentifierPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
 var defaultReportDataElements = []defaultReportDataElement{
 	{1, "attendance", "attendance", "Attendance Days", true},
 	{2, "ward_rounds", "ward_rounds", "Ward Rounds", true},
-	{3, "patients_reviewed", "patients_reviewed", "Patients Reviewed", true},
+	{3, "patients_reviewed", "patients_reviewed", "Patients Treated", true},
 	{5, "elective", "elective", "Elective Procedures", true},
 	{6, "emergency", "emergency", "Emergency Procedures", true},
 	{7, "postmortems", "postmortems", "Postmortems", true},
@@ -148,12 +148,10 @@ func EnsureReportDataElementSchema(ctx context.Context, db *sql.DB) error {
 			VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW())
 			ON CONFLICT (element_key)
 			DO UPDATE SET
-				position = EXCLUDED.position,
+				position    = EXCLUDED.position,
 				column_name = EXCLUDED.column_name,
-				display_name = EXCLUDED.display_name,
-				is_core = EXCLUDED.is_core,
-				is_active = TRUE,
-				updated_on = NOW()
+				is_core     = EXCLUDED.is_core,
+				updated_on  = NOW()
 		`, item.Position, item.ElementKey, item.ColumnName, item.DisplayName, item.IsCore); err != nil {
 			return err
 		}
@@ -252,6 +250,51 @@ func GetReportDataElementColumnMap(ctx context.Context, db DB) (map[string]strin
 		columns[item.ElementKey] = item.ColumnName
 	}
 	return columns, nil
+}
+
+// GetDataElementPositionMap returns a map of element_key → position for all active elements.
+func GetDataElementPositionMap(ctx context.Context, db DB) (map[string]int, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT element_key, position
+		FROM clinician_app.report_data_elements
+		WHERE is_active = TRUE
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	m := map[string]int{}
+	for rows.Next() {
+		var key string
+		var pos int
+		if err := rows.Scan(&key, &pos); err != nil {
+			return nil, err
+		}
+		m[key] = pos
+	}
+	return m, rows.Err()
+}
+
+// ReorderDataElements updates each element's position to match the supplied ordered ID slice.
+func ReorderDataElements(ctx context.Context, db *sql.DB, orderedIDs []int64) error {
+	if len(orderedIDs) == 0 {
+		return nil
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for i, id := range orderedIDs {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE clinician_app.report_data_elements
+			SET position = $1, updated_on = NOW()
+			WHERE id = $2
+		`, i+1, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func GetDepartmentRoleDataPoints(ctx context.Context, db DB, departmentID int64) ([]string, error) {

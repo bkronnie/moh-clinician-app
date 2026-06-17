@@ -730,7 +730,7 @@ func HandlerReportsAnalysisExport(c *gin.Context, db *sql.DB, sessionManager *sc
 		return
 	}
 
-	headers := []string{"Facility", "Department", "Employee", "Week", "Entered On", "Submitted On", "Status", "Attendance", "Patients Reviewed", "Procedures"}
+	headers := []string{"Facility", "Department", "Employee", "Week", "Entered On", "Submitted On", "Status", "Attendance", "Patients Treated", "Procedures"}
 	csvRows := [][]string{}
 	pdfLines := []string{
 		view.ScopeTitle,
@@ -761,7 +761,7 @@ func HandlerReportsAnalysisExport(c *gin.Context, db *sql.DB, sessionManager *sc
 			fmt.Sprintf("%d. %s - %s", index+1, row.EmployeeName, row.FacilityName),
 			fmt.Sprintf("   Department: %s | Week: %s", row.DepartmentName, weekLabel),
 			fmt.Sprintf("   Status: %s | Entered: %s | Submitted: %s", status, enteredOn, submittedOn),
-			fmt.Sprintf("   Attendance: %d | Patients Reviewed: %d | Procedures: %d", row.Attendance, row.PatientsReviewed, row.Procedures),
+			fmt.Sprintf("   Attendance: %d | Patients Treated: %d | Procedures: %d", row.Attendance, row.PatientsReviewed, row.Procedures),
 			"",
 		)
 	}
@@ -1728,14 +1728,14 @@ func HandlerReportsAnalysisDayStaffEntry(c *gin.Context, db *sql.DB, sessionMana
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"report_id":     0,
-			"has_report":    false,
-			"employee_id":   empID64,
-			"date":          dateStr,
-			"submit_status": "",
-			"report_status": "",
+			"report_id":      0,
+			"has_report":     false,
+			"employee_id":    empID64,
+			"date":           dateStr,
+			"submit_status":  "",
+			"report_status":  "",
 			"absence_reason": "",
-			"fields":        fields,
+			"fields":         fields,
 		})
 		return
 	}

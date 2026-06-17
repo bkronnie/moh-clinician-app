@@ -157,6 +157,8 @@ func RouteCustomization(r *gin.RouterGroup, db *sql.DB, sessionManager *scs.Sess
 		v.POST("/target/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationRoleTargetDelete(c, db, sessionManager) })
 		v.POST("/data-element/save", func(c *gin.Context) { handlers.HandlerCustomizationDataElementSave(c, db, sessionManager) })
 		v.POST("/data-element/delete/:id", func(c *gin.Context) { handlers.HandlerCustomizationDataElementDelete(c, db, sessionManager) })
+		v.POST("/data-element/reorder", func(c *gin.Context) { handlers.HandlerCustomizationDataElementReorder(c, db, sessionManager) })
+		v.POST("/dept-data-points/save", func(c *gin.Context) { handlers.HandlerCustomizationDeptDataPointsSave(c, db, sessionManager) })
 	}
 }
 

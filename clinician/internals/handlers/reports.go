@@ -1095,16 +1095,16 @@ func departmentMetricsTitle(departmentID int64, defaultName string) string {
 	}
 }
 
-// resolveClinicianEntryConfig returns the department-specific form sections
-// and a flag indicating whether the hardcoded clinical-core fields in the
-// template should be hidden (true for non-clinical departments such as
-// Pathology, Pharmacy, Radiologist, and Laboratory).
+// resolveClinicianEntryConfig returns the department-specific form sections.
+// hideCoreSection is always true — all fields (except attendance) are rendered
+// via the dynamic Sections system in position order, so the hardcoded template
+// block is never shown.
 func resolveClinicianEntryConfig(ctx context.Context, db *sql.DB, departmentID int64, labels map[string]string) (sections []ClinicianEntrySection, hideCoreSection bool) {
 	deptKeys, err := models.GetDepartmentRoleDataPoints(ctx, db, departmentID)
 	if err != nil || len(deptKeys) == 0 {
 		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
 	}
-	hideCoreSection = deptHidesCoreSection(deptKeys)
+	hideCoreSection = true
 	sections = buildClinicianEntrySections(ctx, db, departmentID, labels, hideCoreSection)
 	return
 }
@@ -1115,16 +1115,9 @@ func buildClinicianEntrySections(ctx context.Context, db *sql.DB, departmentID i
 		deptKeys = fallbackDepartmentDataPointKeys(departmentID)
 	}
 
-	// When hideCoreSection is true the template hides the hardcoded clinical-
-	// core block, so ALL dept keys (except attendance itself) must appear in
-	// the section. When false, core keys are already shown by the template and
-	// must be excluded from the section to avoid duplication.
+	// All dept keys except attendance go through the section system.
+	// The hardcoded "Core Activity" template block is always hidden.
 	skipKeys := map[string]struct{}{"attendance": {}}
-	if !hideCoreSection {
-		for _, key := range clinicianEntryCoreKeys() {
-			skipKeys[key] = struct{}{}
-		}
-	}
 
 	fields := make([]ClinicianEntryField, 0)
 	seen := map[string]struct{}{}
@@ -1147,12 +1140,28 @@ func buildClinicianEntrySections(ctx context.Context, db *sql.DB, departmentID i
 		fields = append(fields, ClinicianEntryField{Key: key, Label: label})
 	}
 
+	// Sort fields by the global element position so drag-and-drop order in
+	// the customization page is reflected in the data entry form.
+	if posMap, err := models.GetDataElementPositionMap(ctx, db); err == nil && len(posMap) > 0 {
+		sort.SliceStable(fields, func(i, j int) bool {
+			pi, oki := posMap[fields[i].Key]
+			pj, okj := posMap[fields[j].Key]
+			if !oki {
+				pi = 999999
+			}
+			if !okj {
+				pj = 999999
+			}
+			return pi < pj
+		})
+	}
+
 	if len(fields) == 0 {
 		return []ClinicianEntrySection{}
 	}
 
 	return []ClinicianEntrySection{{
-		Title:  departmentMetricsTitle(departmentID, ""),
+		Title:  "Daily Activity",
 		Fields: fields,
 	}}
 }
@@ -1265,7 +1274,7 @@ func defaultClinicianEntryLabels() map[string]string {
 	return map[string]string{
 		"attendance":         "Attendance Days (Auto)",
 		"ward_rounds":        "Ward Rounds",
-		"patients_reviewed":  "Patients Reviewed",
+		"patients_reviewed":  "Patients Treated",
 		"elective":           "Elective Procedures",
 		"emergency":          "Emergency Procedures",
 		"postmortems":        "Postmortems",

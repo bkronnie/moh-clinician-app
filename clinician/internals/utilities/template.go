@@ -64,7 +64,6 @@ var functions = template.FuncMap{
 	"navIcon":           NavIcon,
 	"isoYear":           ISOYear,
 	"isoWeek":           ISOWeek,
-	"add1":              func(i int) int { return i + 1 },
 }
 
 func ISOYear(t time.Time) int {

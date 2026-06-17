@@ -74,7 +74,6 @@
         <fieldset {{ if .Form.ReadOnly }}disabled{{ end }}>
 
         <div class="entry-section">
-            <h3>Core Activity</h3>
             <div class="entry-grid">
                 <div class="entry-field">
                     <label>Attendance Status</label>
@@ -95,44 +94,6 @@
                 </div>
                 <input id="attendance-days" type="hidden" name="input[{{ .Form.EmployeeID }}][attendance]" value="{{ index .Form.Values "attendance" }}">
                 {{ if not .Form.AttendanceOnly }}
-                {{ if not .Form.HideCoreSection }}
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "ward_rounds" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][ward_rounds]" class="form-control" value="{{ index .Form.Values "ward_rounds" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "patients_reviewed" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][patients_reviewed]" class="form-control" value="{{ index .Form.Values "patients_reviewed" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "OPD_clinics" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][OPD_clinics]" class="form-control" value="{{ index .Form.Values "OPD_clinics" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "OPD_patients" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][OPD_patients]" class="form-control" value="{{ index .Form.Values "OPD_patients" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "teaching_rounds" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][teaching_rounds]" class="form-control" value="{{ index .Form.Values "teaching_rounds" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "students_taught" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][students_taught]" class="form-control" value="{{ index .Form.Values "students_taught" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "mortality_reviews" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][mortality_reviews]" class="form-control" value="{{ index .Form.Values "mortality_reviews" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "labs_requests" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][labs_requests]" class="form-control" value="{{ index .Form.Values "labs_requests" }}">
-                </div>
-                <div class="entry-field">
-                    <label>{{ index .Form.Labels "imaging_requests" }}</label>
-                    <input type="number" min="0" name="input[{{ .Form.EmployeeID }}][imaging_requests]" class="form-control" value="{{ index .Form.Values "imaging_requests" }}">
-                </div>
-                {{ end }}
                 {{ end }}
             </div>
             {{ if not .Form.OnLeave }}

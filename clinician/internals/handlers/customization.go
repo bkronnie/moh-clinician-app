@@ -336,6 +336,48 @@ func HandlerCustomizationDataElementDelete(c *gin.Context, db *sql.DB, sessionMa
 	redirectCustomizationOK(c, tab, okMessage)
 }
 
+func HandlerCustomizationDeptDataPointsSave(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	tab := "dept-data-points"
+
+	actor, err := SES_SET(c, db, sessionManager)
+	if err != nil {
+		redirectCustomizationError(c, tab, "Unable to resolve user session")
+		return
+	}
+
+	deptID := parsePositiveInt64(c.PostForm("dept_id"))
+	if deptID <= 0 {
+		redirectCustomizationError(c, tab, "Invalid department")
+		return
+	}
+	keys := c.PostFormArray("keys")
+
+	if err := models.SaveDeptDataPoints(c.Request.Context(), db, actor.UserID, actor.EmpID, deptID, keys); err != nil {
+		redirectCustomizationError(c, tab, err.Error())
+		return
+	}
+	redirectCustomizationOK(c, tab, "Department data points updated")
+}
+
+func HandlerCustomizationDataElementReorder(c *gin.Context, db *sql.DB, sessionManager *scs.SessionManager) {
+	if _, err := SES_SET(c, db, sessionManager); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	var body struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || len(body.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := models.ReorderDataElements(c.Request.Context(), db, body.IDs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 func parsePositiveInt64(raw string) int64 {
 	v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
 	if err != nil || v < 0 {
@@ -361,7 +403,7 @@ func redirectCustomizationError(c *gin.Context, tab string, msg string) {
 func sanitizeCustomizationTab(raw string) string {
 	tab := strings.ToLower(strings.TrimSpace(raw))
 	switch tab {
-	case "facilities", "departments", "roles", "clinical-roles", "targets", "data-elements", "history":
+	case "facilities", "departments", "roles", "clinical-roles", "targets", "data-elements", "dept-data-points", "history":
 		return tab
 	default:
 		return "facilities"
